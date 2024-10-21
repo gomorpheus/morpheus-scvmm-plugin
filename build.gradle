@@ -3,6 +3,9 @@ buildscript {
         mavenLocal()
         mavenCentral()
         maven { url "https://plugins.gradle.org/m2/" }
+		maven { url "https://nexus.bertramlabs.com/content/repositories/snapshots" }
+		maven { url "https://nexus.bertramlabs.com/content/repositories/releases" }
+		maven { url "https://nexus.bertramlabs.com/content/repositories/publicReleases" }
     }
     dependencies {
         classpath "com.github.johnrengelman:shadow:8.1.1"
@@ -31,6 +34,9 @@ java {
 repositories {
 	mavenLocal()
 	mavenCentral()
+	maven { url "https://nexus.bertramlabs.com/content/repositories/snapshots" }
+	maven { url "https://nexus.bertramlabs.com/content/repositories/releases" }
+	maven { url "https://nexus.bertramlabs.com/content/repositories/publicReleases" }
 }
 
 configurations {
