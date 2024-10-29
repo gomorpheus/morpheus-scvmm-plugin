@@ -1,7 +1,9 @@
 package com.morpheus.scvmm
 
 import com.morpheusdata.core.MorpheusContext
+import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.core.util.ComputeUtility
+import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.KeyPair
 import groovy.json.JsonOutput
@@ -2447,19 +2449,19 @@ For (\$i=0; \$i -le 10; \$i++) {
         rtn
     }
 
-    def getScvmmZoneOpts(zone, controllerServer, scvmmProvisionService) {
-        def zoneConfig = zone.getConfigMap()
-		def keyPair = AccountKeyPair.findByAccount(zone.account)
-        return [account                : zone.account,
-                zoneConfig             : zoneConfig,
-                zone                   : zone,
-                zoneId                 : zone?.id,
+    def getScvmmZoneOpts(MorpheusContext context, Cloud cloud) {
+        def cloudConfig = cloud.getConfigMap()
+        def keyPair = context.services.keyPair.find(new DataQuery().withFilter("accountId", cloud?.account?.id))
+        return [account                : cloud.account,
+                zoneConfig             : cloudConfig,
+                zone                   : cloud,
+                zoneId                 : cloud?.id,
                 publicKey              : keyPair?.publicKey,
                 privateKey             : keyPair?.privateKey,
-                controllerServer       : controllerServer,
-                rootSharePath          : zoneConfig['libraryShare'],
-                regionCode             : zone.regionCode,
-                baseBoxProvisionService: scvmmProvisionService]
+                //controllerServer       : controllerServer,
+                rootSharePath          : cloudConfig['libraryShare'],
+                regionCode             : cloud.regionCode]
+                //baseBoxProvisionService: scvmmProvisionService]
     }
 
     def getScvmmControllerOpts(zone, hypervisor) {
