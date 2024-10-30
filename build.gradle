@@ -9,7 +9,8 @@ buildscript {
     }
     dependencies {
         classpath "com.github.johnrengelman:shadow:8.1.1"
-        classpath "com.morpheusdata:morpheus-plugin-gradle:$morpheusApiVersion"
+//        classpath "com.morpheusdata:morpheus-plugin-gradle:$morpheusApiVersion"
+		classpath "com.morpheusdata:morpheus-plugin-gradle:$morpheusGradleVersion"
         classpath "com.bertramlabs.plugins:asset-pipeline-gradle:$assetPipelineVersion"
     }
 }
@@ -51,6 +52,9 @@ dependencies {
 	implementation "org.slf4j:slf4j-api:$slf4jVersion"
 	implementation "org.slf4j:slf4j-parent:$slf4jVersion"
 	implementation 'commons-net:commons-net:3.6'
+	implementation("com.bertramlabs.plugins:karman-core:${karmanVersion}") {
+		exclude module: 'groovy-all'
+	}
 
 	// Include morpheus-core and it's dependencies
 	testImplementation 'io.reactivex.rxjava3:rxjava:3.1.7'
