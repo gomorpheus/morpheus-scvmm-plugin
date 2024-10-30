@@ -2,35 +2,28 @@ package com.morpheus.scvmm
 
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
+import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.core.providers.CloudProvider
 import com.morpheusdata.core.providers.ProvisionProvider
-import com.morpheusdata.model.BackupProvider
-import com.morpheusdata.model.Cloud
-import com.morpheusdata.model.CloudFolder
-import com.morpheusdata.model.CloudPool
-import com.morpheusdata.model.ComputeServer
-import com.morpheusdata.model.ComputeServerType
-import com.morpheusdata.model.Datastore
-import com.morpheusdata.model.Icon
-import com.morpheusdata.model.Network
-import com.morpheusdata.model.NetworkSubnetType
-import com.morpheusdata.model.NetworkType
-import com.morpheusdata.model.OptionType
-import com.morpheusdata.model.StorageControllerType
-import com.morpheusdata.model.StorageVolumeType
+import com.morpheusdata.core.util.MorpheusUtils
+import com.morpheusdata.model.*
 import com.morpheusdata.request.ValidateCloudRequest
 import com.morpheusdata.response.ServiceResponse
+import groovy.util.logging.Slf4j
 
+@Slf4j
 class ScvmmCloudProvider implements CloudProvider {
 	public static final String CLOUD_PROVIDER_CODE = 'morpheus-scvmm-plugin.cloud'
 
 	protected MorpheusContext context
-	protected Plugin plugin
+	protected ScvmmPlugin plugin
+	ScvmmApiService apiService
 
-	public ScvmmCloudProvider(Plugin plugin, MorpheusContext ctx) {
+	public ScvmmCloudProvider(ScvmmPlugin plugin, MorpheusContext context) {
 		super()
 		this.@plugin = plugin
-		this.@context = ctx
+		this.@context = context
+		this.apiService = new ScvmmApiService(context)
 	}
 
 	/**
@@ -154,7 +147,53 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	ServiceResponse validate(Cloud cloudInfo, ValidateCloudRequest validateCloudRequest) {
-		return ServiceResponse.success()
+		log.debug("validate cloud: {}", cloudInfo)
+		def rtn = [success: false, zone: cloudInfo, errors: [:]]
+		try {
+			if (rtn.zone) {
+				def requiredFields = ['host', 'workingPath', 'diskPath', 'libraryShare']
+				def scvmmOpts = apiService.getScvmmZoneOpts(context, cloudInfo)
+				def zoneConfig = cloudInfo.getConfigMap()
+				rtn.errors = validateRequiredConfigFields(requiredFields, zoneConfig)
+				// Verify that a shared controller is selected if we already have an scvmm zone pointed to this host (MUST SHARE THE CONTROLLER)
+				def validateControllerResults = validateSharedController(cloudInfo)
+				if (!validateControllerResults.success) {
+					rtn.errors['sharedController'] = validateControllerResults.msg ?: 'You must specify a shared controller'
+				}
+				if (!validateCloudRequest?.credentialUsername) {
+					rtn.msg = 'Enter a username'
+					rtn.errors.username = 'Enter a username'
+				} else if (!validateCloudRequest?.credentialPassword) {
+					rtn.msg = 'Enter a password'
+					rtn.errors.password = 'Enter a password'
+				}
+				if (rtn.errors.size() == 0) {
+					//set install agent
+					def installAgent = MorpheusUtils.parseBooleanConfig(zoneConfig.installAgent)
+					cloudInfo.setConfigProperty('installAgent', installAgent)
+					//build opts
+					scvmmOpts += [
+							hypervisor : [:],
+							sshHost    : zoneConfig.host,
+							sshUsername: validateCloudRequest?.credentialUsername,
+							sshPassword: validateCloudRequest?.credentialPassword,
+							zoneRoot   : zoneConfig.workingPath,
+							diskRoot   : zoneConfig.diskPath
+					]
+					def vmSitches = apiService.listClouds(scvmmOpts)
+					log.debug("vmSitches: ${vmSitches}")
+					if (vmSitches.success == true)
+						rtn.success = true
+					if (rtn.success == false)
+						rtn.msg = 'Error connecting to scvmm'
+				}
+			} else {
+				rtn.message = 'No zone found'
+			}
+		} catch (e) {
+			log.error("An Exception Has Occurred", e)
+		}
+		return ServiceResponse.create(rtn)
 	}
 
 	/**
@@ -355,5 +394,52 @@ class ScvmmCloudProvider implements CloudProvider {
 	@Override
 	String getName() {
 		return 'SCVMM'
+	}
+
+	def validateRequiredConfigFields(fieldArray, config) {
+		def errors = [:]
+		fieldArray.each { field ->
+			if (config[field] != null && config[field]?.size() == 0) {
+				def display = field.replaceAll(/([A-Z])/, / $1/).toLowerCase()
+				errors[field] = "Enter a ${display}"
+			}
+		}
+		return errors
+	}
+
+	def validateSharedController(Cloud cloud) {
+		log.debug "validateSharedController: ${cloud}"
+		def rtn = [success: true]
+
+		def sharedControllerId = cloud.getConfigProperty('sharedController')
+		if (!sharedControllerId) {
+			if (cloud.id) {
+				def existingControllerInZone = context.services.computeServer.find(new DataQuery()
+						.withFilter('computeServerType.code', 'scvmmController')
+						.withFilter('zone.id', cloud.id.toLong()))
+				if (existingControllerInZone) {
+					rtn.success = true
+					return rtn
+				}
+			}
+			def existingController = context.services.computeServer.find(new DataQuery()
+					.withFilter('enabled', true)
+					.withFilter('account.id', cloud.account.id)
+					.withFilter('computeServerType.code', 'scvmmController')
+					.withFilter('externalIp', cloud.getConfigProperty('host')))
+			if (existingController) {
+				log.debug "Found another controller: ${existingController.id} in zone: ${existingController.cloud} that should be used"
+				rtn.success = false
+				rtn.msg = 'You must specify a shared controller'
+			}
+		} else {
+			// Verify that the controller selected has the same Host ip as defined in the cloud
+			def sharedController = context.services.computeServer.get(sharedControllerId?.toLong())
+			if (sharedController?.externalIp != cloud.getConfigProperty('host')) {
+				rtn.success = false
+				rtn.msg = 'The selected controller is on a different host than specified for this cloud'
+			}
+		}
+		return rtn
 	}
 }
