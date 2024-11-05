@@ -27,10 +27,12 @@ class ScvmmPlugin extends Plugin {
     @Override
     void initialize() {
         this.setName("SCVMM")
-        this.registerProvider(new ScvmmCloudProvider(this,this.morpheus))
-        this.registerProvider(new ScvmmProvisionProvider(this,this.morpheus))
-        this.registerProvider(new ScvmmBackupProvider(this,this.morpheus))
-		
+        this.registerProviders(
+                new ScvmmCloudProvider(this,this.morpheus),
+                new ScvmmProvisionProvider(this,this.morpheus),
+                new ScvmmBackupProvider(this,this.morpheus),
+                new ScvmmOptionSourceProvider(this, this.morpheus)
+        )
     }
 
     /**
