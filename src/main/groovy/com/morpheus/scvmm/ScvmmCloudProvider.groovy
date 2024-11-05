@@ -145,6 +145,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmCloud',
 				fieldContext:'zone',
+				dependsOn: "config.scvmmHost, config.username, config.apiKey, credential.type, credential.username, credential.password"
 //				code:'zoneType.scvmm.cloud', type:'select', name:'Cloud', category:'zoneType.scvmm', optionSourceType:'scvmm',
 //				fieldName:'regionCode', fieldCode: 'gomorpheus.optiontype.Cloud', fieldLabel:'Cloud', fieldContext:'zone', fieldSet:'', fieldGroup:'Connection Config', required:false, enabled:true,
 //				editable:false, global:false, optionSource: 'scvmmCloud', placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:8,

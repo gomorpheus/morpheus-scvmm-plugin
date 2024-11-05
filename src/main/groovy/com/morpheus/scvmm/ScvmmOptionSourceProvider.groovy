@@ -68,6 +68,7 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	}
 
 	def scvmmCloud(params) {
+		params = params instanceof Object[] ? params.getAt(0) : params
 		//log.debug params
         log.info("RAZI :: scvmmCloud >> params: ${params}")
 		log.info("RAZI :: scvmmCloud >> params.config: ${params.config}")
@@ -88,10 +89,10 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 			config.password = password
 			log.info("RAZI :: scvmmCloud >> else >> config.password: ${config.password}")
 		}
-		def zoneId = params?.size() > 0 ? params.getAt(0).zoneId?.toLong() : null
-		def host = params?.size() > 0 ? params.getAt(0).scvmmHost : null
-		def username = params?.size() > 0 ? params.getAt(0).username : null
-		def password1 = params?.size() > 0 ? params.getAt(0).password : null
+		def zoneId = params.zoneId?.toLong()
+		def host = params?.scvmmHost
+		def username = params?.username
+		def password1 = params?.password
 		log.info("RAZI :: zoneId: ${zoneId}")
 		log.info("RAZI :: host: ${host}")
 		log.info("RAZI :: username: ${username}")
@@ -104,10 +105,12 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 //		zone.credentialData = credentialService.loadCredentialConfig(params.credential, config).data
 		log.info("RAZI :: scvmmCloud >> params.credential: ${params.credential}")
 		log.info("RAZI :: scvmmCloud >> config1: ${config}")
-		def accountCredential = morpheusContext.services.accountCredential.loadCredentialConfig(params.credential, config)
-		log.info("RAZI :: scvmmCloud >> accountCredential: ${accountCredential}")
-		cloud.accountCredentialLoaded = true
-		cloud.accountCredentialData = accountCredential?.data
+		if(params.credential) {
+			def accountCredential = morpheusContext.services.accountCredential.loadCredentialConfig(params.credential, config)
+			log.info("RAZI :: scvmmCloud >> accountCredential: ${accountCredential}")
+			cloud.accountCredentialLoaded = true
+			cloud.accountCredentialData = accountCredential?.data
+		}
 //		def proxy = params.config?.apiProxy ? NetworkProxy.get(params.config.long('apiProxy')) : null
 		def proxy = params.config?.apiProxy ? morpheusContext.services.network.networkProxy.get(params.config.long('apiProxy')) : null
 		cloud.apiProxy = proxy
@@ -119,6 +122,7 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	}
 
 	def scvmmHostGroup(params) {
+		params = params instanceof Object[] ? params.getAt(0) : params
 		log.debug("scvmmHostGroup: {}", params)
 		def config = [
 				host      : params.config?.host ?: params["config[host]"],
@@ -144,9 +148,12 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 //		zone.credentialLoaded = true
 		log.info("RAZI :: scvmmHostGroup >> params.credential: ${params.credential}")
 		log.info("RAZI :: scvmmHostGroup >> config1: ${config}")
-		cloud.accountCredentialData = morpheusContext.async.accountCredential.loadCredentialConfig(params.credential, config).blockingGet()
-		log.info("RAZI :: scvmmHostGroup >> cloud.accountCredentialData: ${cloud.accountCredentialData}")
-		cloud.accountCredentialLoaded = true
+		if(params.credential) {
+
+			cloud.accountCredentialData = morpheusContext.async.accountCredential.loadCredentialConfig(params.credential, config).blockingGet()
+			log.info("RAZI :: scvmmHostGroup >> cloud.accountCredentialData: ${cloud.accountCredentialData}")
+			cloud.accountCredentialLoaded = true
+		}
 //		def proxy = params.config?.apiProxy ? NetworkProxy.get(params.config.long('apiProxy')) : null
 		def proxy = params.config?.apiProxy ? morpheusContext.services.network.networkProxy.get(params.config.long('apiProxy')) : null
 		cloud.apiProxy = proxy
@@ -158,6 +165,7 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	}
 
 	def scvmmCluster(params) {
+		params = params instanceof Object[] ? params.getAt(0) : params
 		log.debug "scvmmCluster: ${params}"
 		def config = [
 				host      : params.config?.host ?: params["config[host]"],
@@ -199,6 +207,7 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	}
 
 	def scvmmLibraryShares(params) {
+		params = params instanceof Object[] ? params.getAt(0) : params
 		log.debug "scvmmLibraryShares: ${params}"
 		def config = [
 				host      : params.config?.host ?: params["config[host]"],
@@ -235,35 +244,40 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	}
 
 	def scvmmSharedControllers(params) {
+		params = params instanceof Object[] ? params.getAt(0) : params
+
 		log.debug("scvmmSharedControllers: {}", params)
 
 //		def accountId = params.accountId?.toLong()
 //		def zone = ComputeZone.get(params.zoneId?.toLong())
 		log.info("RAZI :: scvmmSharedControllers >> params.zoneId?.toLong(): ${params.zoneId?.toLong()}")
 		def cloud = morpheusContext.services.cloud.get(params.zoneId?.toLong())
-		log.info("RAZI :: scvmmSharedControllers >> cloud.id: ${cloud.id}")
+		log.info("RAZI :: scvmmSharedControllers >> cloud.id: ${cloud?.id}")
 //		def type = ComputeServerType.where { code == 'scvmmController'}.get([cache:true])
 //		def type = new ComputeServerType(code: 'scvmmController')
 //		def existingController = ComputeServer.where { computeServerType == type && zone == zone }.get()
-		def existingController = morpheusContext.services.computeServer.find(new DataQuery()
-				.withFilter('computeServerType.code', 'scvmmController')
-				.withFilter('cloud.id', cloud.id))
-		/*def sharedControllers = ComputeServer.withCriteria {
-			createAlias('account','account')
+		def sharedControllers = []
+		if(cloud) {
+			def existingController = morpheusContext.services.computeServer.find(new DataQuery()
+					.withFilter('computeServerType.code', 'scvmmController')
+					.withFilter('cloud.id', cloud.id))
+			/*def sharedControllers = ComputeServer.withCriteria {
+				createAlias('account','account')
+				if(existingController) {
+					ne('id', existingController.id)
+				}
+				eq('enabled', true)
+				eq('computeServerType', type)
+				order('name')
+			}*/
+			def query = new DataQuery()
+					.withFilter('enabled', true)
+					.withFilter('computeServerType.code', 'scvmmController')
 			if(existingController) {
-				ne('id', existingController.id)
+				query.withFilter('id', '!=', existingController.id)
 			}
-			eq('enabled', true)
-			eq('computeServerType', type)
-			order('name')
-		}*/
-		def query = new DataQuery()
-				.withFilter('enabled', true)
-				.withFilter('computeServerType.code', 'scvmmController')
-		if(existingController) {
-			query.withFilter('id', '!=', existingController.id)
+			sharedControllers = morpheusContext.services.computeServer.find(query)
 		}
-		def sharedControllers = morpheusContext.services.computeServer.find(query)
 		log.info("RAZI :: scvmmSharedControllers >> sharedControllers: ${sharedControllers}")
 		return sharedControllers?.collect{[name: it.name, value: it.id]}
 	}
