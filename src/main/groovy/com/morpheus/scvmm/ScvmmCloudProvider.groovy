@@ -2,6 +2,8 @@ package com.morpheus.scvmm
 
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
+import com.morpheusdata.core.data.DataFilter
+import com.morpheusdata.core.data.DataOrFilter
 import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.core.providers.CloudProvider
 import com.morpheusdata.core.providers.ProvisionProvider
@@ -439,6 +441,52 @@ class ScvmmCloudProvider implements CloudProvider {
 				rtn.success = false
 				rtn.msg = 'The selected controller is on a different host than specified for this cloud'
 			}
+		}
+		return rtn
+	}
+
+	def initializeHypervisor(cloud) {
+		def rtn = [success: false]
+		log.debug("cloud: ${cloud}")
+		ComputeServer newServer
+		def opts = apiService.getScvmmInitializationOpts(cloud)
+		def serverInfo = apiService.getScvmmServerInfo(opts)
+		if (serverInfo.success == true && serverInfo.hostname) {
+			def cloudConfig = cloud.getConfigMap()
+			newServer = context.services.computeServer.find(new DataQuery().withFilters(
+					new DataFilter('zone.id', cloud.id),
+					new DataOrFilter(
+							new DataFilter('hostname', serverInfo.hostname),
+							new DataFilter('name', serverInfo.hostname)
+					)
+			))
+			def serverType = context.async.cloud.findComputeServerTypeByCode("scvmmController").blockingGet()
+			if(!newServer) {
+				newServer = new ComputeServer()
+				newServer.account = cloud.account
+				newServer.cloud = cloud
+				newServer.computeServerType = serverType
+				newServer.serverOs = new OsType(code: 'windows.server.2012')
+				newServer.name = serverInfo.hostname
+			}
+			if (serverInfo.hostname) {
+				newServer.hostname = serverInfo.hostname
+			}
+			newServer.sshHost = cloud.getConfigProperty('host') //check:
+			newServer.internalIp = newServer.sshHost
+			newServer.externalIp = newServer.sshHost
+			newServer.sshUsername = apiService.getUsername(cloud)
+			newServer.sshPassword = apiService.getPassword(cloud)
+			newServer.setConfigProperty('workingPath', cloud.getConfigProperty('workingPath'))
+			newServer.setConfigProperty('diskPath', cloud.getConfigProperty('diskPath'))
+			//check: port is missing
+		}
+		// initializeHypervisor from context
+		log.debug("newServer: ${newServer}")
+		context.services.computeServer.save(newServer)
+		if (newServer) {
+			context.async.hypervisorService.initialize(newServer)
+			rtn.success = true
 		}
 		return rtn
 	}
