@@ -926,7 +926,7 @@ foreach (\$FileShare in \$FileShares){
             def command = generateCommandString("Get-SCLogicalNetwork -VMMServer localhost | Select ID,Name")
             def out = wrapExecuteCommand(command, opts)
             log.debug("listNetworks: ${out}")
-            if (out.success && out.exitValue == 0 && out.data?.size() > 0) {
+            if (out.success && out.exitCode == '0' && out.data?.size() > 0) {
                 def logicalNetworks = out.data
                 command = generateCommandString("""\$report = @()
 \$networks = Get-SCVMNetwork -VMMServer localhost | Select ID,Name,LogicalNetwork | Sort-Object -Property ID | Select-Object -First 1
@@ -950,7 +950,7 @@ foreach (\$network in \$networks) {
                         }
                     }
                 } else {
-                    if (out.exitValue != 0) {
+                    if (out.exitCode != '0') {
                         log.info "Fetch of networks resulted in non-zero exit value: ${out}"
                     }
                 }
@@ -2476,8 +2476,8 @@ For (\$i=0; \$i -le 10; \$i++) {
                 sshPassword: hypervisor.sshPassword, zoneRoot: zoneRoot, diskRoot: diskRoot]
     }
 
-    def getScvmmZoneAndHypervisorOpts(zone, hypervisor, scvmmProvisionService) {
-        getScvmmZoneOpts(zone, hypervisor, scvmmProvisionService) + getScvmmControllerOpts(zone, hypervisor)
+    def getScvmmZoneAndHypervisorOpts(context, zone, hypervisor) {
+        getScvmmZoneOpts(context, zone) + getScvmmControllerOpts(zone, hypervisor)
     }
 
     def wrapExecuteCommand(String command, Map opts = [:]) {
