@@ -240,7 +240,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				if (hostOnline) {
 					def checkResults = checkCommunication(cloudInfo, scvmmController)
 					if (checkResults.success == true) {
-						//removeOrphanedResourceLibraryItems([zone:zone], scvmmController)
+						removeOrphanedResourceLibraryItems(cloudInfo, scvmmController)
 					}
 				}
 			}
