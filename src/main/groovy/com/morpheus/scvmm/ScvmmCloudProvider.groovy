@@ -515,4 +515,16 @@ class ScvmmCloudProvider implements CloudProvider {
 		}
 		return rtn
 	}
+
+	def removeOrphanedResourceLibraryItems(opts, node) {
+		log.debug("removeOrphanedResourceLibraryItems: {} {}", opts, node)
+		def rtn = [success:false]
+		try {
+			def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, opts.zone, node)
+			apiService.removeOrphanedResourceLibraryItems(scvmmOpts)
+		} catch(e) {
+			log.error("removeOrphanedResourceLibraryItems error:${e}", e)
+		}
+		return rtn
+	}
 }
