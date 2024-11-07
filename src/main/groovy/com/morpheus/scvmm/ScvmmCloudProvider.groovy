@@ -443,11 +443,11 @@ class ScvmmCloudProvider implements CloudProvider {
 		return rtn
 	}
 
-	def removeOrphanedResourceLibraryItems(opts, node) {
-		log.debug("removeOrphanedResourceLibraryItems: {} {}", opts, node)
+	def removeOrphanedResourceLibraryItems(cloud, node) {
+		log.debug("removeOrphanedResourceLibraryItems: {} {}", cloud, node)
 		def rtn = [success:false]
 		try {
-			def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, opts.zone, node)
+			def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloud, node)
 			apiService.removeOrphanedResourceLibraryItems(scvmmOpts)
 		} catch(e) {
 			log.error("removeOrphanedResourceLibraryItems error:${e}", e)
