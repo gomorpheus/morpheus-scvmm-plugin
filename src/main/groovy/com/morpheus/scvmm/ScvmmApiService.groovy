@@ -2476,8 +2476,8 @@ For (\$i=0; \$i -le 10; \$i++) {
                 sshPassword: hypervisor.sshPassword, zoneRoot: zoneRoot, diskRoot: diskRoot]
     }
 
-    def getScvmmZoneAndHypervisorOpts(zone, hypervisor, scvmmProvisionService) {
-        getScvmmZoneOpts(zone, hypervisor, scvmmProvisionService) + getScvmmControllerOpts(zone, hypervisor)
+    def getScvmmZoneAndHypervisorOpts(context, zone, hypervisor) {
+        getScvmmZoneOpts(context, zone) + getScvmmControllerOpts(zone, hypervisor)
     }
 
     def wrapExecuteCommand(String command, Map opts = [:]) {
