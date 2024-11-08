@@ -20,7 +20,15 @@ class ScvmmApiService {
     static defaultRoot = 'C:\\morpheus'
 
     def executeCommand(command, opts) {
-        def output = morpheusContext.executeWindowsCommand(opts.sshHost, opts.sshPort?.toInteger(), opts.sshUsername, opts.sshPassword, command, null, false).blockingGet()
+        log.info("RAZI :: executeCommand >> opts: ${opts}")
+        log.info("RAZI :: executeCommand >> opts.sshPort: ${opts.sshPort}")
+//        opts.sshPort = 5985
+        def winrmPort = opts.sshPort && opts.sshPort != 22 ? opts.sshPort : 5985
+        log.info("RAZI :: executeCommand >> opts.sshHost: ${opts.sshHost}")
+        log.info("RAZI :: executeCommand >> opts.sshPort?.toInteger(): ${opts.sshPort?.toInteger()}")
+        log.info("RAZI :: executeCommand >> opts.sshUsername: ${opts.sshUsername}")
+        log.info("RAZI :: executeCommand >> opts.sshPassword: ${opts.sshPassword}")
+        def output = morpheusContext.executeWindowsCommand(opts.sshHost, winrmPort?.toInteger(), opts.sshUsername, opts.sshPassword, command, null, false).blockingGet()
         return output
     }
 
@@ -408,9 +416,12 @@ if(\$cloud) {
     }
 
     def listClouds(opts) {
+        log.info("RAZI :: listClouds >> opts: ${opts}")
         def rtn = [success: false, clouds: []]
         def command = generateCommandString('Get-SCCloud -VMMServer localhost | Select ID, Name')
+        log.info("RAZI :: listClouds >> command: ${command}")
         def out = wrapExecuteCommand(command, opts)
+        log.info("RAZI :: listClouds >> out.success: ${out.success}")
         if (out.success) {
             rtn.clouds = out.data
             rtn.success = true
@@ -614,6 +625,7 @@ foreach (\$VHDconf in \$Disks) {
     }
 
     def listClusters(Map opts) {
+        log.info("RAZI :: listClusters >> opts: ${opts}")
         def rtn = [success: false, clusters: []]
         def commandStr = """\$report = @()
 		\$Clusters = Get-SCVMHostCluster -VMMServer localhost
@@ -629,11 +641,16 @@ foreach (\$VHDconf in \$Disks) {
 		}
 		\$report """
         def command = generateCommandString(commandStr)
+        log.info("RAZI :: listClusters >> command: ${command}")
         def out = wrapExecuteCommand(command, opts)
+        log.info("RAZI :: listClusters >> out.success: ${out.success}")
+        log.info("RAZI :: listClusters >> out.data: ${out.data}")
         if (out.success) {
             rtn.clusters = out.data
 
             // Scope it down to the HostGroup for the zone (or ALL)
+            log.info("RAZI :: listClusters >> opts.zone: ${opts.zone}")
+            log.info("RAZI :: listClusters >> opts.zone.getConfigProperty('hostGroup'): ${opts.zone.getConfigProperty('hostGroup')}")
             def clusterScope = opts.zone.getConfigProperty('hostGroup')
             if (clusterScope) {
                 rtn.clusters = rtn.clusters?.findAll { it.hostGroup?.startsWith(clusterScope) }
@@ -653,6 +670,8 @@ foreach (\$VHDconf in \$Disks) {
 
         def command = generateCommandString(commandStr)
         def out = wrapExecuteCommand(command, opts)
+        log.info("RAZI :: internalListHostGroups >> out.success: ${out.success}")
+        log.info("RAZI :: internalListHostGroups >> out.data: ${out.data}")
         if (out.success) {
             rtn.hostGroups = out.data
             rtn.success = true
@@ -661,6 +680,7 @@ foreach (\$VHDconf in \$Disks) {
     }
 
     def listLibraryShares(Map opts) {
+        log.info("RAZI :: listLibraryShares >> opts: ${opts}")
         def rtn = [success: false, libraryShares: []]
         def command = """\$report = @()
 \$shares = Get-SCLibraryShare -VMMServer localhost 
@@ -674,7 +694,10 @@ foreach(\$share in \$shares) {
 }
 \$report"""
 
+        log.info("RAZI :: listLibraryShares >> generateCommandString(command): ${generateCommandString(command)}")
         def out = wrapExecuteCommand(generateCommandString(command), opts)
+        log.info("RAZI :: listLibraryShares >> out.success: ${out.success}")
+        log.info("RAZI :: listLibraryShares >> out.data: ${out.data}")
         if (out.success) {
             rtn.libraryShares = out.data
             rtn.success = true
@@ -683,7 +706,10 @@ foreach(\$share in \$shares) {
     }
 
     def listHostGroups(opts) {
+        log.info("RAZI :: listHostGroups >> opts: ${opts}")
         def rtn = [success: false, hostGroups: []]
+        log.info("RAZI :: listHostGroups >> opts.zone: ${opts.zone}")
+        log.info("RAZI :: listHostGroups >> opts.zone.regionCode: ${opts.zone.regionCode}")
         if (opts.zone.regionCode) {
             def commandStr = """\$report = @()
 \$clouds = Get-SCCloud -VMMServer localhost
@@ -696,13 +722,17 @@ foreach (\$cloud in \$clouds) {
 }
 \$report"""
             def command = generateCommandString(commandStr)
+            log.info("RAZI :: listHostGroups >> command: ${command}")
             def out = wrapExecuteCommand(command, opts)
+            log.info("RAZI :: listHostGroups >> out.success: ${out.success}")
+            log.info("RAZI :: listHostGroups >> out.data: ${out.data}")
             log.debug("out: ${out.data}")
             if (out.success) {
                 def clouds = out.data
                 def cloud = clouds?.find { it.ID == opts.zone?.regionCode }
                 def cloudHostGroupPaths = cloud?.HostGroup
                 def hostGroups = internalListHostGroups(opts)?.hostGroups
+                log.info("RAZI :: listHostGroups >> hostGroups: ${hostGroups}")
                 rtn.hostGroups = hostGroups?.findAll { hg ->
                     def foundMatch = false
                     def currentPath = hg.path
@@ -713,11 +743,13 @@ foreach (\$cloud in \$clouds) {
                     }
                     return foundMatch
                 }
+                log.info("RAZI :: listHostGroups >> rtn.hostGroups1: ${rtn.hostGroups}")
                 rtn.success = true
             }
         } else {
             def hostGroupsResult = internalListHostGroups(opts)
             rtn.hostGroups = hostGroupsResult?.hostGroups
+            log.info("RAZI :: listHostGroups >> rtn.hostGroups2: ${rtn.hostGroups}")
             rtn.success = hostGroupsResult.success
         }
 
@@ -2452,15 +2484,17 @@ For (\$i=0; \$i -le 10; \$i++) {
     def getScvmmZoneOpts(MorpheusContext context, Cloud cloud) {
         def cloudConfig = cloud.getConfigMap()
         def keyPair = context.services.keyPair.find(new DataQuery().withFilter("accountId", cloud?.account?.id))
-        return [account                : cloud.account,
-                zoneConfig             : cloudConfig,
-                zone                   : cloud,
-                zoneId                 : cloud?.id,
-                publicKey              : keyPair?.publicKey,
-                privateKey             : keyPair?.privateKey,
-                //controllerServer       : controllerServer,
-                rootSharePath          : cloudConfig['libraryShare'],
-                regionCode             : cloud.regionCode]
+        return [
+            account                : cloud.account,
+            zoneConfig             : cloudConfig,
+            zone                   : cloud,
+            zoneId                 : cloud?.id,
+            publicKey              : keyPair?.publicKey,
+            privateKey             : keyPair?.privateKey,
+            //controllerServer       : controllerServer,
+            rootSharePath          : cloudConfig['libraryShare'],
+            regionCode             : cloud.regionCode
+        ]
                 //baseBoxProvisionService: scvmmProvisionService]
     }
 
@@ -2481,7 +2515,10 @@ For (\$i=0; \$i -le 10; \$i++) {
     }
 
     def wrapExecuteCommand(String command, Map opts = [:]) {
+        log.info("RAZI :: wrapExecuteCommand >> opts: ${opts}")
         def out = executeCommand(command, opts)
+        log.info("RAZI :: wrapExecuteCommand >> out.success: ${out.success}")
+        log.info("RAZI :: wrapExecuteCommand >> out.data: ${out.data}")
         if (out.data) {
             def payload = out.data
             if (!out.data.startsWith('[')) {

@@ -145,7 +145,8 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmCloud',
 				fieldContext:'zone',
-				dependsOn: "config.scvmmHost, config.username, config.apiKey, credential.type, credential.username, credential.password"
+//				dependsOn: "config.scvmmHost, config.username, config.apiKey, credential.type, credential.username, credential.password"
+				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
 //				code:'zoneType.scvmm.cloud', type:'select', name:'Cloud', category:'zoneType.scvmm', optionSourceType:'scvmm',
 //				fieldName:'regionCode', fieldCode: 'gomorpheus.optiontype.Cloud', fieldLabel:'Cloud', fieldContext:'zone', fieldSet:'', fieldGroup:'Connection Config', required:false, enabled:true,
 //				editable:false, global:false, optionSource: 'scvmmCloud', placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:8,
@@ -160,11 +161,12 @@ class ScvmmCloudProvider implements CloudProvider {
 				displayOrder: displayOrder += 10,
 				fieldCode: 'gomorpheus.optiontype.HostGroup',
 				fieldLabel:'Host Group',
-				required: true,
+//				required: true,
 				editable:false,
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmHostGroup',
 				fieldContext:'zone',
+				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
 //				code:'zoneType.scvmm.hostGroup', type:'select', name:'Host Group', category:'zoneType.scvmm', optionSourceType:'scvmm',
 //				fieldName:'hostGroup', fieldCode: 'gomorpheus.optiontype.HostGroup', fieldLabel:'Host Group', fieldContext:'zone', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true,
 //				editable:false, global:false, optionSource: 'scvmmHostGroup', placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:9,
@@ -179,11 +181,12 @@ class ScvmmCloudProvider implements CloudProvider {
 				displayOrder: displayOrder += 10,
 				fieldCode: 'gomorpheus.optiontype.Cluster',
 				fieldLabel:'Cluster',
-				required: true,
+//				required: true,
 				editable:false,
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmCluster',
 				fieldContext:'zone',
+//				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
 //				code:'zoneType.scvmm.Cluster', type:'select', name:'Clust', category:'zoneType.scvmm', optionSourceType:'scvmm',
 //			fieldName:'cluster', fieldCode: 'gomorpheus.optiontype.Cluster', fieldLabel:'Cluster', fieldContext:'zone', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true, editable:false, global:false, optionSource: 'scvmmCluster',
 //			placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:10, fieldClass:null, fieldSize:15
@@ -197,11 +200,12 @@ class ScvmmCloudProvider implements CloudProvider {
 				displayOrder: displayOrder += 10,
 				fieldCode: 'gomorpheus.optiontype.LibraryShare',
 				fieldLabel:'Library Share',
-				required: true,
+//				required: true,
 				editable:false,
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmLibraryShares',
 				fieldContext:'zone',
+//				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
 //				code:'zoneType.scvmm.libraryShare', type:'select', name:'Library Share', category:'zoneType.scvmm', optionSourceType:'scvmm',
 //			fieldName:'libraryShare', fieldCode: 'gomorpheus.optiontype.LibraryShare', fieldLabel:'Library Share', fieldContext:'zone', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true, editable:false, global:false, optionSource: 'scvmmLibraryShares',
 //			placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:11, fieldClass:null, fieldSize:15
