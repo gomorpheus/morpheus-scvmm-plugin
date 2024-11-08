@@ -69,16 +69,13 @@ class ScvmmCloudProvider implements CloudProvider {
 				name: 'SCVMM Host',
 				category:'zoneType.scvmm',
 				code: 'zoneType.scvmm.scvmmHost',
-				fieldName: 'scvmmHost',
+				fieldName: 'host',
 				displayOrder: displayOrder,
 				fieldCode: 'gomorpheus.optiontype.scvmmHost',
 				fieldLabel:'SCVMM Host',
 				required: true,
 				inputType: OptionType.InputType.TEXT,
 				fieldContext:'config',
-//				code:'zoneType.scvmm.host', type:'text', name:'Host', category:'zoneType.scvmm',
-//				fieldName:'host', fieldCode: 'gomorpheus.optiontype.Host', fieldLabel:'Host', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true,
-//				editable:false, global:false, placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:1, fieldClass:null, fieldSize:15
 		)
 		options << new OptionType(
 				name: 'Credentials',
@@ -94,9 +91,6 @@ class ScvmmCloudProvider implements CloudProvider {
 				fieldContext: 'credential',
 				optionSource:'credentials',
 				config: '{"credentialTypes":["username-password"]}'
-//				code:'zoneType.scvmm.credential', type:'credential', name:'Credentials', category:'zoneType.scvmm',
-//				fieldName:'type', fieldCode:'gomorpheus.label.credentials', fieldLabel:'Credentials', fieldContext:'credential', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true, editable:true, global:false,
-//				placeHolder:null, helpBlock:'', defaultValue:'local', custom:false, displayOrder:5, fieldClass:null, optionSource:'credentials', config: JsonOutput.toJson(credentialTypes:['username-password']).toString()
 		)
 		options << new OptionType(
 				name: 'Username',
@@ -110,10 +104,6 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.TEXT,
 				fieldContext: 'config',
 				localCredential: true
-//				code:'zoneType.scvmm.username', type:'text', name:'Username', category:'zoneType.scvmm',
-//				fieldName:'username', fieldCode: 'gomorpheus.optiontype.Username', fieldLabel:'Username', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Config', required:true,
-//				enabled:true, editable:false, global:false, placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:6,
-//				fieldClass:null, fieldSize:15, localCredential:true
 		)
 		options << new OptionType(
 				name: 'Password',
@@ -127,10 +117,6 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.PASSWORD,
 				fieldContext: 'config',
 				localCredential: true
-//				code:'zoneType.scvmm.password', type:'password', name:'Password', category:'zoneType.scvmm',
-//				fieldName:'password', fieldCode: 'gomorpheus.optiontype.Password', fieldLabel:'Password', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Config', required:true,
-//				enabled:true, editable:false, global:false, placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:7,
-//				fieldClass:null, fieldSize:15, localCredential:true
 		)
 		options << new OptionType(
 				name: 'Cloud',
@@ -145,12 +131,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmCloud',
 				fieldContext:'zone',
-//				dependsOn: "config.scvmmHost, config.username, config.apiKey, credential.type, credential.username, credential.password"
 				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
-//				code:'zoneType.scvmm.cloud', type:'select', name:'Cloud', category:'zoneType.scvmm', optionSourceType:'scvmm',
-//				fieldName:'regionCode', fieldCode: 'gomorpheus.optiontype.Cloud', fieldLabel:'Cloud', fieldContext:'zone', fieldSet:'', fieldGroup:'Connection Config', required:false, enabled:true,
-//				editable:false, global:false, optionSource: 'scvmmCloud', placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:8,
-//				fieldClass:null, fieldSize:15
 		)
 		options << new OptionType(
 				name: 'Host Group',
@@ -161,16 +142,11 @@ class ScvmmCloudProvider implements CloudProvider {
 				displayOrder: displayOrder += 10,
 				fieldCode: 'gomorpheus.optiontype.HostGroup',
 				fieldLabel:'Host Group',
-//				required: true,
 				editable:false,
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmHostGroup',
-				fieldContext:'zone',
+				fieldContext:'config',
 				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
-//				code:'zoneType.scvmm.hostGroup', type:'select', name:'Host Group', category:'zoneType.scvmm', optionSourceType:'scvmm',
-//				fieldName:'hostGroup', fieldCode: 'gomorpheus.optiontype.HostGroup', fieldLabel:'Host Group', fieldContext:'zone', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true,
-//				editable:false, global:false, optionSource: 'scvmmHostGroup', placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:9,
-//				fieldClass:null, fieldSize:15
 		)
 		options << new OptionType(
 				name: 'Cluster',
@@ -181,15 +157,11 @@ class ScvmmCloudProvider implements CloudProvider {
 				displayOrder: displayOrder += 10,
 				fieldCode: 'gomorpheus.optiontype.Cluster',
 				fieldLabel:'Cluster',
-//				required: true,
 				editable:false,
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmCluster',
-				fieldContext:'zone',
-//				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
-//				code:'zoneType.scvmm.Cluster', type:'select', name:'Clust', category:'zoneType.scvmm', optionSourceType:'scvmm',
-//			fieldName:'cluster', fieldCode: 'gomorpheus.optiontype.Cluster', fieldLabel:'Cluster', fieldContext:'zone', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true, editable:false, global:false, optionSource: 'scvmmCluster',
-//			placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:10, fieldClass:null, fieldSize:15
+				fieldContext:'config',
+				dependsOn: 'config.scvmmHost, config.username, config.password, config.hostGroup, credential.type, credential.username, credential.password'
 		)
 		options << new OptionType(
 				name: 'Library Share',
@@ -200,15 +172,11 @@ class ScvmmCloudProvider implements CloudProvider {
 				displayOrder: displayOrder += 10,
 				fieldCode: 'gomorpheus.optiontype.LibraryShare',
 				fieldLabel:'Library Share',
-//				required: true,
 				editable:false,
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmLibraryShares',
-				fieldContext:'zone',
-//				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
-//				code:'zoneType.scvmm.libraryShare', type:'select', name:'Library Share', category:'zoneType.scvmm', optionSourceType:'scvmm',
-//			fieldName:'libraryShare', fieldCode: 'gomorpheus.optiontype.LibraryShare', fieldLabel:'Library Share', fieldContext:'zone', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true, editable:false, global:false, optionSource: 'scvmmLibraryShares',
-//			placeHolder:null, helpBlock:'', defaultValue:null, custom:false, displayOrder:11, fieldClass:null, fieldSize:15
+				fieldContext:'config',
+				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
 		)
 		options << new OptionType(
 				name: 'Shared Controller',
@@ -223,9 +191,6 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmSharedControllers',
 				fieldContext:'config',
-//			code:'zoneType.scvmm.sharedController', type:'select', name:'Shared Controller', category:'zoneType.scvmm', optionSourceType:'scvmm',
-//			fieldName:'sharedController', fieldCode: 'gomorpheus.optiontype.SharedController', fieldLabel:'Shared Controller', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Config', required:false, enabled:true, editable:false, global:false,
-//			placeHolder:null, optionSource: 'scvmmSharedControllers', helpBlock:'', defaultValue:null, custom:false, displayOrder:11, fieldClass:null, fieldSize:15
 		)
 		options << new OptionType(
 				name: 'Working Path',
@@ -237,10 +202,6 @@ class ScvmmCloudProvider implements CloudProvider {
 				required: true,
 				inputType: OptionType.InputType.TEXT,
 				defaultValue: 'c:\\Temp'
-//				code:'zoneType.scvmm.workingPath', type:'text', name:'Working Path', category:'zoneType.scvmm',
-//				fieldName:'workingPath', fieldCode: 'gomorpheus.optiontype.WorkingPath', fieldLabel:'Working Path', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Config', required:true,
-//				enabled:true, editable:false, global:false, placeHolder:null, helpBlock:'', defaultValue:'c:\\Temp', custom:false, displayOrder:2,
-//				fieldClass:null, fieldSize:15
 		)
 		options << new OptionType(
 				name: 'Disk Path',
@@ -252,10 +213,6 @@ class ScvmmCloudProvider implements CloudProvider {
 				required: true,
 				inputType: OptionType.InputType.TEXT,
 				defaultValue:'c:\\VirtualDisks'
-//				code:'zoneType.scvmm.diskPath', type:'text', name:'Disk Path', category:'zoneType.scvmm',
-//				fieldName:'diskPath', fieldCode: 'gomorpheus.optiontype.DiskPath', fieldLabel:'Disk Path', fieldContext:'config', fieldSet:'', fieldGroup:'Connection Config', required:true, enabled:true,
-//				editable:false, global:false, placeHolder:null, helpBlock:'', defaultValue:'c:\\VirtualDisks', custom:false, displayOrder:4,
-//				fieldClass:null, fieldSize:15
 		)
 		options << new OptionType(
 				name: 'Hide Host Selection From Users',
@@ -266,9 +223,6 @@ class ScvmmCloudProvider implements CloudProvider {
 				required: false,
 				inputType: OptionType.InputType.CHECKBOX,
 				fieldContext: 'config',
-//				code:'zoneType.scvmm.hideHostSelection', type:'checkbox', name:'Hide Host Selection', category:'zoneType.scvmm',
-//				fieldName:'hideHostSelection', fieldCode: 'gomorpheus.optiontype.HideHostSelectionFromUsers', fieldLabel:'Hide Host Selection from Users', fieldContext:'config', fieldSet:'', fieldGroup:'Options', required:true, enabled:true, editable:false, global:false,
-//				placeHolder:null, helpBlock:'If it is not desired to allow users to select specific hypervisors during provisioning, turn this on.', defaultValue:'off', custom:false, displayOrder:16, fieldClass:null, fieldSize:15
 		)
 		options << new OptionType(
 				name: 'Inventory Existing Instances',
@@ -279,10 +233,6 @@ class ScvmmCloudProvider implements CloudProvider {
 				required: false,
 				inputType: OptionType.InputType.CHECKBOX,
 				fieldContext: 'config',
-//				code:'zoneType.scvmm.importExisting', type:'checkbox', name:'Import Existing', category:'zoneType.scvmm',
-//				fieldName:'importExisting', fieldCode: 'gomorpheus.optiontype.ImportExistingInstances', fieldLabel:'Import Existing Instances', fieldContext:'config', fieldSet:'', fieldGroup:'Options', required:true, enabled:true,
-//				editable:false, global:false, placeHolder:null, helpBlock:'Turn this feature on to import existing virtual machines from SCVMM.', defaultValue:'off',
-//				custom:false, displayOrder:13, fieldClass:null, fieldSize:15
 		)
 		options << new OptionType(
 				name: 'Enable Hypervisor Console',
@@ -436,20 +386,16 @@ class ScvmmCloudProvider implements CloudProvider {
 	ServiceResponse initializeCloud(Cloud cloudInfo) {
 		log.debug ('initializing cloud: {}', cloudInfo.code)
 		ServiceResponse rtn = ServiceResponse.prepare()
-		log.info("RAZI :: initializeCloud >> rtn: ${rtn}")
 		try {
 			if(cloudInfo) {
-				log.info("RAZI :: cloudInfo.enabled: ${cloudInfo.enabled}")
 				if(cloudInfo.enabled == true) {
 					def initResults = initializeHypervisor(cloudInfo)
-					log.info("RAZI :: initResults: ${initResults}")
 					log.debug("initResults: {}", initResults)
 					if(initResults.success == true) {
 						refresh(cloudInfo)
 					}
 					rtn.success = true
 				}
-				log.info("RAZI :: rtn: ${rtn}")
 			} else {
 				rtn.msg = 'No zone found'
 			}
@@ -459,7 +405,7 @@ class ScvmmCloudProvider implements CloudProvider {
 		return rtn
 	}
 
-	//TODO: below method would be imolemented later with US: MOREPHEUS-140
+	//TODO: below method would be implemented later with US: MOREPHEUS-140
 	def initializeHypervisor(cloud) {
 		def rtn = [success: true]
 		return rtn
