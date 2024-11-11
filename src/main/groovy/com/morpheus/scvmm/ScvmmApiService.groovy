@@ -20,7 +20,8 @@ class ScvmmApiService {
     static defaultRoot = 'C:\\morpheus'
 
     def executeCommand(command, opts) {
-        def output = morpheusContext.executeWindowsCommand(opts.sshHost, opts.sshPort?.toInteger(), opts.sshUsername, opts.sshPassword, command, null, false).blockingGet()
+        def winrmPort = opts.sshPort && opts.sshPort != 22 ? opts.sshPort : 5985
+        def output = morpheusContext.executeWindowsCommand(opts.sshHost, winrmPort?.toInteger(), opts.sshUsername, opts.sshPassword, command, null, false).blockingGet()
         return output
     }
 
@@ -2452,15 +2453,17 @@ For (\$i=0; \$i -le 10; \$i++) {
     def getScvmmZoneOpts(MorpheusContext context, Cloud cloud) {
         def cloudConfig = cloud.getConfigMap()
         def keyPair = context.services.keyPair.find(new DataQuery().withFilter("accountId", cloud?.account?.id))
-        return [account                : cloud.account,
-                zoneConfig             : cloudConfig,
-                zone                   : cloud,
-                zoneId                 : cloud?.id,
-                publicKey              : keyPair?.publicKey,
-                privateKey             : keyPair?.privateKey,
-                //controllerServer       : controllerServer,
-                rootSharePath          : cloudConfig['libraryShare'],
-                regionCode             : cloud.regionCode]
+        return [
+            account                : cloud.account,
+            zoneConfig             : cloudConfig,
+            zone                   : cloud,
+            zoneId                 : cloud?.id,
+            publicKey              : keyPair?.publicKey,
+            privateKey             : keyPair?.privateKey,
+            //controllerServer       : controllerServer,
+            rootSharePath          : cloudConfig['libraryShare'],
+            regionCode             : cloud.regionCode
+        ]
                 //baseBoxProvisionService: scvmmProvisionService]
     }
 
@@ -2476,8 +2479,8 @@ For (\$i=0; \$i -le 10; \$i++) {
                 sshPassword: hypervisor.sshPassword, zoneRoot: zoneRoot, diskRoot: diskRoot]
     }
 
-    def getScvmmZoneAndHypervisorOpts(zone, hypervisor, scvmmProvisionService) {
-        getScvmmZoneOpts(zone, hypervisor, scvmmProvisionService) + getScvmmControllerOpts(zone, hypervisor)
+    def getScvmmZoneAndHypervisorOpts(context, zone, hypervisor) {
+        getScvmmZoneOpts(context, zone) + getScvmmControllerOpts(zone, hypervisor)
     }
 
     def wrapExecuteCommand(String command, Map opts = [:]) {

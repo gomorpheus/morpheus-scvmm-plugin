@@ -15,7 +15,7 @@ import groovy.util.logging.Slf4j
 
 @Slf4j
 class ScvmmCloudProvider implements CloudProvider {
-	public static final String CLOUD_PROVIDER_CODE = 'morpheus-scvmm-plugin.cloud'
+	public static final String CLOUD_PROVIDER_CODE = 'scvmm'
 
 	protected MorpheusContext context
 	protected ScvmmPlugin plugin
@@ -65,7 +65,187 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	Collection<OptionType> getOptionTypes() {
+		def displayOrder = 0
 		Collection<OptionType> options = []
+		options << new OptionType(
+				name: 'SCVMM Host',
+				category:'zoneType.scvmm',
+				code: 'zoneType.scvmm.scvmmHost',
+				fieldName: 'host',
+				displayOrder: displayOrder,
+				fieldCode: 'gomorpheus.optiontype.scvmmHost',
+				fieldLabel:'SCVMM Host',
+				required: true,
+				inputType: OptionType.InputType.TEXT,
+				fieldContext:'config',
+		)
+		options << new OptionType(
+				name: 'Credentials',
+				category:'zoneType.scvmm',
+				code: 'zoneType.scvmm.credential',
+				fieldName: 'type',
+				displayOrder: displayOrder += 10,
+				fieldCode: 'gomorpheus.label.credentials',
+				fieldLabel:'Credentials',
+				required: true,
+				defaultValue:'local',
+				inputType: OptionType.InputType.CREDENTIAL,
+				fieldContext: 'credential',
+				optionSource:'credentials',
+				config: '{"credentialTypes":["username-password"]}'
+		)
+		options << new OptionType(
+				name: 'Username',
+				category:'zoneType.scvmm',
+				code: 'zoneType.scvmm.username',
+				fieldName: 'username',
+				displayOrder: displayOrder += 10,
+				fieldCode: 'gomorpheus.optiontype.Username',
+				fieldLabel:'Username',
+				required: true,
+				inputType: OptionType.InputType.TEXT,
+				fieldContext: 'config',
+				localCredential: true
+		)
+		options << new OptionType(
+				name: 'Password',
+				category:'zoneType.scvmm',
+				code: 'zoneType.scvmm.password',
+				fieldName: 'password',
+				displayOrder: displayOrder += 10,
+				fieldCode: 'gomorpheus.optiontype.Password',
+				fieldLabel:'Password',
+				required: true,
+				inputType: OptionType.InputType.PASSWORD,
+				fieldContext: 'config',
+				localCredential: true
+		)
+		options << new OptionType(
+				name: 'Cloud',
+				category:'zoneType.scvmm',
+				code: 'zoneType.scvmm.cloud',
+				fieldName: 'regionCode',
+				optionSourceType:'scvmm',
+				displayOrder: displayOrder += 10,
+				fieldCode: 'gomorpheus.optiontype.Cloud',
+				fieldLabel:'Cloud',
+				editable: false,
+				inputType: OptionType.InputType.SELECT,
+				optionSource: 'scvmmCloud',
+				fieldContext:'zone',
+				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
+		)
+		options << new OptionType(
+				name: 'Host Group',
+				category:'zoneType.scvmm',
+				code: 'zoneType.scvmm.hostGroup',
+				fieldName: 'hostGroup',
+				optionSourceType:'scvmm',
+				displayOrder: displayOrder += 10,
+				fieldCode: 'gomorpheus.optiontype.HostGroup',
+				fieldLabel:'Host Group',
+				editable:false,
+				inputType: OptionType.InputType.SELECT,
+				optionSource: 'scvmmHostGroup',
+				fieldContext:'config',
+				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
+		)
+		options << new OptionType(
+				name: 'Cluster',
+				category:'zoneType.scvmm',
+				code: 'zoneType.scvmm.Cluster',
+				fieldName: 'cluster',
+				optionSourceType:'scvmm',
+				displayOrder: displayOrder += 10,
+				fieldCode: 'gomorpheus.optiontype.Cluster',
+				fieldLabel:'Cluster',
+				editable:false,
+				inputType: OptionType.InputType.SELECT,
+				optionSource: 'scvmmCluster',
+				fieldContext:'config',
+				dependsOn: 'config.scvmmHost, config.username, config.password, config.hostGroup, credential.type, credential.username, credential.password'
+		)
+		options << new OptionType(
+				name: 'Library Share',
+				category:'zoneType.scvmm',
+				code: 'zoneType.scvmm.libraryShare',
+				fieldName: 'libraryShare',
+				optionSourceType:'scvmm',
+				displayOrder: displayOrder += 10,
+				fieldCode: 'gomorpheus.optiontype.LibraryShare',
+				fieldLabel:'Library Share',
+				editable:false,
+				inputType: OptionType.InputType.SELECT,
+				optionSource: 'scvmmLibraryShares',
+				fieldContext:'config',
+				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
+		)
+		options << new OptionType(
+				name: 'Shared Controller',
+				category:'zoneType.scvmm',
+				code: 'zoneType.scvmm.sharedController',
+				fieldName: 'sharedController',
+				optionSourceType:'scvmm',
+				displayOrder: displayOrder += 10,
+				fieldCode: 'gomorpheus.optiontype.SharedController',
+				fieldLabel:'Shared Controller',
+				editable:false,
+				inputType: OptionType.InputType.SELECT,
+				optionSource: 'scvmmSharedControllers',
+				fieldContext:'config',
+		)
+		options << new OptionType(
+				name: 'Working Path',
+				code: 'zoneType.scvmm.workingPath',
+				fieldName: 'workingPath',
+				displayOrder: displayOrder += 10,
+				fieldCode: 'gomorpheus.optiontype.WorkingPath',
+				fieldLabel:'Working Path',
+				required: true,
+				inputType: OptionType.InputType.TEXT,
+				defaultValue: 'c:\\Temp'
+		)
+		options << new OptionType(
+				name: 'Disk Path',
+				code: 'zoneType.scvmm.diskPath',
+				fieldName: 'diskPath',
+				displayOrder: displayOrder += 10,
+				fieldCode: 'gomorpheus.optiontype.DiskPath',
+				fieldLabel:'Disk Path',
+				required: true,
+				inputType: OptionType.InputType.TEXT,
+				defaultValue:'c:\\VirtualDisks'
+		)
+		options << new OptionType(
+				name: 'Hide Host Selection From Users',
+				code: 'zoneType.scvmm.hideHostSelection',
+				fieldName: 'HideHostSelectionFromUsers',
+				displayOrder: displayOrder += 10,
+				fieldLabel: 'Hide Host Selection From Users',
+				required: false,
+				inputType: OptionType.InputType.CHECKBOX,
+				fieldContext: 'config',
+		)
+		options << new OptionType(
+				name: 'Inventory Existing Instances',
+				code: 'zoneType.scvmm.importExisting',
+				fieldName: 'importExisting',
+				displayOrder: displayOrder += 10,
+				fieldLabel: 'Inventory Existing Instances',
+				required: false,
+				inputType: OptionType.InputType.CHECKBOX,
+				fieldContext: 'config',
+		)
+		options << new OptionType(
+				name: 'Enable Hypervisor Console',
+				code: 'zoneType.scvmm.enableHypervisorConsole',
+				fieldName: 'enableHypervisorConsole',
+				displayOrder: displayOrder += 10,
+				fieldLabel: 'Enable Hypervisor Console',
+				required: false,
+				inputType: OptionType.InputType.CHECKBOX,
+				fieldContext: 'config',
+		)
 		return options
 	}
 
@@ -206,7 +386,71 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	ServiceResponse initializeCloud(Cloud cloudInfo) {
-		return ServiceResponse.success()
+		log.debug ('initializing cloud: {}', cloudInfo.code)
+		ServiceResponse rtn = ServiceResponse.prepare()
+		try {
+			if(cloudInfo) {
+				if(cloudInfo.enabled == true) {
+					def initResults = initializeHypervisor(cloudInfo)
+					log.debug("initResults: {}", initResults)
+					if(initResults.success == true) {
+						refresh(cloudInfo)
+					}
+					rtn.success = true
+				}
+			} else {
+				rtn.msg = 'No zone found'
+			}
+		} catch(e) {
+			log.error("initialize cloud error: {}",e)
+		}
+		return rtn
+	}
+
+	def initializeHypervisor(cloud) {
+		def rtn = [success: false]
+		log.debug("cloud: ${cloud}")
+		ComputeServer newServer
+		def opts = apiService.getScvmmInitializationOpts(cloud)
+		def serverInfo = apiService.getScvmmServerInfo(opts)
+		if (serverInfo.success == true && serverInfo.hostname) {
+			def cloudConfig = cloud.getConfigMap()
+			newServer = context.services.computeServer.find(new DataQuery().withFilters(
+					new DataFilter('zone.id', cloud.id),
+					new DataOrFilter(
+							new DataFilter('hostname', serverInfo.hostname),
+							new DataFilter('name', serverInfo.hostname)
+					)
+			))
+			def serverType = context.async.cloud.findComputeServerTypeByCode("scvmmController").blockingGet()
+			if(!newServer) {
+				newServer = new ComputeServer()
+				newServer.account = cloud.account
+				newServer.cloud = cloud
+				newServer.computeServerType = serverType
+				newServer.serverOs = new OsType(code: 'windows.server.2012')
+				newServer.name = serverInfo.hostname
+			}
+			if (serverInfo.hostname) {
+				newServer.hostname = serverInfo.hostname
+			}
+			newServer.sshHost = cloud.getConfigProperty('host') //check:
+			newServer.internalIp = newServer.sshHost
+			newServer.externalIp = newServer.sshHost
+			newServer.sshUsername = apiService.getUsername(cloud)
+			newServer.sshPassword = apiService.getPassword(cloud)
+			newServer.setConfigProperty('workingPath', cloud.getConfigProperty('workingPath'))
+			newServer.setConfigProperty('diskPath', cloud.getConfigProperty('diskPath'))
+			//check: port is missing
+		}
+		// initializeHypervisor from context
+		log.debug("newServer: ${newServer}")
+		context.services.computeServer.save(newServer)
+		if (newServer) {
+			context.async.hypervisorService.initialize(newServer)
+			rtn.success = true
+		}
+		return rtn
 	}
 
 	/**
@@ -445,48 +689,14 @@ class ScvmmCloudProvider implements CloudProvider {
 		return rtn
 	}
 
-	def initializeHypervisor(cloud) {
-		def rtn = [success: false]
-		log.debug("cloud: ${cloud}")
-		ComputeServer newServer
-		def opts = apiService.getScvmmInitializationOpts(cloud)
-		def serverInfo = apiService.getScvmmServerInfo(opts)
-		if (serverInfo.success == true && serverInfo.hostname) {
-			def cloudConfig = cloud.getConfigMap()
-			newServer = context.services.computeServer.find(new DataQuery().withFilters(
-					new DataFilter('zone.id', cloud.id),
-					new DataOrFilter(
-							new DataFilter('hostname', serverInfo.hostname),
-							new DataFilter('name', serverInfo.hostname)
-					)
-			))
-			def serverType = context.async.cloud.findComputeServerTypeByCode("scvmmController").blockingGet()
-			if(!newServer) {
-				newServer = new ComputeServer()
-				newServer.account = cloud.account
-				newServer.cloud = cloud
-				newServer.computeServerType = serverType
-				newServer.serverOs = new OsType(code: 'windows.server.2012')
-				newServer.name = serverInfo.hostname
-			}
-			if (serverInfo.hostname) {
-				newServer.hostname = serverInfo.hostname
-			}
-			newServer.sshHost = cloud.getConfigProperty('host') //check:
-			newServer.internalIp = newServer.sshHost
-			newServer.externalIp = newServer.sshHost
-			newServer.sshUsername = apiService.getUsername(cloud)
-			newServer.sshPassword = apiService.getPassword(cloud)
-			newServer.setConfigProperty('workingPath', cloud.getConfigProperty('workingPath'))
-			newServer.setConfigProperty('diskPath', cloud.getConfigProperty('diskPath'))
-			//check: port is missing
-		}
-		// initializeHypervisor from context
-		log.debug("newServer: ${newServer}")
-		context.services.computeServer.save(newServer)
-		if (newServer) {
-			context.async.hypervisorService.initialize(newServer)
-			rtn.success = true
+	def removeOrphanedResourceLibraryItems(cloud, node) {
+		log.debug("removeOrphanedResourceLibraryItems: {} {}", cloud, node)
+		def rtn = [success:false]
+		try {
+			def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloud, node)
+			apiService.removeOrphanedResourceLibraryItems(scvmmOpts)
+		} catch(e) {
+			log.error("removeOrphanedResourceLibraryItems error:${e}", e)
 		}
 		return rtn
 	}
