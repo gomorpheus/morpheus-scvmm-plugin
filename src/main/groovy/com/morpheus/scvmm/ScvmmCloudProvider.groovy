@@ -331,14 +331,26 @@ class ScvmmCloudProvider implements CloudProvider {
 	ServiceResponse validate(Cloud cloudInfo, ValidateCloudRequest validateCloudRequest) {
 		log.debug("validate cloud: {}", cloudInfo)
 		def rtn = [success: false, zone: cloudInfo, errors: [:]]
+		log.info ("Ray :: validate: cloudInfo: ${cloudInfo}")
+		log.info ("Ray :: validate: validateCloudRequest: ${validateCloudRequest}")
+		log.info ("Ray :: validate: validateCloudRequest?.credentialType: ${validateCloudRequest?.credentialType}")
+		log.info ("Ray :: validate: validateCloudRequest?.credentialType: ${validateCloudRequest?.credentialUsername}")
+		log.info ("Ray :: validate: validateCloudRequest?.credentialType: ${validateCloudRequest?.credentialPassword}")
 		try {
+			log.info ("Ray :: validate: rtn.zone: ${rtn.zone}")
 			if (rtn.zone) {
 				def requiredFields = ['host', 'workingPath', 'diskPath', 'libraryShare']
+				log.info ("Ray :: validate: calling getScvmmZoneOpts")
 				def scvmmOpts = apiService.getScvmmZoneOpts(context, cloudInfo)
+				log.info ("Ray :: validate: scvmmOpts: ${scvmmOpts}")
 				def zoneConfig = cloudInfo.getConfigMap()
+				log.info ("Ray :: validate: zoneConfig: ${zoneConfig}")
 				rtn.errors = validateRequiredConfigFields(requiredFields, zoneConfig)
+				log.info ("Ray :: validate: rtn.errors: ${rtn.errors}")
 				// Verify that a shared controller is selected if we already have an scvmm zone pointed to this host (MUST SHARE THE CONTROLLER)
 				def validateControllerResults = validateSharedController(cloudInfo)
+				log.info ("Ray :: validate: validateControllerResults: ${validateControllerResults}")
+				log.info ("Ray :: validate: validateControllerResults.success: ${validateControllerResults.success}")
 				if (!validateControllerResults.success) {
 					rtn.errors['sharedController'] = validateControllerResults.msg ?: 'You must specify a shared controller'
 				}
@@ -349,9 +361,11 @@ class ScvmmCloudProvider implements CloudProvider {
 					rtn.msg = 'Enter a password'
 					rtn.errors.password = 'Enter a password'
 				}
+				log.info ("Ray :: validate: rtn.errors.size(): ${rtn.errors.size()}")
 				if (rtn.errors.size() == 0) {
 					//set install agent
 					def installAgent = MorpheusUtils.parseBooleanConfig(zoneConfig.installAgent)
+					log.info ("Ray :: validate: installAgent: ${installAgent}")
 					cloudInfo.setConfigProperty('installAgent', installAgent)
 					//build opts
 					scvmmOpts += [
@@ -362,7 +376,10 @@ class ScvmmCloudProvider implements CloudProvider {
 							zoneRoot   : zoneConfig.workingPath,
 							diskRoot   : zoneConfig.diskPath
 					]
+					log.info ("Ray :: validate: scvmmOpts1: ${scvmmOpts}")
 					def vmSitches = apiService.listClouds(scvmmOpts)
+					log.info ("Ray :: validate: vmSitches: ${vmSitches}")
+					log.info ("Ray :: validate: vmSitches.success: ${vmSitches.success}")
 					log.debug("vmSitches: ${vmSitches}")
 					if (vmSitches.success == true)
 						rtn.success = true
@@ -373,8 +390,9 @@ class ScvmmCloudProvider implements CloudProvider {
 				rtn.message = 'No zone found'
 			}
 		} catch (e) {
-			log.error("An Exception Has Occurred", e)
+			log.error("Ray :: An Exception Has Occurred", e)
 		}
+		log.info ("Ray :: validate: rtn: ${rtn}")
 		return ServiceResponse.create(rtn)
 	}
 
@@ -400,8 +418,11 @@ class ScvmmCloudProvider implements CloudProvider {
 					def initResults = initializeHypervisor(cloudInfo)
 					log.info ("Ray :: initializeCloud: after calling initializeHypervisor initResults: ${initResults}")
 					log.debug("initResults: {}", initResults)
+					log.info ("Ray :: initializeCloud: initResults.success: ${initResults?.success}")
 					if(initResults.success == true) {
+						log.info ("Ray :: initializeCloud: before calling refresh cloud")
 						refresh(cloudInfo)
+						log.info ("Ray :: initializeCloud: after calling refresh cloud")
 					}
 					rtn.success = true
 				}
@@ -409,8 +430,9 @@ class ScvmmCloudProvider implements CloudProvider {
 				rtn.msg = 'No zone found'
 			}
 		} catch(e) {
-			log.error("initialize cloud error: {}",e)
+			log.error("Ray :: initialize cloud error: {}",e)
 		}
+		log.info ("Ray :: initializeCloud: rtn: ${rtn}")
 		return rtn
 	}
 
@@ -682,21 +704,31 @@ class ScvmmCloudProvider implements CloudProvider {
 		def rtn = [success: true]
 
 		def sharedControllerId = cloud.getConfigProperty('sharedController')
+		log.info ("Ray :: validateSharedController: sharedControllerId: ${sharedControllerId}")
 		if (!sharedControllerId) {
+			log.info ("Ray :: validateSharedController: cloud.id: ${cloud.id}")
 			if (cloud.id) {
 				def existingControllerInZone = context.services.computeServer.find(new DataQuery()
 						.withFilter('computeServerType.code', 'scvmmController')
 						.withFilter('zone.id', cloud.id.toLong()))
+				log.info ("Ray :: validateSharedController: existingControllerInZone: ${existingControllerInZone}")
+				log.info ("Ray :: validateSharedController: existingControllerInZone?.id: ${existingControllerInZone?.id}")
+				log.info ("Ray :: validateSharedController: existingControllerInZone?.name: ${existingControllerInZone?.name}")
 				if (existingControllerInZone) {
 					rtn.success = true
 					return rtn
 				}
 			}
+			log.info ("Ray :: validateSharedController: cloud.account.id: ${cloud.account.id}")
+			log.info ("Ray :: validateSharedController: cloud.getConfigHost property: ${cloud.getConfigProperty('host')}")
 			def existingController = context.services.computeServer.find(new DataQuery()
 					.withFilter('enabled', true)
 					.withFilter('account.id', cloud.account.id)
 					.withFilter('computeServerType.code', 'scvmmController')
 					.withFilter('externalIp', cloud.getConfigProperty('host')))
+			log.info ("Ray :: validateSharedController: existingController: ${existingController}")
+			log.info ("Ray :: validateSharedController: existingController?.id: ${existingController?.id}")
+			log.info ("Ray :: validateSharedController: existingController?.name: ${existingController?.name}")
 			if (existingController) {
 				log.debug "Found another controller: ${existingController.id} in zone: ${existingController.cloud} that should be used"
 				rtn.success = false
@@ -705,11 +737,16 @@ class ScvmmCloudProvider implements CloudProvider {
 		} else {
 			// Verify that the controller selected has the same Host ip as defined in the cloud
 			def sharedController = context.services.computeServer.get(sharedControllerId?.toLong())
+			log.info ("Ray :: validateSharedController: sharedController: ${sharedController}")
+			log.info ("Ray :: validateSharedController: sharedController?.id: ${sharedController?.id}")
+			log.info ("Ray :: validateSharedController: sharedController?.name: ${sharedController?.name}")
+			log.info ("Ray :: validateSharedController: sharedController?.externalIp: ${sharedController?.externalIp}")
 			if (sharedController?.externalIp != cloud.getConfigProperty('host')) {
 				rtn.success = false
 				rtn.msg = 'The selected controller is on a different host than specified for this cloud'
 			}
 		}
+		log.info ("Ray :: validateSharedController: rtn: ${rtn}")
 		return rtn
 	}
 
