@@ -221,6 +221,52 @@ class ScvmmCloudProvider implements CloudProvider {
 		return ServiceResponse.success()
 	}
 
+	def checkCommunication(cloud, node) {
+		log.debug("checkCommunication: {} {}", cloud, node)
+		def rtn = [success: false]
+		try {
+			def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloud, node)
+			def listResults = apiService.listAllNetworks(scvmmOpts)
+			if (listResults.success == true && listResults.networks) {
+				rtn.success = true
+			}
+		} catch (e) {
+			log.error("checkCommunication error:${e}", e)
+		}
+		return rtn
+	}
+
+	def getScvmmController(Cloud cloud) {
+		def sharedControllerId = cloud.getConfigProperty('sharedController')
+		def sharedController = sharedControllerId ? context.services.computeServer.get(sharedControllerId.toLong()) : null
+		if (sharedController) {
+			return sharedController
+		}
+		def rtn = context.services.computeServer.find(new DataQuery()
+				.withFilter('zone.id', cloud.id)
+				.withFilter('computeServerType.code', 'scvmmController')
+				.withJoin('computeServerType'))
+		if (rtn == null) {
+			//old zone with wrong type
+			rtn = context.services.computeServer.find(new DataQuery()
+					.withFilter('zone.id', cloud.id)
+					.withFilter('computeServerType.code', 'scvmmController')
+					.withJoin('computeServerType'))
+			if (rtn == null) {
+				rtn = context.services.computeServer.find(new DataQuery()
+						.withFilter('zone.id', cloud.id)
+						.withFilter('serverType', 'hypervisor'))
+			}
+			//if we have tye type
+			if (rtn) {
+				def serverType = context.async.cloud.findComputeServerTypeByCode("scvmmController").blockingGet()
+				rtn.computeServerType = serverType
+				context.async.computeServer.save(rtn).blockingGet()
+			}
+		}
+		return rtn
+	}
+
 	/**
 	 * Zones/Clouds are refreshed periodically by the Morpheus Environment. This includes things like caching of brownfield
 	 * environments and resources such as Networks, Datastores, Resource Pools, etc. This represents the long term sync method that happens
@@ -232,9 +278,8 @@ class ScvmmCloudProvider implements CloudProvider {
 		log.debug("refreshDaily: {}", cloudInfo)
 		try {
 			def scvmmController = getScvmmController(cloudInfo)
-			if(scvmmController) {
+			if (scvmmController) {
 				def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloudInfo, scvmmController)
-				//def hostOnline = morpheusComputeService.testHostConnection(scvmmOpts.sshHost, 5985, false, true, null)
 				def hostOnline = ConnectionUtils.testHostConnectivity(scvmmOpts.sshHost, 5985, false, true, null)
 				log.debug("hostOnline: {}", hostOnline)
 				if (hostOnline) {
@@ -244,63 +289,9 @@ class ScvmmCloudProvider implements CloudProvider {
 					}
 				}
 			}
-		} catch(e) {
+		} catch (e) {
 			log.error "Error on refreshDailyZone: ${e}", e
 		}
-	}
-
-	def checkCommunication(cloud, node) {
-		log.debug("checkCommunication: {} {}", cloud, node)
-		def rtn = [success:false]
-		try {
-			def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloud, node)
-			def listResults = apiService.listAllNetworks(scvmmOpts)
-			if(listResults.success == true && listResults.networks) {
-				rtn.success = true
-			}
-		} catch(e) {
-			log.error("checkCommunication error:${e}", e)
-		}
-		return rtn
-	}
-
-	def getScvmmController(Cloud cloud) {
-		def sharedControllerId = cloud.getConfigProperty('sharedController')
-		def sharedController = sharedControllerId ? context.services.computeServer.get(sharedControllerId.toLong()) : null
-		if(sharedController) {
-			return sharedController
-		}
-		context.services.computeServer.find(
-				new DataQuery().withFilter("id", id).withJoin("interfaces.network")
-		)
-
-		//def rtn = ComputeServer.where{zone == zone && computeServerType.code == 'scvmmController' }.join('computeServerType').get()
-		def rtn = context.services.computeServer.find(new DataQuery()
-				.withFilter('zone.id', cloud.id)
-				.withFilter('computeServerType.code', 'scvmmController')
-				.withJoin('computeServerType'))
-		if(rtn == null) {
-			//old zone with wrong type
-			//rtn = ComputeServer.where{zone == zone && computeServerType.code == 'scvmmHypervisor' }.join('computeServerType').get()
-			rtn = context.services.computeServer.find(new DataQuery()
-					.withFilter('zone.id', cloud.id)
-					.withFilter('computeServerType.code', 'scvmmController')
-					.withJoin('computeServerType'))
-			if(rtn == null) {
-				//rtn = ComputeServer.where { zone == zone && serverType == 'hypervisor' }.get()
-				rtn = context.services.computeServer.find(new DataQuery()
-						.withFilter('zone.id', cloud.id)
-						.withFilter('serverType', 'hypervisor'))
-			}
-			//if we have tye type
-			if(rtn) {
-				def serverType = context.async.cloud.findComputeServerTypeByCode("scvmmController").blockingGet()
-				rtn.computeServerType = serverType
-				//rtn.save(flush:true)
-				context.async.computeServer.save(rtn).blockingGet()
-			}
-		}
-		return rtn
 	}
 
 	/**

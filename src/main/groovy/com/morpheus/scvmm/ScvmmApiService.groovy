@@ -941,7 +941,7 @@ foreach (\$network in \$networks) {
 \$report """)
                 out = wrapExecuteCommand(command, opts)
                 log.debug("get of networks: ${out}")
-                if (out.success && out.exitValue == 0) {
+                if (out.success && out.exitCode == "0") {
                     if (out.data) {
                         log.debug("list logical networks: ${out}")
                         def networks = out.data
