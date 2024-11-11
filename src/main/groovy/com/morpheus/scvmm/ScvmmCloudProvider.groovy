@@ -391,8 +391,6 @@ class ScvmmCloudProvider implements CloudProvider {
 		try {
 			if(cloudInfo) {
 				if(cloudInfo.enabled == true) {
-					def username = cloudInfo.accountCredentialData?.username ?: cloudInfo.getConfigProperty('username') ?: 'dunno'
-					def password = cloudInfo.accountCredentialData?.password ?: cloudInfo.getConfigProperty('password')
 					def initResults = initializeHypervisor(cloudInfo)
 					log.debug("initResults: {}", initResults)
 					if(initResults.success == true) {
@@ -425,7 +423,7 @@ class ScvmmCloudProvider implements CloudProvider {
 					)
 			))
 			def serverType = context.async.cloud.findComputeServerTypeByCode("scvmmController").blockingGet()
-			if(!newServer) {
+			if (!newServer) {
 				newServer = new ComputeServer()
 				newServer.account = cloud.account
 				newServer.cloud = cloud
