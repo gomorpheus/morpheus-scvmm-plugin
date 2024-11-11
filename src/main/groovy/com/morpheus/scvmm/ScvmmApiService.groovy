@@ -409,19 +409,13 @@ if(\$cloud) {
     }
 
     def listClouds(opts) {
-        log.info ("Ray :: listClouds: opts: ${opts}")
         def rtn = [success: false, clouds: []]
         def command = generateCommandString('Get-SCCloud -VMMServer localhost | Select ID, Name')
-        log.info ("Ray :: listClouds: command: ${command}")
         def out = wrapExecuteCommand(command, opts)
-        log.info ("Ray :: listClouds: out: ${out}")
-        log.info ("Ray :: listClouds: out.success: ${out.success}")
         if (out.success) {
-            log.info ("Ray :: listClouds: out.data: ${out.data}")
             rtn.clouds = out.data
             rtn.success = true
         }
-        log.info ("Ray :: listClouds: rtn: ${rtn}")
         return rtn
     }
 
@@ -2458,10 +2452,7 @@ For (\$i=0; \$i -le 10; \$i++) {
 
     def getScvmmZoneOpts(MorpheusContext context, Cloud cloud) {
         def cloudConfig = cloud.getConfigMap()
-        log.info ("Ray :: getScvmmZoneOpts: cloudConfig: ${cloudConfig}")
-        log.info ("Ray :: getScvmmZoneOpts: cloud?.account?.id: ${cloud?.account?.id}")
         def keyPair = context.services.keyPair.find(new DataQuery().withFilter("accountId", cloud?.account?.id))
-        log.info ("Ray :: getScvmmZoneOpts: keyPair: ${keyPair}")
         return [
             account                : cloud.account,
             zoneConfig             : cloudConfig,
