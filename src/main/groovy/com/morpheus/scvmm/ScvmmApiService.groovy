@@ -2450,7 +2450,7 @@ For (\$i=0; \$i -le 10; \$i++) {
         rtn
     }
 
-    def getScvmmZoneOpts(MorpheusContext context, Cloud cloud) {
+    def getScvmmCloudOpts(MorpheusContext context, Cloud cloud) {
         def cloudConfig = cloud.getConfigMap()
         def keyPair = context.services.keyPair.find(new DataQuery().withFilter("accountId", cloud?.account?.id))
         return [
@@ -2467,9 +2467,25 @@ For (\$i=0; \$i -le 10; \$i++) {
                 //baseBoxProvisionService: scvmmProvisionService]
     }
 
-    def getScvmmControllerOpts(zone, hypervisor) {
+    def getScvmmZoneOpts(MorpheusContext context, Cloud cloud, controllerServer) {
+        def cloudConfig = cloud.getConfigMap()
+        def keyPair = context.services.keyPair.find(new DataQuery().withFilter("accountId", cloud?.account?.id))
+        return [
+                account                : cloud.account,
+                zoneConfig             : cloudConfig,
+                zone                   : cloud,
+                zoneId                 : cloud?.id,
+                publicKey              : keyPair?.publicKey,
+                privateKey             : keyPair?.privateKey,
+                controllerServer       : controllerServer,
+                rootSharePath          : cloudConfig['libraryShare'],
+                regionCode             : cloud.regionCode
+        ]
+    }
+
+    def getScvmmControllerOpts(cloud, hypervisor) {
         def serverConfig = hypervisor.getConfigMap()
-        def zoneConfig = zone.getConfigMap()
+        def zoneConfig = cloud.getConfigMap()
         log.debug("scvmm hypervisor config:${serverConfig}")
         def configuredDiskPath = zoneConfig.diskPath?.length() > 0 ? zoneConfig.diskPath : serverConfig.diskPath?.length() > 0 ? serverConfig.diskPath : null
         def diskRoot = configuredDiskPath ? configuredDiskPath : defaultRoot + '\\Disks'
@@ -2479,8 +2495,8 @@ For (\$i=0; \$i -le 10; \$i++) {
                 sshPassword: hypervisor.sshPassword, zoneRoot: zoneRoot, diskRoot: diskRoot]
     }
 
-    def getScvmmZoneAndHypervisorOpts(zone, hypervisor, scvmmProvisionService) {
-        getScvmmZoneOpts(zone, hypervisor, scvmmProvisionService) + getScvmmControllerOpts(zone, hypervisor)
+    def getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, hypervisor) {
+        getScvmmZoneOpts(morpheusContext, cloud, hypervisor) + getScvmmControllerOpts(cloud, hypervisor)
     }
 
     def wrapExecuteCommand(String command, Map opts = [:]) {
