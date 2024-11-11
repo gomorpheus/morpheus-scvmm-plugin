@@ -2547,6 +2547,6 @@ For (\$i=0; \$i -le 10; \$i++) {
     }
 
     private getPassword(cloud) {
-        cloud.accountCredentialData.credentialData?.password ?: cloud.getConfigProperty('password')
+        cloud.accountCredentialData?.password ?: cloud.getConfigProperty('password')
     }
 }

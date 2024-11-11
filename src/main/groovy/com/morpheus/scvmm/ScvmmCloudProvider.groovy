@@ -391,7 +391,14 @@ class ScvmmCloudProvider implements CloudProvider {
 		try {
 			if(cloudInfo) {
 				if(cloudInfo.enabled == true) {
+					log.info ("Ray :: initializeCloud: cloudInfo.configMap: ${cloudInfo.configMap}")
+					def username = cloudInfo.accountCredentialData?.username ?: cloudInfo.getConfigProperty('username') ?: 'dunno'
+					log.info ("Ray :: initializeCloud: username: ${username}")
+					def password = cloudInfo.accountCredentialData?.password ?: cloudInfo.getConfigProperty('password')
+					log.info ("Ray :: initializeCloud: password: ${password}")
+					log.info ("Ray :: initializeCloud: before calling initializeHypervisor......")
 					def initResults = initializeHypervisor(cloudInfo)
+					log.info ("Ray :: initializeCloud: after calling initializeHypervisor initResults: ${initResults}")
 					log.debug("initResults: {}", initResults)
 					if(initResults.success == true) {
 						refresh(cloudInfo)
@@ -408,13 +415,20 @@ class ScvmmCloudProvider implements CloudProvider {
 	}
 
 	def initializeHypervisor(cloud) {
+		log.info ("Ray :: initializeHypervisor: cloud: ${cloud}")
+		log.info ("Ray :: initializeHypervisor: cloud?.id: ${cloud?.id}")
 		def rtn = [success: false]
 		log.debug("cloud: ${cloud}")
 		ComputeServer newServer
 		def opts = apiService.getScvmmInitializationOpts(cloud)
+		log.info ("Ray :: initializeHypervisor: opts: ${opts}")
 		def serverInfo = apiService.getScvmmServerInfo(opts)
+		log.info ("Ray :: initializeHypervisor: serverInfo: ${serverInfo}")
+		log.info ("Ray :: initializeHypervisor: serverInfo.success: ${serverInfo.success}")
+		log.info ("Ray :: initializeHypervisor: serverInfo.hostname: ${serverInfo.hostname}")
 		if (serverInfo.success == true && serverInfo.hostname) {
 			def cloudConfig = cloud.getConfigMap()
+			log.info ("Ray :: initializeHypervisor: cloudConfig: ${cloudConfig}")
 			newServer = context.services.computeServer.find(new DataQuery().withFilters(
 					new DataFilter('zone.id', cloud.id),
 					new DataOrFilter(
@@ -422,7 +436,12 @@ class ScvmmCloudProvider implements CloudProvider {
 							new DataFilter('name', serverInfo.hostname)
 					)
 			))
+			log.info ("Ray :: initializeHypervisor: newServer: ${newServer}")
+			log.info ("Ray :: initializeHypervisor: newServer?.id: ${newServer?.id}")
+			log.info ("Ray :: initializeHypervisor: newServer?.name: ${newServer?.name}")
 			def serverType = context.async.cloud.findComputeServerTypeByCode("scvmmController").blockingGet()
+			log.info ("Ray :: initializeHypervisor: serverType: ${serverType}")
+			log.info ("Ray :: initializeHypervisor: serverType?.code: ${serverType?.code}")
 			if(!newServer) {
 				newServer = new ComputeServer()
 				newServer.account = cloud.account
@@ -430,6 +449,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				newServer.computeServerType = serverType
 				newServer.serverOs = new OsType(code: 'windows.server.2012')
 				newServer.name = serverInfo.hostname
+				newServer = context.services.computeServer.create(newServer)
 			}
 			if (serverInfo.hostname) {
 				newServer.hostname = serverInfo.hostname
@@ -442,6 +462,9 @@ class ScvmmCloudProvider implements CloudProvider {
 			newServer.setConfigProperty('workingPath', cloud.getConfigProperty('workingPath'))
 			newServer.setConfigProperty('diskPath', cloud.getConfigProperty('diskPath'))
 			//check: port is missing
+			log.info ("Ray :: initializeHypervisor: newServer1: ${newServer}")
+			log.info ("Ray :: initializeHypervisor: newServer?.id1: ${newServer?.id}")
+			log.info ("Ray :: initializeHypervisor: newServer?.name1: ${newServer?.name}")
 		}
 		// initializeHypervisor from context
 		log.debug("newServer: ${newServer}")
@@ -450,6 +473,7 @@ class ScvmmCloudProvider implements CloudProvider {
 			context.async.hypervisorService.initialize(newServer)
 			rtn.success = true
 		}
+		log.info ("Ray :: initializeHypervisor: rtn: ${rtn}")
 		return rtn
 	}
 

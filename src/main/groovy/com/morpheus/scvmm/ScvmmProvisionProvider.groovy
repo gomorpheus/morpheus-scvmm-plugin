@@ -40,23 +40,33 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	@Override
 	ServiceResponse<InitializeHypervisorResponse> initializeHypervisor(Cloud cloud, ComputeServer server) {
 		log.debug("initializeHypervisor: cloud: {}, server: {}", cloud, server)
+		log.info ("Ray :: P-initializeHypervisor: cloud: {}, server: {}", cloud, server)
 		ServiceResponse<InitializeHypervisorResponse> rtn = new ServiceResponse<>(new InitializeHypervisorResponse())
 		try {
 			def sharedController = cloud.getConfigProperty('sharedController')
+			log.info ("Ray :: P-initializeHypervisor: sharedController: ${sharedController}")
 			if(sharedController) {
 				// No controller needed.. we are sharing another cloud's controller
 				rtn.success = true
 			} else {
 				def opts = apiService.getScvmmZoneOpts(context, cloud)
+				log.info ("Ray :: P-initializeHypervisor: opts: ${opts}")
 				opts += apiService.getScvmmControllerOpts(cloud, server)
+				log.info ("Ray :: P-initializeHypervisor: opts1: ${opts}")
 				def serverInfo = apiService.getScvmmServerInfo(opts)
+				log.info ("Ray :: P-initializeHypervisor: serverInfo: ${serverInfo}")
 				log.debug("serverInfo: ${serverInfo}")
+				log.info ("Ray :: P-initializeHypervisor: serverInfo.success: ${serverInfo.success}")
+				log.info ("Ray :: P-initializeHypervisor: serverInfo.hostname: ${serverInfo.hostname}")
 				if (serverInfo.success == true && serverInfo.hostname) {
 					server.hostname = serverInfo.hostname
 				}
 				def maxStorage = serverInfo?.disks ? serverInfo?.disks.toLong() : 0
 				def maxMemory = serverInfo?.memory ? serverInfo?.memory.toLong() : 0
 				def maxCores = 1
+				log.info ("Ray :: P-initializeHypervisor: maxStorage: ${maxStorage}")
+				log.info ("Ray :: P-initializeHypervisor: maxMemory: ${maxMemory}")
+				log.info ("Ray :: P-initializeHypervisor: maxCores: ${maxCores}")
 
 				rtn.data.serverOs = new OsType(code: 'windows.server.2012')
 				rtn.data.commType = 'winrm' //ssh, minrm
@@ -64,13 +74,18 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				rtn.data.maxCores = maxCores
 				rtn.data.maxStorage = maxStorage
 				rtn.success = true
+				log.info ("Ray :: P-initializeHypervisor: server.agentInstalled: ${server.agentInstalled}")
 				if (server.agentInstalled != true) {
+					log.info ("Ray :: P-initializeHypervisor: opts: ${opts}")
 					def prepareResults = apiService.prepareNode(opts)
+					log.info ("Ray :: P-initializeHypervisor: prepareResults: ${prepareResults}")
+					log.info ("Ray :: P-initializeHypervisor: prepareResults.success: ${prepareResults?.success}")
 				}
 			}
 		} catch (e) {
 			log.error("initialize hypervisor error:${e}", e)
 		}
+		log.info ("Ray :: P-initializeHypervisor: rtn: ${rtn}")
 		return rtn
 	}
 
