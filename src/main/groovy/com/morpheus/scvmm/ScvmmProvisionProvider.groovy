@@ -3,28 +3,75 @@ package com.morpheus.scvmm
 import com.morpheusdata.core.AbstractProvisionProvider
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
+import com.morpheusdata.core.providers.ProvisionProvider
 import com.morpheusdata.core.providers.WorkloadProvisionProvider
-import com.morpheusdata.model.ComputeServer
-import com.morpheusdata.model.Icon
-import com.morpheusdata.model.OptionType
-import com.morpheusdata.model.ServicePlan
-import com.morpheusdata.model.StorageVolumeType
-import com.morpheusdata.model.Workload
+import com.morpheusdata.model.*
 import com.morpheusdata.model.provisioning.WorkloadRequest
+import com.morpheusdata.response.InitializeHypervisorResponse
 import com.morpheusdata.response.PrepareWorkloadResponse
 import com.morpheusdata.response.ProvisionResponse
 import com.morpheusdata.response.ServiceResponse
+import groovy.util.logging.Slf4j
 
-class ScvmmProvisionProvider extends AbstractProvisionProvider implements WorkloadProvisionProvider {
+@Slf4j
+class ScvmmProvisionProvider extends AbstractProvisionProvider implements WorkloadProvisionProvider, ProvisionProvider.HypervisorProvisionFacet {
 	public static final String PROVISION_PROVIDER_CODE = 'morpheus-scvmm-plugin.provision'
 
 	protected MorpheusContext context
-	protected Plugin plugin
+	protected ScvmmPlugin plugin
+	ScvmmApiService apiService
 
-	public ScvmmProvisionProvider(Plugin plugin, MorpheusContext ctx) {
+	public ScvmmProvisionProvider(ScvmmPlugin plugin, MorpheusContext context) {
 		super()
-		this.@context = ctx
+		this.@context = context
 		this.@plugin = plugin
+		this.apiService = new ScvmmApiService(context)
+	}
+
+	/**
+	 * Initialize a compute server as a Hypervisor. Common attributes defined in the {@link InitializeHypervisorResponse} will be used
+	 * to update attributes on the hypervisor, including capacity information. Additional details can be updated by the plugin provider
+	 * using the `context.services.computeServer.save(server)` API.
+	 * @param cloud cloud associated to the hypervisor
+	 * @param server representing the hypervisor
+	 * @return a {@link ServiceResponse} containing an {@link InitializeHypervisorResponse}. The response attributes will be
+	 * used to fill in necessary attributes of the server.
+	 */
+	@Override
+	ServiceResponse<InitializeHypervisorResponse> initializeHypervisor(Cloud cloud, ComputeServer server) {
+		log.debug("initializeHypervisor: cloud: {}, server: {}", cloud, server)
+		ServiceResponse<InitializeHypervisorResponse> rtn = new ServiceResponse<>(new InitializeHypervisorResponse())
+		try {
+			def sharedController = cloud.getConfigProperty('sharedController')
+			if(sharedController) {
+				// No controller needed.. we are sharing another cloud's controller
+				rtn.success = true
+			} else {
+				def opts = apiService.getScvmmZoneOpts(context, cloud)
+				opts += apiService.getScvmmControllerOpts(cloud, server)
+				def serverInfo = apiService.getScvmmServerInfo(opts)
+				log.debug("serverInfo: ${serverInfo}")
+				if (serverInfo.success == true && serverInfo.hostname) {
+					server.hostname = serverInfo.hostname
+				}
+				def maxStorage = serverInfo?.disks ? serverInfo?.disks.toLong() : 0
+				def maxMemory = serverInfo?.memory ? serverInfo?.memory.toLong() : 0
+				def maxCores = 1
+
+				rtn.data.serverOs = new OsType(code: 'windows.server.2012')
+				rtn.data.commType = 'winrm' //ssh, minrm
+				rtn.data.maxMemory = maxMemory
+				rtn.data.maxCores = maxCores
+				rtn.data.maxStorage = maxStorage
+				rtn.success = true
+				if (server.agentInstalled != true) {
+					def prepareResults = apiService.prepareNode(opts)
+				}
+			}
+		} catch (e) {
+			log.error("initialize hypervisor error:${e}", e)
+		}
+		return rtn
 	}
 
 	/**

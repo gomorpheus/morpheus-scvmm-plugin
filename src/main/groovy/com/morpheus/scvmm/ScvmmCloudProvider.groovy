@@ -1,10 +1,14 @@
 package com.morpheus.scvmm
 
+import com.morpheus.scvmm.sync.IsolationNetworkSync
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
+import com.morpheusdata.core.data.DataFilter
+import com.morpheusdata.core.data.DataOrFilter
 import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.core.providers.CloudProvider
 import com.morpheusdata.core.providers.ProvisionProvider
+import com.morpheusdata.core.util.ConnectionUtils
 import com.morpheusdata.core.util.MorpheusUtils
 import com.morpheusdata.model.*
 import com.morpheusdata.request.ValidateCloudRequest
@@ -405,9 +409,49 @@ class ScvmmCloudProvider implements CloudProvider {
 		return rtn
 	}
 
-	//TODO: below method would be implemented later with US: MOREPHEUS-140
 	def initializeHypervisor(cloud) {
-		def rtn = [success: true]
+		def rtn = [success: false]
+		log.debug("cloud: ${cloud}")
+		ComputeServer newServer
+		def opts = apiService.getScvmmInitializationOpts(cloud)
+		def serverInfo = apiService.getScvmmServerInfo(opts)
+		if (serverInfo.success == true && serverInfo.hostname) {
+			def cloudConfig = cloud.getConfigMap()
+			newServer = context.services.computeServer.find(new DataQuery().withFilters(
+					new DataFilter('zone.id', cloud.id),
+					new DataOrFilter(
+							new DataFilter('hostname', serverInfo.hostname),
+							new DataFilter('name', serverInfo.hostname)
+					)
+			))
+			def serverType = context.async.cloud.findComputeServerTypeByCode("scvmmController").blockingGet()
+			if (!newServer) {
+				newServer = new ComputeServer()
+				newServer.account = cloud.account
+				newServer.cloud = cloud
+				newServer.computeServerType = serverType
+				newServer.serverOs = new OsType(code: 'windows.server.2012')
+				newServer.name = serverInfo.hostname
+				newServer = context.services.computeServer.create(newServer)
+			}
+			if (serverInfo.hostname) {
+				newServer.hostname = serverInfo.hostname
+			}
+			newServer.sshHost = cloud.getConfigProperty('host')
+			newServer.internalIp = newServer.sshHost
+			newServer.externalIp = newServer.sshHost
+			newServer.sshUsername = apiService.getUsername(cloud)
+			newServer.sshPassword = apiService.getPassword(cloud)
+			newServer.setConfigProperty('workingPath', cloud.getConfigProperty('workingPath'))
+			newServer.setConfigProperty('diskPath', cloud.getConfigProperty('diskPath'))
+		}
+		// initializeHypervisor from context
+		log.debug("newServer: ${newServer}")
+		context.services.computeServer.save(newServer)
+		if (newServer) {
+			context.async.hypervisorService.initialize(newServer)
+			rtn.success = true
+		}
 		return rtn
 	}
 
@@ -421,7 +465,144 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	ServiceResponse refresh(Cloud cloudInfo) {
-		return ServiceResponse.success()
+		log.debug("refresh: {}", cloudInfo)
+		ServiceResponse response = ServiceResponse.prepare()
+		try {
+			def syncDate = new Date()
+			//why would we ever have more than 1? i don't think we would
+			def scvmmController = getScvmmController(cloudInfo)
+			if (scvmmController) {
+				def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloudInfo, scvmmController)
+				def hostOnline = ConnectionUtils.testHostConnectivity(scvmmOpts.sshHost, 5985, false, true, null)
+				log.debug("hostOnline: {}", hostOnline)
+				if (hostOnline) {
+					def checkResults = checkCommunication(cloudInfo, scvmmController)
+					if (checkResults.success == true) {
+						updateHypervisorStatus(scvmmController, 'provisioned', 'on', '')
+						//updateZoneStatus(zone, 'syncing', null)
+						context.async.cloud.updateCloudStatus(cloudInfo, Cloud.Status.syncing, null, syncDate)
+
+						// TODO: Below sync cache code need to be implmented with sync story
+						/*cacheNetworks([zone:zone], scvmmController)
+						sessionFactory.currentSession.clear()
+						zone.attach()
+						zone.account.attach()
+						zone.owner.attach()*/
+
+						def now = new Date().time
+						new IsolationNetworkSync(context, cloudInfo, apiService).execute()
+						log.debug("${cloudInfo.name}: NetworkSync in ${new Date().time - now}ms")
+
+
+						/*cacheClusters([zone:zone], scvmmController)
+						sessionFactory.currentSession.clear()
+						zone.attach()
+						zone.account.attach()
+						zone.owner.attach()*/
+
+						/*cacheHosts([zone:zone], scvmmController)
+						sessionFactory.currentSession.clear()
+						zone.attach()
+						zone.account.attach()
+						zone.owner.attach()*/
+
+						/*cacheDatastores([zone:zone], scvmmController)
+						sessionFactory.currentSession.clear()
+						zone.attach()
+						zone.account.attach()
+						zone.owner.attach()*/
+
+						/*cacheRegisteredStorageFileShares([zone:zone], scvmmController)
+						sessionFactory.currentSession.clear()
+						zone.attach()
+						zone.account.attach()
+						zone.owner.attach()*/
+
+						/*cacheZoneCapabilityProfiles([zone: zone], scvmmController)
+						sessionFactory.currentSession.clear()
+						zone.attach()
+						zone.account.attach()
+						zone.owner.attach()
+						cacheTemplates([zone: zone], scvmmController).get()
+						sessionFactory.currentSession.clear()
+						zone.attach()
+						zone.account.attach()
+						zone.owner.attach()*/
+
+						/*cacheIpPools([zone: zone], scvmmController)
+						sessionFactory.currentSession.clear()
+						zone.attach()
+						zone.account.attach()
+						zone.owner.attach()*/
+
+						def doInventory = cloudInfo.getConfigProperty('importExisting')
+						def createNew = (doInventory == 'on' || doInventory == 'true' || doInventory == true)
+						// TODO: cacheVirtualMachines
+						//cacheVirtualMachines([zone:zone, createNew:createNew], scvmmController)
+						context.async.cloud.updateCloudStatus(cloudInfo, Cloud.Status.ok, null, syncDate)
+						log.debug "complete scvmm zone refresh"
+						response.success = true
+					} else {
+						updateHypervisorStatus(scvmmController, 'error', 'unknown', 'error connecting to controller')
+						context.async.cloud.updateCloudStatus(cloudInfo, 'error', 'error connecting', syncDate)
+					}
+				} else {
+					updateHypervisorStatus(scvmmController, 'error', 'unknown', 'error connecting to controller')
+					context.async.cloud.updateCloudStatus(cloudInfo, 'error', 'error connecting', syncDate)
+				}
+			} else {
+				context.async.cloud.updateCloudStatus(cloudInfo, 'error', 'controller not found', syncDate)
+			}
+		} catch (e) {
+			log.error("refresh zone error:${e}", e)
+		}
+		return response
+	}
+
+	def checkCommunication(cloud, node) {
+		log.debug("checkCommunication: {} {}", cloud, node)
+		def rtn = [success: false]
+		try {
+			def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloud, node)
+			def listResults = apiService.listAllNetworks(scvmmOpts)
+			if (listResults.success == true && listResults.networks) {
+				rtn.success = true
+			}
+		} catch (e) {
+			log.error("checkCommunication error:${e}", e)
+		}
+		return rtn
+	}
+
+	def getScvmmController(Cloud cloud) {
+		def sharedControllerId = cloud.getConfigProperty('sharedController')
+		def sharedController = sharedControllerId ? context.services.computeServer.get(sharedControllerId.toLong()) : null
+		if (sharedController) {
+			return sharedController
+		}
+		def rtn = context.services.computeServer.find(new DataQuery()
+				.withFilter('zone.id', cloud.id)
+				.withFilter('computeServerType.code', 'scvmmController')
+				.withJoin('computeServerType'))
+		if (rtn == null) {
+			//old zone with wrong type
+			rtn = context.services.computeServer.find(new DataQuery()
+					.withFilter('zone.id', cloud.id)
+					.withFilter('computeServerType.code', 'scvmmController')
+					.withJoin('computeServerType'))
+			if (rtn == null) {
+				rtn = context.services.computeServer.find(new DataQuery()
+						.withFilter('zone.id', cloud.id)
+						.withFilter('serverType', 'hypervisor'))
+			}
+			//if we have tye type
+			if (rtn) {
+				def serverType = context.async.cloud.findComputeServerTypeByCode("scvmmController").blockingGet()
+				rtn.computeServerType = serverType
+				context.async.computeServer.save(rtn).blockingGet()
+			}
+		}
+		return rtn
 	}
 
 	/**
@@ -657,5 +838,16 @@ class ScvmmCloudProvider implements CloudProvider {
 			log.error("removeOrphanedResourceLibraryItems error:${e}", e)
 		}
 		return rtn
+	}
+
+	private updateHypervisorStatus(server, status, powerState, msg) {
+		log.debug("server: {}, status: {}, powerState: {}, msg: {}", server, status, powerState, msg)
+		if (server.status != status || server.powerState != powerState) {
+			server.status = status
+			server.powerState = powerState
+			server.statusDate = new Date()
+			server.statusMessage = msg
+			context.services.computeServer.save(server)
+		}
 	}
 }
