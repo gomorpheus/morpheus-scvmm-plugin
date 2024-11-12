@@ -927,7 +927,7 @@ foreach (\$FileShare in \$FileShares){
             def command = generateCommandString("Get-SCLogicalNetwork -VMMServer localhost | Select ID,Name")
             def out = wrapExecuteCommand(command, opts)
             log.debug("listNetworks: ${out}")
-            if (out.success && out.exitValue == 0 && out.data?.size() > 0) {
+            if (out.success && out.exitCode == '0' && out.data?.size() > 0) {
                 def logicalNetworks = out.data
                 command = generateCommandString("""\$report = @()
 \$networks = Get-SCVMNetwork -VMMServer localhost | Select ID,Name,LogicalNetwork | Sort-Object -Property ID | Select-Object -First 1
@@ -942,7 +942,7 @@ foreach (\$network in \$networks) {
 \$report """)
                 out = wrapExecuteCommand(command, opts)
                 log.debug("get of networks: ${out}")
-                if (out.success && out.exitValue == 0) {
+                if (out.success && out.exitCode == '0') {
                     if (out.data) {
                         log.debug("list logical networks: ${out}")
                         def networks = out.data
@@ -951,7 +951,7 @@ foreach (\$network in \$networks) {
                         }
                     }
                 } else {
-                    if (out.exitValue != 0) {
+                    if (out.exitCode != '0') {
                         log.info "Fetch of networks resulted in non-zero exit value: ${out}"
                     }
                 }
@@ -1001,7 +1001,7 @@ Get-SCLogicalNetwork -VMMServer localhost -Cloud \$cloud | Select ID,Name"""
 
                 def out = wrapExecuteCommand(command, opts)
                 log.debug("listNetworks: ${out}")
-                if (out.success && out.exitValue == 0 && out.data?.size() > 0) {
+                if (out.success && out.exitCode == '0' && out.data?.size() > 0) {
                     def logicalNetworks = out.data
                     command = generateCommandString("""\$report = @()
 \$networks = Get-SCVMNetwork -VMMServer localhost | where {\$_.IsolationType -ne "NoIsolation"} | Select ID,Name,LogicalNetwork,VMSubnet | Sort-Object -Property ID | Select-Object -Skip $offset -First $pageSize
@@ -1030,7 +1030,7 @@ foreach (\$network in \$networks) {
 \$report""")
                     out = wrapExecuteCommand(command, opts)
                     log.debug("get of networks: ${out}")
-                    if (out.success && out.exitValue == 0) {
+                    if (out.success && out.exitCode == '0') {
                         hasMore = out.data != ''
                         if (out.data) {
                             log.debug("list logical networks: ${out}")
@@ -1041,7 +1041,7 @@ foreach (\$network in \$networks) {
                             }
                         }
                     } else {
-                        if (out.exitValue != 0) {
+                        if (out.exitCode != '0') {
                             log.info "Fetch of networks resulted in non-zero exit value: ${out}"
                         }
                         hasMore = false
@@ -1083,7 +1083,7 @@ Get-SCLogicalNetwork -VMMServer localhost -Cloud \$cloud | Select ID,Name"""
                 }
                 def out = wrapExecuteCommand(command, opts)
                 log.debug("listNetworks: ${out}")
-                if (out.success && out.exitValue == 0 && out.data?.size() > 0) {
+                if (out.success && out.exitCode == '0' && out.data?.size() > 0) {
                     def logicalNetworks = out.data
                     command = generateCommandString("""\$report = @()
 \$logicalNetworks = Get-SCLogicalNetworkDefinition -VMMServer localhost | where {\$_.IsolationType -eq "None"} | Sort-Object -Property ID | Select-Object -Skip $offset -First $pageSize
@@ -1105,8 +1105,8 @@ foreach (\$logicalNetwork in \$logicalNetworks) {
 \$report""")
                     out = wrapExecuteCommand(command, opts)
                     log.debug("get of networks: ${out}")
-                    if (out.success && out.exitValue == 0) {
-                        hasMore = out.data != ''
+                    if (out.success && out.exitCode == '0') {
+                        hasMore = (out.data != '' && out.data != null)
                         if (out.data) {
                             log.debug("list logical networks: ${out}")
                             def networks = out.data
@@ -1116,7 +1116,7 @@ foreach (\$logicalNetwork in \$logicalNetworks) {
                             }
                         }
                     } else {
-                        if (out.exitValue != 0) {
+                        if (out.exitCode != '0') {
                             log.info "Fetch of networks resulted in non-zero exit value: ${out}"
                         }
                         hasMore = false
@@ -1125,7 +1125,6 @@ foreach (\$logicalNetwork in \$logicalNetworks) {
                     log.info "Error in fetching network info: ${out}"
                     hasMore = false
                     rtn.success = false
-                    hasMore = false
                 }
             }
             def currentOffset = 0
@@ -1170,7 +1169,7 @@ foreach (\$staticPool in \$staticPools) {
 
             def out = wrapExecuteCommand(command, opts)
             log.debug("listNetworkIPPools: ${out}")
-            if (out.success && out.exitValue == 0) {
+            if (out.success && out.exitCode == '0') {
                 rtn.ipPools += out.data ?: []
             } else {
                 rtn.success = false
@@ -1192,7 +1191,7 @@ foreach (\$network in \$networks) {
 \$report """)
                 out = wrapExecuteCommand(command, opts)
                 log.debug("fetch network mapping: ${out}")
-                if (out.success && out.exitValue == 0) {
+                if (out.success && out.exitCode == '0') {
                     rtn.networkMapping += out.data ?: []
                 } else {
                     rtn.success = false
@@ -1212,7 +1211,7 @@ foreach (\$network in \$networks) {
             def command = generateCommandString("""\$ippool = Get-SCStaticIPAddressPool -VMMServer localhost -ID \"$poolId\"; Grant-SCIPAddress -GrantToObjectType \"VirtualMachine\" -StaticIPAddressPool \$ippool | Select-Object ID,Address""")
             def out = wrapExecuteCommand(command, opts)
             log.debug("reserveIPAddress: ${out}")
-            if (out.success && out.exitValue == 0) {
+            if (out.success && out.exitCode == '0') {
                 def ipAddressBlock = out.data
                 if (ipAddressBlock) {
                     rtn.ipAddress = ipAddressBlock.first()
@@ -1234,7 +1233,7 @@ foreach (\$network in \$networks) {
             def command = generateCommandString("\$ippool = Get-SCStaticIPAddressPool -VMMServer localhost -ID \"$poolId\"; \$ipaddress = Get-SCIPAddress -ID \"$ipId\"; \$ignore = Revoke-SCIPAddress \$ipaddress")
             def out = wrapExecuteCommand(command, opts)
             log.info("releaseIPAddress: ${out}")
-            if (out.success && out.exitValue == 0) {
+            if (out.success && out.exitCode == '0') {
                 // Do nothing
             } else {
                 if (out.errorData?.contains("Unable to find the specified allocated IP address")) {
@@ -1833,7 +1832,7 @@ For (\$i=0; \$i -le 10; \$i++) {
                 log.debug "updateServer: ${command}"
                 def out = wrapExecuteCommand(generateCommandString(command), opts)
                 log.debug "updateServer results: ${out}"
-                rtn.success = out.success && out.exitValue == 0
+                rtn.success = out.success && out.exitCode == '0'
             } else {
                 log.debug("No updates for server: ${vmId}")
                 rtn.success = true
@@ -2036,7 +2035,7 @@ For (\$i=0; \$i -le 10; \$i++) {
             def snapshotId = opts.snapshotId ?: "${vmId}.${System.currentTimeMillis()}"
             def command = "\$VM = Get-SCVirtualMachine -VMMServer localhost -ID \"${vmId}\"; \$ignore = New-SCVMCheckpoint -VM \$VM -Name \"${snapshotId}\""
             def out = wrapExecuteCommand(generateCommandString(command), opts)
-            rtn.success = out.success && out.exitValue == 0
+            rtn.success = out.success && out.exitCode == '0'
             rtn.snapshotId = snapshotId
             log.debug("snapshot server: ${out}")
         } catch (e) {
@@ -2054,7 +2053,7 @@ For (\$i=0; \$i -le 10; \$i++) {
             commands << "\$Checkpoint = Get-SCVMCheckpoint -VM \$VM | where {\$_.Name -like \"${snapshotId}\"}"
             commands << "\$ignore = Remove-SCVMCheckpoint -VMCheckpoint \$Checkpoint"
             def out = wrapExecuteCommand(generateCommandString(commands.join(';')), opts)
-            rtn.success = out.success && out.exitValue == 0
+            rtn.success = out.success && out.exitCode == '0'
             rtn.snapshotId = snapshotId
             log.debug("delete snapshot: ${out}")
         } catch (e) {
@@ -2072,7 +2071,7 @@ For (\$i=0; \$i -le 10; \$i++) {
             commands << "\$Checkpoint = Get-SCVMCheckpoint -VM \$VM | where {\$_.Name -like \"${snapshotId}\"}"
             commands << "Restore-SCVMCheckpoint -VMCheckpoint \$Checkpoint"
             def out = wrapExecuteCommand(generateCommandString(commands.join(';')), opts)
-            rtn.success = out.success && out.exitValue == 0
+            rtn.success = out.success && out.exitCode == '0'
             log.debug("restore server: ${out}")
         } catch (e) {
             log.error("restoreServer error: ${e}")
@@ -2092,7 +2091,7 @@ For (\$i=0; \$i -le 10; \$i++) {
             commands << "Set-SCVirtualDiskDrive -VirtualDiskDrive \$ClonedBootDisk -VolumeType BootAndSystem"
 
             def out = wrapExecuteCommand(generateCommandString(commands.join(';')), opts)
-            rtn.success = out.success && out.exitValue == 0
+            rtn.success = out.success && out.exitCode == '0'
             log.debug("changeVolumeTypeForClonedBootDisk: ${out}")
         } catch (e) {
             log.error("changeVolumeTypeForClonedBootDisk error: ${e}")
@@ -2491,12 +2490,8 @@ For (\$i=0; \$i -le 10; \$i++) {
         def diskRoot = configuredDiskPath ? configuredDiskPath : defaultRoot + '\\Disks'
         def configuredWorkingPath = zoneConfig.workingPath?.length() > 0 ? zoneConfig.workingPath : serverConfig.workingPath?.length() > 0 ? serverConfig.workingPath : null
         def zoneRoot = configuredWorkingPath ? configuredWorkingPath : defaultRoot
-        def hypervisorOpts = [hypervisorConfig: serverConfig, hypervisor: hypervisor, sshHost: hypervisor.sshHost, sshUsername: hypervisor.sshUsername,
-                              sshPassword: hypervisor.sshPassword, zoneRoot: zoneRoot, diskRoot: diskRoot]
-        log.info("RAZI :: getScvmmControllerOpts >> hypervisorOpts: ${hypervisorOpts}")
-//        return [hypervisorConfig: serverConfig, hypervisor: hypervisor, sshHost: hypervisor.sshHost, sshUsername: hypervisor.sshUsername,
-//                sshPassword: hypervisor.sshPassword, zoneRoot: zoneRoot, diskRoot: diskRoot]
-        return hypervisorOpts
+        return [hypervisorConfig: serverConfig, hypervisor: hypervisor, sshHost: hypervisor.sshHost, sshUsername: hypervisor.sshUsername,
+                sshPassword: hypervisor.sshPassword, zoneRoot: zoneRoot, diskRoot: diskRoot]
     }
 
     def getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, hypervisor) {
