@@ -927,7 +927,7 @@ foreach (\$FileShare in \$FileShares){
             def command = generateCommandString("Get-SCLogicalNetwork -VMMServer localhost | Select ID,Name")
             def out = wrapExecuteCommand(command, opts)
             log.debug("listNetworks: ${out}")
-            if (out.success && out.exitValue == 0 && out.data?.size() > 0) {
+            if (out.success && out.exitCode == '0' && out.data?.size() > 0) {
                 def logicalNetworks = out.data
                 command = generateCommandString("""\$report = @()
 \$networks = Get-SCVMNetwork -VMMServer localhost | Select ID,Name,LogicalNetwork | Sort-Object -Property ID | Select-Object -First 1
@@ -942,7 +942,7 @@ foreach (\$network in \$networks) {
 \$report """)
                 out = wrapExecuteCommand(command, opts)
                 log.debug("get of networks: ${out}")
-                if (out.success && out.exitValue == 0) {
+                if (out.success && out.exitCode == '0') {
                     if (out.data) {
                         log.debug("list logical networks: ${out}")
                         def networks = out.data
@@ -951,7 +951,7 @@ foreach (\$network in \$networks) {
                         }
                     }
                 } else {
-                    if (out.exitValue != 0) {
+                    if (out.exitCode != '0') {
                         log.info "Fetch of networks resulted in non-zero exit value: ${out}"
                     }
                 }
