@@ -2533,4 +2533,20 @@ For (\$i=0; \$i -le 10; \$i++) {
         rtn = rtn.replaceAll(' ', '_')
         rtn = rtn.replaceAll('\\.', '_')
     }
+
+    def getScvmmInitializationOpts(cloud) {
+        def cloudConfig = cloud.getConfigMap()
+        def diskRoot = cloudConfig.diskPath?.length() > 0 ? cloudConfig.diskPath : defaultRoot + '\\Disks'
+        def cloudRoot = cloudConfig.workingPath?.length() > 0 ? cloudConfig.workingPath : defaultRoot
+        return [sshHost:cloudConfig.host, sshUsername:getUsername(cloud), sshPassword:getPassword(cloud), zoneRoot:cloudRoot,
+                diskRoot:diskRoot]
+    }
+
+    private getUsername(cloud) {
+        cloud.accountCredentialData?.username ?: cloud.getConfigProperty('username') ?: 'dunno'
+    }
+
+    private getPassword(cloud) {
+        cloud.accountCredentialData?.password ?: cloud.getConfigProperty('password')
+    }
 }
