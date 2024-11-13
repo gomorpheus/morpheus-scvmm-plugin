@@ -1,5 +1,6 @@
 package com.morpheus.scvmm
 
+import com.morpheus.scvmm.sync.IsolationNetworkSync
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.data.DataFilter
@@ -488,11 +489,10 @@ class ScvmmCloudProvider implements CloudProvider {
 						zone.account.attach()
 						zone.owner.attach()*/
 
-						/*cacheIsolationNetworks([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						def now = new Date().time
+						new IsolationNetworkSync(context, cloudInfo, apiService).execute()
+						log.debug("${cloudInfo.name}: NetworkSync in ${new Date().time - now}ms")
+
 
 						/*cacheClusters([zone:zone], scvmmController)
 						sessionFactory.currentSession.clear()
