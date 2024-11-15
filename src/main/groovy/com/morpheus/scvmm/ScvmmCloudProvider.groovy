@@ -1,5 +1,6 @@
 package com.morpheus.scvmm
 
+import com.morpheus.scvmm.sync.DatastoresSync
 import com.morpheus.scvmm.sync.IsolationNetworkSync
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
@@ -506,11 +507,9 @@ class ScvmmCloudProvider implements CloudProvider {
 						zone.account.attach()
 						zone.owner.attach()*/
 
-						/*cacheDatastores([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new DatastoresSync(scvmmController, cloudInfo, context).execute()
+						log.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
 
 						/*cacheRegisteredStorageFileShares([zone:zone], scvmmController)
 						sessionFactory.currentSession.clear()
