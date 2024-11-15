@@ -612,6 +612,23 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	void refreshDaily(Cloud cloudInfo) {
+		log.debug("refreshDaily: {}", cloudInfo)
+		try {
+			def scvmmController = getScvmmController(cloudInfo)
+			if (scvmmController) {
+				def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloudInfo, scvmmController)
+				def hostOnline = ConnectionUtils.testHostConnectivity(scvmmOpts.sshHost, 5985, false, true, null)
+				log.debug("hostOnline: {}", hostOnline)
+				if (hostOnline) {
+					def checkResults = checkCommunication(cloudInfo, scvmmController)
+					if (checkResults.success == true) {
+						removeOrphanedResourceLibraryItems(cloudInfo, scvmmController)
+					}
+				}
+			}
+		} catch (e) {
+			log.error "Error on refreshDailyZone: ${e}", e
+		}
 	}
 
 	/**
