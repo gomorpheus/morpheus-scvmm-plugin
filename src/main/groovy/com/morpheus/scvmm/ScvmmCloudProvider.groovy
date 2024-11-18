@@ -508,8 +508,10 @@ class ScvmmCloudProvider implements CloudProvider {
 						zone.owner.attach()*/
 
 						now = new Date().time
+						log.info ("Ray :: before calling refresh >> DatastoresSync....")
 						new DatastoresSync(scvmmController, cloudInfo, context).execute()
 						log.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
+						log.info ("Ray :: after calling refresh >> DatastoresSync....")
 
 						/*cacheRegisteredStorageFileShares([zone:zone], scvmmController)
 						sessionFactory.currentSession.clear()
