@@ -781,7 +781,7 @@ foreach (\$cloud in \$clouds) {
             def command = generateCommandString(commandStr)
             def out = wrapExecuteCommand(command, opts)
             if (out.success) {
-                hasMore = out.data != ''
+                hasMore = (out.data != '' && out.data != null)
                 if (out.data) {
                     rtn.hosts += out.data
                 }
