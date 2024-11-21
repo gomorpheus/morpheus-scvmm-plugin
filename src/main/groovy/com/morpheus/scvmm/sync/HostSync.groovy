@@ -58,6 +58,7 @@ class HostSync {
                         objList << item
                     }
                 }
+                log.debug("HostSync: objList?.size(): ${objList?.size()}")
                 if (objList?.size() > 0) {
                     def existingItems = context.async.computeServer.listIdentityProjections(
                             new DataQuery().withFilter("zone.id", cloud.id).withFilter("computeServerType.code", 'scvmmHypervisor')
@@ -97,6 +98,7 @@ class HostSync {
                 if (existingItem.resourcePool != cluster) {
                     existingItem.resourcePool = cluster
                     def savedServer = context.async.computeServer.save(existingItem).blockingGet()
+                    log.debug("savedServer?.id: ${savedServer?.id}")
                     if (savedServer) {
                         updateHostStats(savedServer, masterItem)
                     }
@@ -135,6 +137,7 @@ class HostSync {
                                 osType           : 'windows',
                                 hostname         : cloudItem.name
                         ]
+                log.debug("serverConfig: ${serverConfig}")
                 def newServer = new ComputeServer(serverConfig)
                 newServer.maxMemory = cloudItem.totalMemory?.toLong() ?: 0
                 newServer.maxStorage = cloudItem.totalStorage?.toLong() ?: 0
@@ -143,6 +146,7 @@ class HostSync {
                 newServer.capacityInfo = new ComputeCapacityInfo(maxMemory: newServer.maxMemory, maxStorage: newServer.maxStorage, maxCores: newServer.maxCores)
                 newServer.setConfigProperty('rawData', cloudItem.encodeAsJSON().toString())
                 def savedServer = context.async.computeServer.create(newServer).blockingGet()
+                log.debug("savedServer?.id: ${savedServer?.id}")
                 if (savedServer) {
                     updateHostStats(savedServer, cloudItem)
                 }
@@ -154,18 +158,22 @@ class HostSync {
 
     def removeMissingHosts(List<ComputeServerIdentityProjection> removeList) {
         log.debug "HostSync: removeMissingHosts: ${removeList.size()}"
-        def parentServers = context.services.computeServer.list(
-                new DataQuery().withFilter("parentServer.id", "in", removeList.collect { it.id })
-        )
-        def updatedServers = []
-        parentServers.each {server ->
-            server.parentServer = null
-            updatedServers << server
+        try {
+            def parentServers = context.services.computeServer.list(
+                    new DataQuery().withFilter("parentServer.id", "in", removeList.collect { it.id })
+            )
+            def updatedServers = []
+            parentServers?.each { server ->
+                server.parentServer = null
+                updatedServers << server
+            }
+            if (updatedServers?.size() > 0) {
+                context.async.computeServer.bulkSave(updatedServers).blockingGet()
+            }
+            context.async.computeServer.bulkRemove(removeList).blockingGet()
+        } catch (ex) {
+            log.error("HostSync: removeMissingHosts error: ${ex}", ex)
         }
-        if (updatedServers?.size() > 0) {
-            context.async.computeServer.bulkRemove(updatedServers).blockingGet()
-        }
-        context.async.computeServer.bulkRemove(removeList).blockingGet()
     }
 
     def getHypervisorOs(name) {
@@ -187,14 +195,11 @@ class HostSync {
             def maxCores = (hostMap.cpuCount?.toLong() ?: 1) * (hostMap.coresPerCpu?.toLong() ?: 1)
             def maxCpu = (hostMap.cpuCount?.toLong() ?: 1)
             def cpuPercent = hostMap.cpuUtilization?.toLong()
-
             //memory
             def maxMemory = hostMap.totalMemory?.toLong() ?: 0
             def maxUsedMemory = maxMemory - ((hostMap.availableMemory?.toLong() ?: 0) * ComputeUtility.ONE_MEGABYTE)
-
             //power state
             def powerState = hostMap.hyperVState == 'Running' ? 'on' : hostMap.hyperVState == 'Stopped' ? 'off' : 'unknown'
-
             //save it all
             def updates = false
             if (powerState == 'on') {
