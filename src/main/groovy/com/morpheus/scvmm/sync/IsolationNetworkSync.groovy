@@ -58,7 +58,7 @@ class IsolationNetworkSync {
                 }.onDelete { removeItems ->
                     morpheusContext.async.cloud.network.remove(removeItems).blockingGet()
                 }.onUpdate { List<SyncTask.UpdateItem<Network, Map>> updateItems ->
-                    updateMatchedNetworks(updateItems, networkType)
+                    updateMatchedNetworks(updateItems)
                 }.onAdd { itemsToAdd ->
                     addMissingNetworks(itemsToAdd, networkType, server)
                 }.withLoadObjectDetailsFromFinder { List<SyncTask.UpdateItemDto<NetworkIdentityProjection, Map>> updateItems ->
@@ -105,7 +105,7 @@ class IsolationNetworkSync {
         }
     }
 
-    private updateMatchedNetworks(List<SyncTask.UpdateItem<Network, Map>> updateList, NetworkType networkType) {
+    private updateMatchedNetworks(List<SyncTask.UpdateItem<Network, Map>> updateList) {
         log.debug("IsolationNetworkSync:updateMatchedNetworks: Entered")
         List<Network> itemsToUpdate = []
         try {
