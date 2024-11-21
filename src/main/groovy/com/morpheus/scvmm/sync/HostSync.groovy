@@ -73,7 +73,7 @@ class HostSync {
                     }.onUpdate { List<SyncTask.UpdateItem<ComputeServer, Map>> updateItems ->
                         log.debug("HostSync, onUpdate: ${updateItems}")
                         updateMatchedHosts(updateItems, clusters)
-                    }.onDelete { removeItems ->
+                    }.onDelete { List<ComputeServerIdentityProjection> removeItems ->
                         log.debug("HostSync, onDelete: ${removeItems}")
                         removeMissingHosts(removeItems)
                     }.start()
@@ -152,10 +152,19 @@ class HostSync {
         }
     }
 
-    def removeMissingHosts(List removeList) {
+    def removeMissingHosts(List<ComputeServerIdentityProjection> removeList) {
         log.debug "HostSync: removeMissingHosts: ${removeList.size()}"
-        //ComputeServer.where { parentServer == removeServer}.updateAll(parentServer: null) // check:
-        //removeServer.delete(flush:true)
+        def parentServers = context.services.computeServer.list(
+                new DataQuery().withFilter("parentServer.id", "in", removeList.collect { it.id })
+        )
+        def updatedServers = []
+        parentServers.each {server ->
+            server.parentServer = null
+            updatedServers << server
+        }
+        if (updatedServers?.size() > 0) {
+            context.async.computeServer.bulkRemove(updatedServers).blockingGet()
+        }
         context.async.computeServer.bulkRemove(removeList).blockingGet()
     }
 
@@ -232,29 +241,8 @@ class HostSync {
                 updates = true
             }
             if (updates == true) {
-                def statsData = []
-                def statsRow = [
-                        typeCode: 'server',
-                        objectId: "${server.id}",
-                        values  : [
-                                ts         : new Date(),
-                                freeMemory : (maxMemory - maxUsedMemory),
-                                maxMemory  : maxMemory,
-                                usedMemory : maxUsedMemory,
-                                maxStorage : maxStorage,
-                                usedStorage: maxUsedStorage,
-                                cpuUsage   : cpuPercent
-                        ]
-                ]
-                statsData << statsRow
-                //server.lastStats = statsRow.values?.encodeAsJSON().toString() // check: lastStats with computeStats
-                //server.computeStats = statsRow.values?.encodeAsJSON().toString() // check:
-                //capacityInfo.save()
                 server.capacityInfo = capacityInfo
-                //server.save(flush:true)
                 context.async.computeServer.save(server).blockingGet()
-                //def msg = [refId:1, jobType:'statsUpdate', data:statsData]
-                //sendRabbitMessage('main', '', ApplianceJobService.applianceMonitorQueue, msg) // check:
             }
         } catch (e) {
             log.warn("HostSync: error updating host stats: ${e}", e)
