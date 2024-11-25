@@ -781,7 +781,7 @@ foreach (\$cloud in \$clouds) {
             def command = generateCommandString(commandStr)
             def out = wrapExecuteCommand(command, opts)
             if (out.success) {
-                hasMore = out.data != ''
+                hasMore = (out.data != '' && out.data != null)
                 if (out.data) {
                     rtn.hosts += out.data
                 }
@@ -1031,7 +1031,7 @@ foreach (\$network in \$networks) {
                     out = wrapExecuteCommand(command, opts)
                     log.debug("get of networks: ${out}")
                     if (out.success && out.exitCode == '0') {
-                        hasMore = out.data != ''
+                        hasMore = (out.data != '' && out.data != null)
                         if (out.data) {
                             log.debug("list logical networks: ${out}")
                             def networks = out.data
@@ -1050,7 +1050,6 @@ foreach (\$network in \$networks) {
                     log.info "Error in fetching network info: ${out}"
                     hasMore = false
                     rtn.success = false
-                    hasMore = false
                 }
             }
             def currentOffset = 0
