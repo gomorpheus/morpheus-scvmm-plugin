@@ -1,5 +1,6 @@
 package com.morpheus.scvmm
 
+import com.morpheus.scvmm.sync.HostSync
 import com.morpheus.scvmm.sync.IsolationNetworkSync
 import com.morpheus.scvmm.sync.NetworkSync
 import com.morpheusdata.core.MorpheusContext
@@ -505,11 +506,9 @@ class ScvmmCloudProvider implements CloudProvider {
 						zone.account.attach()
 						zone.owner.attach()*/
 
-						/*cacheHosts([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new HostSync(cloudInfo, scvmmController, context).execute()
+						log.debug("${cloudInfo.name}: HostSync in ${new Date().time - now}ms")
 
 						/*cacheDatastores([zone:zone], scvmmController)
 						sessionFactory.currentSession.clear()
