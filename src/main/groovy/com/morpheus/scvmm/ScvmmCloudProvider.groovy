@@ -1,5 +1,6 @@
 package com.morpheus.scvmm
 
+import com.morpheus.scvmm.sync.ClustersSync
 import com.morpheus.scvmm.sync.IsolationNetworkSync
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
@@ -499,6 +500,11 @@ class ScvmmCloudProvider implements CloudProvider {
 						zone.attach()
 						zone.account.attach()
 						zone.owner.attach()*/
+						now = new Date().time
+						log.info("RAZI :: refresh >> ClustersSync >> cloudInfo.name: ${cloudInfo.name}")
+						new ClustersSync(context, cloudInfo).execute()
+						log.debug("${cloudInfo.name}: ClustersSync in ${new Date().time - now}ms")
+						log.info("RAZI :: ${cloudInfo.name}: ClustersSync in ${new Date().time - now}ms")
 
 						/*cacheHosts([zone:zone], scvmmController)
 						sessionFactory.currentSession.clear()
