@@ -493,18 +493,10 @@ class ScvmmCloudProvider implements CloudProvider {
 						def now = new Date().time
 						new IsolationNetworkSync(context, cloudInfo, apiService).execute()
 						log.debug("${cloudInfo.name}: NetworkSync in ${new Date().time - now}ms")
-
-
-						/*cacheClusters([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						
 						now = new Date().time
-						log.info("RAZI :: refresh >> ClustersSync >> cloudInfo.name: ${cloudInfo.name}")
 						new ClustersSync(context, cloudInfo).execute()
 						log.debug("${cloudInfo.name}: ClustersSync in ${new Date().time - now}ms")
-						log.info("RAZI :: ${cloudInfo.name}: ClustersSync in ${new Date().time - now}ms")
 
 						/*cacheHosts([zone:zone], scvmmController)
 						sessionFactory.currentSession.clear()
