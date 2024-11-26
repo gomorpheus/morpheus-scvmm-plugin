@@ -4,6 +4,7 @@ import com.morpheus.scvmm.ScvmmApiService
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.core.util.SyncTask
+import com.morpheusdata.model.Account
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.CloudPool
 import com.morpheusdata.model.ResourcePermission
@@ -58,8 +59,7 @@ class ClustersSync {
                     return morpheusContext.async.cloud.pool.listById(updateItems.collect { it.existingItem.id } as List<Long>)
                 }.start()
                 if(masterAccount == false) {
-                    // TODO: below code would be implemented in core
-//                    zonePoolService.chooseOwnerPoolDefaults(cloud.owner, cloud)
+                    chooseOwnerPoolDefaults(cloud.owner)
                 }
             } else {
                 log.error("Error not getting the listClusters")
@@ -202,6 +202,34 @@ class ClustersSync {
             }
         } catch (e) {
             log.error("Error in removeMissingResourcePools: ${e}", e)
+        }
+    }
+
+    def chooseOwnerPoolDefaults(Account currentAccount) {
+        //check for default store and set if not
+        def pool = morpheusContext.services.cloud.pool.find(new DataQuery()
+                .withFilter('owner', currentAccount)
+                .withFilter('refType', 'ComputeZone')
+                .withFilter('refId', cloud.id)
+                .withFilter('defaultPool', true))
+
+        if(pool && pool.readOnly == true) {
+            pool.defaultPool = false
+            morpheusContext.services.cloud.pool.save(pool)
+            pool = null
+        }
+
+        if(!pool) {
+            pool = morpheusContext.services.cloud.pool.find(new DataQuery()
+                    .withFilter('owner', currentAccount)
+                    .withFilter('refType', 'ComputeZone')
+                    .withFilter('refId', cloud.id)
+                    .withFilter('defaultPool', false)
+                    .withFilter('readOnly', '!=', true))
+            if(pool) {
+                pool.defaultPool = true
+                morpheusContext.services.cloud.pool.save(pool)
+            }
         }
     }
 }

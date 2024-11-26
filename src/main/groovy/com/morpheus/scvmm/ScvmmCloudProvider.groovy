@@ -1,7 +1,10 @@
 package com.morpheus.scvmm
 
 import com.morpheus.scvmm.sync.ClustersSync
+import com.morpheus.scvmm.sync.DatastoresSync
+import com.morpheus.scvmm.sync.HostSync
 import com.morpheus.scvmm.sync.IsolationNetworkSync
+import com.morpheus.scvmm.sync.NetworkSync
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.data.DataFilter
@@ -483,32 +486,25 @@ class ScvmmCloudProvider implements CloudProvider {
 						//updateZoneStatus(zone, 'syncing', null)
 						context.async.cloud.updateCloudStatus(cloudInfo, Cloud.Status.syncing, null, syncDate)
 
-						// TODO: Below sync cache code need to be implmented with sync story
-						/*cacheNetworks([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
-
 						def now = new Date().time
-						new IsolationNetworkSync(context, cloudInfo, apiService).execute()
+						new NetworkSync(context, cloudInfo).execute()
 						log.debug("${cloudInfo.name}: NetworkSync in ${new Date().time - now}ms")
-						
+
 						now = new Date().time
 						new ClustersSync(context, cloudInfo).execute()
 						log.debug("${cloudInfo.name}: ClustersSync in ${new Date().time - now}ms")
 
-						/*cacheHosts([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new IsolationNetworkSync(context, cloudInfo, apiService).execute()
+						log.debug("${cloudInfo.name}: IsolationNetworkSync in ${new Date().time - now}ms")
 
-						/*cacheDatastores([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new HostSync(cloudInfo, scvmmController, context).execute()
+						log.debug("${cloudInfo.name}: HostSync in ${new Date().time - now}ms")
+
+						now = new Date().time
+						new DatastoresSync(scvmmController, cloudInfo, context).execute()
+						log.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
 
 						/*cacheRegisteredStorageFileShares([zone:zone], scvmmController)
 						sessionFactory.currentSession.clear()
