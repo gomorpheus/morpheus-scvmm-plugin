@@ -1,6 +1,9 @@
 package com.morpheus.scvmm
 
+import com.morpheus.scvmm.sync.DatastoresSync
+import com.morpheus.scvmm.sync.HostSync
 import com.morpheus.scvmm.sync.IsolationNetworkSync
+import com.morpheus.scvmm.sync.NetworkSync
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.data.DataFilter
@@ -490,8 +493,12 @@ class ScvmmCloudProvider implements CloudProvider {
 						zone.owner.attach()*/
 
 						def now = new Date().time
-						new IsolationNetworkSync(context, cloudInfo, apiService).execute()
+						new NetworkSync(context, cloudInfo).execute()
 						log.debug("${cloudInfo.name}: NetworkSync in ${new Date().time - now}ms")
+
+						now = new Date().time
+						new IsolationNetworkSync(context, cloudInfo, apiService).execute()
+						log.debug("${cloudInfo.name}: IsolationNetworkSync in ${new Date().time - now}ms")
 
 
 						/*cacheClusters([zone:zone], scvmmController)
@@ -500,17 +507,13 @@ class ScvmmCloudProvider implements CloudProvider {
 						zone.account.attach()
 						zone.owner.attach()*/
 
-						/*cacheHosts([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new HostSync(cloudInfo, scvmmController, context).execute()
+						log.debug("${cloudInfo.name}: HostSync in ${new Date().time - now}ms")
 
-						/*cacheDatastores([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new DatastoresSync(scvmmController, cloudInfo, context).execute()
+						log.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
 
 						/*cacheRegisteredStorageFileShares([zone:zone], scvmmController)
 						sessionFactory.currentSession.clear()
