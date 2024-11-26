@@ -485,13 +485,6 @@ class ScvmmCloudProvider implements CloudProvider {
 						//updateZoneStatus(zone, 'syncing', null)
 						context.async.cloud.updateCloudStatus(cloudInfo, Cloud.Status.syncing, null, syncDate)
 
-						// TODO: Below sync cache code need to be implmented with sync story
-						/*cacheNetworks([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
-
 						def now = new Date().time
 						new NetworkSync(context, cloudInfo).execute()
 						log.debug("${cloudInfo.name}: NetworkSync in ${new Date().time - now}ms")
