@@ -66,7 +66,7 @@ class RegisteredStorageFileSharesSync {
                     return context.async.cloud.datastore.listById(updateItems.collect { it.existingItem.id } as List<Long>)
                 }.start()
             } else {
-                log.error("Error not getting the RegisteredStorageFileShares")
+                log.info("Not getting the RegisteredStorageFileShares data")
             }
         } catch (e) {
             log.error("RegisteredStorageFileSharesSync error: ${e}", e.getMessage())
