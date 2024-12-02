@@ -3,6 +3,7 @@ package com.morpheus.scvmm
 import com.morpheusdata.core.AbstractProvisionProvider
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
+import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.core.providers.ProvisionProvider
 import com.morpheusdata.core.providers.WorkloadProvisionProvider
 import com.morpheusdata.model.*
@@ -229,6 +230,97 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		return ServiceResponse.success()
 	}
 
+	def pickScvmmController(cloud) {
+		// Could be using a shared controller
+		def sharedControllerId = cloud.getConfigProperty('sharedController')
+		def sharedController = sharedControllerId ? context.services.computeServer.get(sharedControllerId?.toLong()) : null
+		if(sharedController) {
+			return sharedController
+		}
+		def rtn = context.services.computeServer.find(new DataQuery()
+				.withFilter('cloud.id', cloud.id)
+				.withFilter('computeServerType.code', 'scvmmController')
+				.withJoin('computeServerType'))
+		if(rtn == null) {
+			//old zone with wrong type
+			rtn = context.services.computeServer.find(new DataQuery()
+					.withFilter('cloud.id', cloud.id)
+					.withFilter('computeServerType.code', 'scvmmHypervisor')
+					.withJoin('computeServerType'))
+			if(rtn == null)
+				rtn = context.services.computeServer.find(new DataQuery()
+						.withFilter('cloud.id', cloud.id)
+						.withFilter('serverType', 'hypervisor'))
+			//if we have tye type
+			if(rtn) {
+				rtn.computeServerType = new ComputeServerType(code: 'scvmmController')
+				context.services.computeServer.save(rtn)
+			}
+		}
+		return rtn
+	}
+
+	def getContainerRootSize(container) {
+		def rtn
+		def rootDisk = getContainerRootDisk(container)
+		if (rootDisk)
+			rtn = rootDisk.maxStorage
+		else
+			rtn = container.maxStorage ?: container.instance.plan.maxStorage
+		return rtn
+	}
+
+	def getContainerRootDisk(container) {
+		def rtn = container.server?.volumes?.find { it.rootVolume == true }
+		return rtn
+	}
+
+	def getContainerVolumeSize(container) {
+		def rtn = container.maxStorage ?: container.instance.plan.maxStorage
+		if (container.server?.volumes?.size() > 0) {
+			def newMaxStorage = container.server.volumes.sum { it.maxStorage ?: 0 }
+			if (newMaxStorage > rtn)
+				rtn = newMaxStorage
+		}
+		return rtn
+	}
+
+	static getContainerDataDiskList(container) {
+		def rtn = container.server?.volumes?.findAll { it.rootVolume == false }?.sort { it.id }
+		return rtn
+	}
+
+	def getScvmmContainerOpts(container) {
+		def serverConfig = container.server.getConfigMap()
+		def containerConfig = container.getConfigMap()
+		def network = context.services.cloud.network.get(containerConfig.networkId?.toLong())
+		def serverFolder = "morpheus\\morpheus_server_${container.server.id}"
+		def maxMemory = container.maxMemory ?: container.instance.plan.maxMemory
+		def maxCpu = container.maxCpu ?: container.instance.plan?.maxCpu ?: 1
+		def maxCores = container.maxCores ?: container.instance.plan.maxCores ?: 1
+		def maxStorage = getContainerRootSize(container)
+		def maxTotalStorage = getContainerVolumeSize(container)
+		def dataDisks = getContainerDataDiskList(container)
+		def resourcePool = container.server?.resourcePool ? container.server?.resourcePool : null
+		def platform = (container.server.serverOs?.platform == 'windows' || container.server.osType == 'windows') ? 'windows' : 'linux'
+		return [config:serverConfig, vmId:container.server.externalId, name:container.server.externalId, server:container.server, serverId:container.server?.id,
+				memory:maxMemory, maxCpu:maxCpu, maxCores:maxCores, serverFolder:serverFolder, hostname:container.hostname,
+				network:network, networkId:network?.id, platform:platform, externalId:container.server.externalId, networkType:containerConfig.networkType,
+				containerConfig:containerConfig, resourcePool:resourcePool?.externalId, hostId:containerConfig.hostId,
+				osDiskSize:maxStorage, maxTotalStorage:maxTotalStorage, dataDisks:dataDisks,
+				scvmmCapabilityProfile:(containerConfig.scvmmCapabilityProfile?.toString() != '-1' ? containerConfig.scvmmCapabilityProfile : null),
+				accountId:container.account?.id
+		]
+	}
+
+	def getAllScvmmOpts(workload) {
+		def controllerNode = pickScvmmController(workload.server.cloud)
+		def rtn = apiService.getScvmmCloudOpts(context, workload.server.cloud, controllerNode)
+		rtn += apiService.getScvmmControllerOpts(workload.server.cloud, controllerNode)
+		rtn += getScvmmContainerOpts(container)
+		return rtn
+	}
+
 	/**
 	 * Issues the remote calls necessary to start a workload element for running.
 	 * @param workload the Workload we want to start up.
@@ -236,7 +328,24 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	 */
 	@Override
 	ServiceResponse startWorkload(Workload workload) {
-		return ServiceResponse.success()
+		log.debug ("startWorkload: ${workload?.id}")
+		def rtn = ServiceResponse.prepare()
+		try {
+			if (workload.server?.externalId) {
+				def scvmmOpts = getAllScvmmOpts(workload)
+				def results = apiService.startServer(scvmmOpts, scvmmOpts.vmId)
+				if (results.success == true) {
+					rtn.success = true
+				}
+			} else {
+				rtn.success = false
+				rtn.msg = 'vm not found'
+			}
+		} catch (e) {
+			log.error("startWorkload error: ${e}", e)
+			rtn.msg = e.message
+		}
+		return rtn
 	}
 
 	/**
