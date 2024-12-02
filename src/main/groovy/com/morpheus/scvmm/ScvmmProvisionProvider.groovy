@@ -227,7 +227,23 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	 */
 	@Override
 	ServiceResponse stopWorkload(Workload workload) {
-		return ServiceResponse.success()
+		def rtn = ServiceResponse.prepare()
+		try {
+			if (workload.server?.externalId) {
+				def scvmmOpts = getAllScvmmOpts(workload)
+				def results = apiService.stopServer(scvmmOpts, scvmmOpts.vmId)
+				if (results.success == true) {
+					rtn.success = true
+				}
+			} else {
+				rtn.success = false
+				rtn.msg = 'vm not found'
+			}
+		} catch (e) {
+			log.error("stopWorkload error: ${e}", e)
+			rtn.msg = e.message
+		}
+		return rtn
 	}
 
 	def pickScvmmController(cloud) {
@@ -317,7 +333,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		def controllerNode = pickScvmmController(workload.server.cloud)
 		def rtn = apiService.getScvmmCloudOpts(context, workload.server.cloud, controllerNode)
 		rtn += apiService.getScvmmControllerOpts(workload.server.cloud, controllerNode)
-		rtn += getScvmmContainerOpts(container)
+		rtn += getScvmmContainerOpts(workload)
 		return rtn
 	}
 
