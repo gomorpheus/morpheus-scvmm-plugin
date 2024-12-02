@@ -3,6 +3,7 @@ package com.morpheus.scvmm
 import com.morpheus.scvmm.sync.ClustersSync
 import com.morpheus.scvmm.sync.DatastoresSync
 import com.morpheus.scvmm.sync.HostSync
+import com.morpheus.scvmm.sync.IpPoolsSync
 import com.morpheus.scvmm.sync.IsolationNetworkSync
 import com.morpheus.scvmm.sync.NetworkSync
 import com.morpheusdata.core.MorpheusContext
@@ -528,6 +529,11 @@ class ScvmmCloudProvider implements CloudProvider {
 						zone.attach()
 						zone.account.attach()
 						zone.owner.attach()*/
+						now = new Date().time
+						log.info("RAZI :: refresh IpPoolsSync >> cloudInfo.name: ${cloudInfo.name}")
+						new IpPoolsSync(context, cloudInfo).execute()
+						log.debug("${cloudInfo.name}: IpPoolsSync in ${new Date().time - now}ms")
+						log.info("RAZI :: ${cloudInfo.name}: IpPoolsSync in ${new Date().time - now}ms")
 
 						def doInventory = cloudInfo.getConfigProperty('importExisting')
 						def createNew = (doInventory == 'on' || doInventory == 'true' || doInventory == true)

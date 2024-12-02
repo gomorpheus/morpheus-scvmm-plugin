@@ -31,6 +31,7 @@ class IpPoolsSync {
 
     def execute() {
         log.debug "IpPoolsSync"
+        log.info "IpPoolsSync >> execute() called"
         try {
             /*def networks = Network.withCriteria {
                 or {
@@ -104,6 +105,7 @@ class IpPoolsSync {
         log.debug("addMissingIpPools: ${addList.size()}")
         log.info("RAZI :: addList: ${addList}")
 
+        def networkPoolAdds = []
         try {
             addList?.each { it ->
                 log.info("RAZI :: it.Subnet: ${it.Subnet}")
@@ -118,16 +120,17 @@ class IpPoolsSync {
                 log.info("RAZI :: gateway: ${gateway}")
                 def addConfig = [
                         account      : cloud.account,
-                        code         : "scvmm.ipPool.${cloud.id}.${it.ID}",
+//                        code         : "scvmm.ipPool.${cloud.id}.${it.ID}",
+                        typeCode     : "scvmm.ipPool.${cloud.id}.${it.ID}",
                         category     : "scvmm.ipPool.${cloud.id}",
                         name         : it.Name,
                         displayName  : "${it.Name} (${it.Subnet})",
                         externalId   : it.ID,
                         ipCount      : it.TotalAddresses ?: 0,
                         ipFreeCount  : it.AvailableAddresses ?: 0,
-                        dnsSuffixList: it.DNSSearchSuffixes,
+//                        dnsSuffixList: it.DNSSearchSuffixes,
                         dhcpServer   : true,
-                        dnsServers   : it.DNSServers,
+//                        dnsServers   : it.DNSServers,
                         gateway      : gateway,
                         poolEnabled  : true,
                         netmask      : netmask,
@@ -137,22 +140,38 @@ class IpPoolsSync {
                         refId        : "${cloud.id}"
                 ]
                 log.info("RAZI :: addConfig: ${addConfig}")
-                def add = new NetworkPool(addConfig)
-                morpheusContext.async.cloud.network.pool.create(add).blockingGet()
-                morpheusContext.async.cloud.network.pool.save(add).blockingGet()
+                NetworkPool add = new NetworkPool(addConfig)
+//                networkPoolAdds << networkPoolAdd
+                morpheusContext.async.network.pool.create(add).blockingGet()
+                morpheusContext.async.network.pool.save(add).blockingGet()
 
                 log.info("RAZI :: it.IPAddressRangeStart: ${it.IPAddressRangeStart}")
                 log.info("RAZI :: it.IPAddressRangeEnd: ${it.IPAddressRangeEnd}")
                 if(it.IPAddressRangeStart && it.IPAddressRangeEnd) {
-                    def newRange = new NetworkPoolRange(networkPool: add, startAddress: it.IPAddressRangeStart, endAddress: it.IPAddressRangeEnd, addressCount: (it.TotalAddresses ?: 0).toInteger(), externalId: it.ID)
-                    log.info("RAZI :: newRange: ${newRange}")
+                    def rangeConfig = [
+                            networkPool: add,
+                            startAddress: it.IPAddressRangeStart,
+                            endAddress: it.IPAddressRangeEnd,
+                            addressCount: (it.TotalAddresses ?: 0).toInteger(),
+//                            reservationCount: (it.AvailableAddresses ?: 0).toInteger(),
+                            reservationCount: 5L,
+                            externalId: it.ID
+                    ]
+//                    def newRange = new NetworkPoolRange(networkPool: add, startAddress: it.IPAddressRangeStart, endAddress: it.IPAddressRangeEnd, addressCount: (it.TotalAddresses ?: 0).toInteger(), reservationCount: (it.AvailableAddresses ?: 0).toInteger(), externalId: it.ID)
+                    def newRange = new NetworkPoolRange(rangeConfig)
+//                    newRange.reservationCount = 10
+                    log.info("RAZI :: newRange1: ${newRange}")
                     morpheusContext.async.cloud.network.pool.poolRange.create(newRange).blockingGet()
+                    log.info("RAZI :: newRange.reservationCount: ${newRange.reservationCount}")
+                    log.info("RAZI :: newRange2: ${newRange}")
                     morpheusContext.async.cloud.network.pool.poolRange.save(newRange).blockingGet()
-                    log.debug("scvmm new range externalId: ${newRange.externalId}")
+                    log.debug("scvmm new range id: ${newRange.id}")
+                    log.info("RAZI :: scvmm new range id: ${newRange.id}")
                     add.addToIpRanges(newRange)
                 }
                 morpheusContext.async.cloud.network.pool.save(add).blockingGet()
 
+                log.info("RAZI :: add.id: ${add.id}")
                 def resourcePerm = new ResourcePermission(morpheusResourceType:'NetworkPool', morpheusResourceId:add.id, account:cloud.account)
                 log.info("RAZI :: resourcePerm: ${resourcePerm}")
                 morpheusContext.async.resourcePermission.create(resourcePerm).blockingGet()
@@ -160,6 +179,12 @@ class IpPoolsSync {
                 updateNetworkForPool(networks, add, it.NetworkID, it.SubnetID, networkMapping)
                 log.info("RAZI :: addMissingIpPools >> updateNetworkForPool call END")
             }
+//            log.info("RAZI :: networkPoolAdds.size(): ${networkPoolAdds.size()}")
+//            if (networkPoolAdds.size() > 0){
+//                    log.info("RAZI :: NetworkPools creat START")
+//                    morpheusContext.async.cloud.network.pool.bulkCreate(networkPoolAdds).blockingGet()
+//                    log.info("RAZI :: NetworkPools creat STOP")
+//            }
         } catch (e) {
             log.error("Error in addMissingIpPools: ${e}", e)
         }
