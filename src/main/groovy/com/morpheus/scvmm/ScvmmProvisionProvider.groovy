@@ -317,7 +317,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		def controllerNode = pickScvmmController(workload.server.cloud)
 		def rtn = apiService.getScvmmCloudOpts(context, workload.server.cloud, controllerNode)
 		rtn += apiService.getScvmmControllerOpts(workload.server.cloud, controllerNode)
-		rtn += getScvmmContainerOpts(container)
+		rtn += getScvmmContainerOpts(workload)
 		return rtn
 	}
 
