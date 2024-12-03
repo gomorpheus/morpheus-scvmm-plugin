@@ -31,35 +31,30 @@ class CloudCapabilityProfilesSync {
         try {
             def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('zone.id', cloud.id))
             def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, server)
+            log.info("RAZI :: scvmmOpts: ${scvmmOpts}")
 
-            def existingItems = morpheusContext.async.cloud.listIdentityProjections(new DataQuery())
-
+            log.info("RAZI :: cloud.regionCode: ${cloud.regionCode}")
             if(cloud.regionCode) {
                 def cloudResults = apiService.getCloud(scvmmOpts)
+                log.info("RAZI :: cloudResults: ${cloudResults}")
+                log.info("RAZI :: cloudResults.success: ${cloudResults.success}")
+                log.info("RAZI :: cloudResults?.cloud?.CapabilityProfiles: ${cloudResults?.cloud?.CapabilityProfiles}")
                 if(cloudResults.success == true && cloudResults?.cloud?.CapabilityProfiles) {
-//                    cloud.setConfigProperty('capabilityProfiles', cloudResults?.cloud.CapabilityProfiles)
-//                    opts.zone.save(flush:true)
-                    def objList = cloudResults?.cloud?.CapabilityProfiles
-                    SyncTask<CloudIdentityProjection, Map, Cloud> syncTask = new SyncTask<>(existingItems, objList as Collection<Map>)
-                    syncTask.onAdd {addList ->
-                        cloud.setConfigProperty('capabilityProfiles', addList)
-                        morpheusContext.async.cloud.save(cloud)
-                    }
+                    cloud.setConfigProperty('capabilityProfiles', cloudResults?.cloud.CapabilityProfiles)
+                    morpheusContext.services.cloud.save(cloud)
+                    log.info("RAZI :: if(cloud.regionCode) >> cloud save SUCCESS")
                 }
             } else {
                 def capabilityProfileResults = apiService.getCapabilityProfiles(scvmmOpts)
+                log.info("RAZI :: capabilityProfileResults: ${capabilityProfileResults}")
+                log.info("RAZI :: capabilityProfileResults.success: ${capabilityProfileResults.success}")
+                log.info("RAZI :: capabilityProfileResults?.capabilityProfiles: ${capabilityProfileResults?.capabilityProfiles}")
                 if(capabilityProfileResults.success == true && capabilityProfileResults?.capabilityProfiles) {
-//                    cloud.setConfigProperty('capabilityProfiles', capabilityProfileResults.capabilityProfiles.collect { it.Name })
-//                    opts.zone.save(flush:true)
-                    def objList = capabilityProfileResults?.capabilityProfiles
-                    SyncTask<CloudIdentityProjection, Map, Cloud> syncTask = new SyncTask<>(existingItems, objList as Collection<Map>)
-                    syncTask.onAdd {addList ->
-                        cloud.setConfigProperty('capabilityProfiles', addList)
-                        morpheusContext.async.cloud.save(cloud)
-                    }
+                    cloud.setConfigProperty('capabilityProfiles', capabilityProfileResults.capabilityProfiles.collect { it.Name })
+                    morpheusContext.services.cloud.save(cloud)
+                    log.info("RAZI :: if(cloud.regionCode) >> else >> cloud save SUCCESS")
                 }
             }
-
         } catch (e) {
             log.error("CloudCapabilityProfilesSync error: ${e}", e)
         }
