@@ -4,6 +4,7 @@ import com.morpheus.scvmm.sync.ClustersSync
 import com.morpheus.scvmm.sync.DatastoresSync
 import com.morpheus.scvmm.sync.HostSync
 import com.morpheus.scvmm.sync.IsolationNetworkSync
+import com.morpheus.scvmm.sync.RegisteredStorageFileSharesSync
 import com.morpheus.scvmm.sync.NetworkSync
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
@@ -506,11 +507,9 @@ class ScvmmCloudProvider implements CloudProvider {
 						new DatastoresSync(scvmmController, cloudInfo, context).execute()
 						log.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
 
-						/*cacheRegisteredStorageFileShares([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new RegisteredStorageFileSharesSync(cloudInfo, scvmmController, context).execute()
+						log.debug("${cloudInfo.name}: RegisteredStorageFileSharesSync in ${new Date().time - now}ms")
 
 						/*cacheZoneCapabilityProfiles([zone: zone], scvmmController)
 						sessionFactory.currentSession.clear()
