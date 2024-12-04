@@ -2,15 +2,8 @@ package com.morpheus.scvmm.sync
 
 import com.morpheus.scvmm.ScvmmApiService
 import com.morpheusdata.core.MorpheusContext
-import com.morpheusdata.core.data.DataFilter
-import com.morpheusdata.core.data.DataOrFilter
 import com.morpheusdata.core.data.DataQuery
-import com.morpheusdata.core.util.SyncTask
 import com.morpheusdata.model.Cloud
-import com.morpheusdata.model.Network
-import com.morpheusdata.model.NetworkType
-import com.morpheusdata.model.projection.CloudIdentityProjection
-import com.morpheusdata.model.projection.NetworkIdentityProjection
 import groovy.util.logging.Slf4j
 
 @Slf4j
@@ -20,10 +13,10 @@ class CloudCapabilityProfilesSync {
     private Cloud cloud
     private ScvmmApiService apiService
 
-    CloudCapabilityProfilesSync(MorpheusContext morpheusContext, Cloud cloud, ScvmmApiService apiService) {
+    CloudCapabilityProfilesSync(MorpheusContext morpheusContext, Cloud cloud) {
         this.cloud = cloud
         this.morpheusContext = morpheusContext
-        this.apiService = apiService
+        this.apiService = new ScvmmApiService(morpheusContext)
     }
 
     def execute() {

@@ -1,5 +1,6 @@
 package com.morpheus.scvmm
 
+import com.morpheus.scvmm.sync.CloudCapabilityProfilesSync
 import com.morpheus.scvmm.sync.ClustersSync
 import com.morpheus.scvmm.sync.DatastoresSync
 import com.morpheus.scvmm.sync.HostSync
@@ -522,6 +523,11 @@ class ScvmmCloudProvider implements CloudProvider {
 						zone.attach()
 						zone.account.attach()
 						zone.owner.attach()*/
+						now = new Date().time
+						log.info("RAZI :: refresh >> cloudInfo.name: ${cloudInfo.name}")
+						new CloudCapabilityProfilesSync(context, cloudInfo).execute()
+						log.debug("${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
+						log.info("RAZI :: ${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
 
 						/*cacheIpPools([zone: zone], scvmmController)
 						sessionFactory.currentSession.clear()
