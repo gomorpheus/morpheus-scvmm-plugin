@@ -402,7 +402,22 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	 */
 	@Override
 	ServiceResponse stopServer(ComputeServer computeServer) {
-		return ServiceResponse.success()
+		def rtn = [success: false, msg: null]
+		try {
+			if (computeServer?.externalId){
+				def scvmmOpts = getAllScvmmServerOpts(computeServer)
+				def stopResults = apiService.stopServer(scvmmOpts, scvmmOpts.externalId)
+				if(stopResults.success == true){
+					rtn.success = true
+				}
+			} else {
+				rtn.msg = 'vm not found'
+			}
+		} catch(e) {
+			log.error("stopServer error: ${e}", e)
+			rtn.msg = e.message
+		}
+		return ServiceResponse.create(rtn)
 	}
 
 	def getServerRootSize(server) {
