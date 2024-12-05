@@ -512,21 +512,15 @@ class ScvmmCloudProvider implements CloudProvider {
 						new RegisteredStorageFileSharesSync(cloudInfo, scvmmController, context).execute()
 						log.debug("${cloudInfo.name}: RegisteredStorageFileSharesSync in ${new Date().time - now}ms")
 
-						/*cacheZoneCapabilityProfiles([zone: zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()
-						cacheTemplates([zone: zone], scvmmController).get()
+						now = new Date().time
+						new CloudCapabilityProfilesSync(context, cloudInfo).execute()
+						log.debug("${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
+
+						/*cacheTemplates([zone: zone], scvmmController).get()
 						sessionFactory.currentSession.clear()
 						zone.attach()
 						zone.account.attach()
 						zone.owner.attach()*/
-						now = new Date().time
-						log.info("RAZI :: refresh >> cloudInfo.name: ${cloudInfo.name}")
-						new CloudCapabilityProfilesSync(context, cloudInfo).execute()
-						log.debug("${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
-						log.info("RAZI :: ${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
 
 						/*cacheIpPools([zone: zone], scvmmController)
 						sessionFactory.currentSession.clear()
