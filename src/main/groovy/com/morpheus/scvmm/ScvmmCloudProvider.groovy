@@ -1,5 +1,6 @@
 package com.morpheus.scvmm
 
+import com.morpheus.scvmm.sync.CloudCapabilityProfilesSync
 import com.morpheus.scvmm.sync.ClustersSync
 import com.morpheus.scvmm.sync.DatastoresSync
 import com.morpheus.scvmm.sync.HostSync
@@ -511,12 +512,11 @@ class ScvmmCloudProvider implements CloudProvider {
 						new RegisteredStorageFileSharesSync(cloudInfo, scvmmController, context).execute()
 						log.debug("${cloudInfo.name}: RegisteredStorageFileSharesSync in ${new Date().time - now}ms")
 
-						/*cacheZoneCapabilityProfiles([zone: zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()
-						cacheTemplates([zone: zone], scvmmController).get()
+						now = new Date().time
+						new CloudCapabilityProfilesSync(context, cloudInfo).execute()
+						log.debug("${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
+
+						/*cacheTemplates([zone: zone], scvmmController).get()
 						sessionFactory.currentSession.clear()
 						zone.attach()
 						zone.account.attach()
