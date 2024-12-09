@@ -524,16 +524,9 @@ class ScvmmCloudProvider implements CloudProvider {
 						zone.account.attach()
 						zone.owner.attach()*/
 
-						/*cacheIpPools([zone: zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
 						now = new Date().time
-						log.info("RAZI :: refresh IpPoolsSync >> cloudInfo.name: ${cloudInfo.name}")
 						new IpPoolsSync(context, cloudInfo).execute()
 						log.debug("${cloudInfo.name}: IpPoolsSync in ${new Date().time - now}ms")
-						log.info("RAZI :: ${cloudInfo.name}: IpPoolsSync in ${new Date().time - now}ms")
 
 						def doInventory = cloudInfo.getConfigProperty('importExisting')
 						def createNew = (doInventory == 'on' || doInventory == 'true' || doInventory == true)
