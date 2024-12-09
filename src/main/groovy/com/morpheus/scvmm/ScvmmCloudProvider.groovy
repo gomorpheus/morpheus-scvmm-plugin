@@ -1,9 +1,11 @@
 package com.morpheus.scvmm
 
+import com.morpheus.scvmm.sync.CloudCapabilityProfilesSync
 import com.morpheus.scvmm.sync.ClustersSync
 import com.morpheus.scvmm.sync.DatastoresSync
 import com.morpheus.scvmm.sync.HostSync
 import com.morpheus.scvmm.sync.IsolationNetworkSync
+import com.morpheus.scvmm.sync.RegisteredStorageFileSharesSync
 import com.morpheus.scvmm.sync.NetworkSync
 import com.morpheus.scvmm.sync.TemplatesSync
 import com.morpheusdata.core.MorpheusContext
@@ -507,17 +509,14 @@ class ScvmmCloudProvider implements CloudProvider {
 						new DatastoresSync(scvmmController, cloudInfo, context).execute()
 						log.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
 
-						/*cacheRegisteredStorageFileShares([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new RegisteredStorageFileSharesSync(cloudInfo, scvmmController, context).execute()
+						log.debug("${cloudInfo.name}: RegisteredStorageFileSharesSync in ${new Date().time - now}ms")
 
-						/*cacheZoneCapabilityProfiles([zone: zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new CloudCapabilityProfilesSync(context, cloudInfo).execute()
+						log.debug("${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
+						
 						now = new Date().time
 						new TemplatesSync(cloudInfo, scvmmController, context).execute()
 						log.debug("${cloudInfo.name}: TemplatesSync in ${new Date().time - now}ms")
