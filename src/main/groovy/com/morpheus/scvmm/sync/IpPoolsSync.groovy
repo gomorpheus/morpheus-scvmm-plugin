@@ -11,6 +11,7 @@ import com.morpheusdata.model.Network
 import com.morpheusdata.model.NetworkPool
 import com.morpheusdata.model.NetworkPoolRange
 import com.morpheusdata.model.NetworkPoolType
+import com.morpheusdata.model.NetworkSubnet
 import com.morpheusdata.model.ResourcePermission
 import com.morpheusdata.model.projection.NetworkPoolIdentityProjection
 import groovy.util.logging.Slf4j
@@ -44,7 +45,7 @@ class IpPoolsSync {
                             )
                     ))
 
-            def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('zone.id', cloud.id))
+            def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('cloud.id', cloud.id))
             def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, server)
 
             def listResults = apiService.listNetworkIPPools(scvmmOpts)
@@ -79,6 +80,9 @@ class IpPoolsSync {
     private addMissingIpPools(Collection<Map> addList, List<Network> networks, NetworkPoolType poolType, networkMapping) {
         log.debug("addMissingIpPools: ${addList.size()}")
 
+        List<NetworkPool> networkPoolAdds = []
+        List<NetworkPoolRange> poolRangeAdds = []
+        List<ResourcePermission> resourcePerms = []
         try {
             addList?.each { it ->
                 def info = new SubnetUtils(it.Subnet)?.getInfo()
@@ -104,8 +108,7 @@ class IpPoolsSync {
                         refId        : "${cloud.id}"
                 ]
                 NetworkPool add = new NetworkPool(addConfig)
-                morpheusContext.async.cloud.network.pool.create(add).blockingGet()
-                morpheusContext.async.cloud.network.pool.save(add).blockingGet()
+                networkPoolAdds << add
 
                 if(it.IPAddressRangeStart && it.IPAddressRangeEnd) {
                     def rangeConfig = [
@@ -116,24 +119,37 @@ class IpPoolsSync {
                             externalId: it.ID
                     ]
                     def newRange = new NetworkPoolRange(rangeConfig)
-                    morpheusContext.async.cloud.network.pool.poolRange.create(newRange).blockingGet()
-                    morpheusContext.async.cloud.network.pool.poolRange.save(newRange).blockingGet()
-                    log.debug("scvmm new range id: ${newRange.id}")
+                    poolRangeAdds << newRange
                     add.addToIpRanges(newRange)
                 }
-                morpheusContext.async.cloud.network.pool.save(add).blockingGet()
+            }
 
+            if(networkPoolAdds.size() > 0){
+                morpheusContext.async.cloud.network.pool.bulkCreate(networkPoolAdds).blockingGet()
+            }
+
+            if(poolRangeAdds.size() > 0){
+                morpheusContext.async.cloud.network.pool.poolRange.bulkCreate(poolRangeAdds).blockingGet()
+                morpheusContext.async.cloud.network.pool.bulkSave(networkPoolAdds).blockingGet()
+            }
+
+            networkPoolAdds?.each {pool ->
                 def permissionConfig = [
                         morpheusResourceType    : 'NetworkPool',
-                        uuid                    : add.externalId,
-                        morpheusResourceId      : add.id,
+                        uuid                    : pool.externalId,
+                        morpheusResourceId      : pool.id,
                         account                 : cloud.account
                 ]
+                ResourcePermission resourcePerm = new ResourcePermission(permissionConfig)
+                resourcePerms << resourcePerm
+            }
 
-                def resourcePerm = new ResourcePermission(permissionConfig)
-                morpheusContext.async.resourcePermission.create(resourcePerm).blockingGet()
-
-                updateNetworkForPool(networks, add, it.NetworkID, it.SubnetID, networkMapping)
+            if(resourcePerms.size() > 0){
+                morpheusContext.async.resourcePermission.bulkCreate(resourcePerms).blockingGet()
+            }
+            networkPoolAdds.each { pool ->
+                def mapping = addList.find { it.ID == pool.externalId }
+                updateNetworkForPool(networks, pool, mapping?.NetworkID, mapping?.SubnetID, networkMapping)
             }
         } catch (e) {
             log.error("Error in addMissingIpPools: ${e}", e)
@@ -177,8 +193,13 @@ class IpPoolsSync {
             }
 
             if(subnetId && network) {
-                def subnet = network.subnets.find { it ->
+                def subnetObj = network.subnets.find { it ->
                     it.externalId?.startsWith(subnetId)
+                }
+
+                def subnet
+                if (subnetObj) {
+                    subnet = morpheusContext.services.networkSubnet.get(subnetObj.id)
                 }
                 if(subnet) {
                     def doSave = false
@@ -226,8 +247,8 @@ class IpPoolsSync {
                     if(masterItem.IPAddressRangeStart && masterItem.IPAddressRangeEnd) {
                         if(!existingItem.ipRanges) {
                             def range = new NetworkPoolRange(networkPool: existingItem, startAddress: masterItem.IPAddressRangeStart, endAddress: masterItem.IPAddressRangeEnd, addressCount: (masterItem.TotalAddresses ?: 0).toInteger(), externalId: masterItem.ID)
-                            morpheusContext.async.cloud.network.pool.poolRange.save(range).blockingGet()
                             existingItem.addToIpRanges(range)
+                            morpheusContext.async.cloud.network.pool.poolRange.create(range).blockingGet()
                             morpheusContext.async.cloud.network.pool.save(existingItem).blockingGet()
                         } else {
                             NetworkPoolRange range = existingItem.ipRanges.first()
@@ -293,8 +314,13 @@ class IpPoolsSync {
                             .withFilter('morpheusResourceId', existingItem.id)
                             .withFilter('account', cloud.account))
                     if(!existingPermission) {
-                        def resourcePerm = new ResourcePermission(morpheusResourceType:'NetworkPool', morpheusResourceId:existingItem.id, account:cloud.account)
-                        morpheusContext.async.resourcePermission.save(resourcePerm).blockingGet()
+                        def resourcePerm = new ResourcePermission(
+                                morpheusResourceType:'NetworkPool',
+                                uuid:existingItem.externalId,
+                                morpheusResourceId:existingItem.id,
+                                account:cloud.account
+                        )
+                        morpheusContext.async.resourcePermission.create(resourcePerm).blockingGet()
                     }
 
                     updateNetworkForPool(networks, existingItem, masterItem.NetworkID, masterItem.SubnetID, networkMapping)
