@@ -255,7 +255,7 @@ class VirtualMachineSync {
                             }
                             //plan
                             ServicePlan plan = SyncUtils.findServicePlanBySizing(availablePlans, currentServer.maxMemory, currentServer.maxCores,
-                                    null, fallbackPlan, currentServer.plan, currentServer.account, []) // check:
+                                    null, fallbackPlan, currentServer.plan, currentServer.account, [])
                             if (currentServer.plan?.id != plan?.id) {
                                 currentServer.plan = plan
                                 planInfoChanged = true
