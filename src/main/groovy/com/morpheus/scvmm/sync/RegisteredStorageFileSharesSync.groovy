@@ -80,11 +80,11 @@ class RegisteredStorageFileSharesSync {
         try {
             def hostToShareMap = [:]
 
-            def getOrCreateHostEntry = { id ->
-                if(!hostToShareMap[id]) {
-                    hostToShareMap[id] = [] as Set
+            def getOrCreateHostEntry = { hostId ->
+                if(!hostToShareMap[hostId]) {
+                    hostToShareMap[hostId] = [] as Set
                 }
-                return hostToShareMap[id]
+                return hostToShareMap[hostId]
             }
             addList?.each { cloudItem ->
                 def externalId = cloudItem.ID
@@ -139,11 +139,11 @@ class RegisteredStorageFileSharesSync {
         try {
             def hostToShareMap = [:]
 
-            def getOrCreateHostEntry = { id ->
-                if(!hostToShareMap[id]) {
-                    hostToShareMap[id] = [] as Set
+            def getOrCreateHostEntry = { hostId ->
+                if(!hostToShareMap[hostId]) {
+                    hostToShareMap[hostId] = [] as Set
                 }
-                return hostToShareMap[id]
+                return hostToShareMap[hostId]
             }
             for (update in updateList) {
                 Datastore existingItem = update.existingItem
@@ -190,6 +190,8 @@ class RegisteredStorageFileSharesSync {
         }
     }
 
+	/// hostToShareMap is a map of host externalId to a list of registered file share IDs
+	/// objList is the list of registered file shares
     private syncVolumeForEachHosts (hostToShareMap, objList){
         try {
             def existingHostsList = context.services.computeServer.list(new DataQuery().withFilter('zone.id', cloud.id)
