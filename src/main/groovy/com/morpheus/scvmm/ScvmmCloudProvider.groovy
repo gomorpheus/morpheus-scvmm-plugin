@@ -84,6 +84,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				fieldCode: 'gomorpheus.optiontype.scvmmHost',
 				fieldLabel:'SCVMM Host',
 				required: true,
+				editable: false,
 				inputType: OptionType.InputType.TEXT,
 				fieldContext:'config',
 		)
@@ -111,6 +112,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				fieldCode: 'gomorpheus.optiontype.Username',
 				fieldLabel:'Username',
 				required: true,
+				editable: false,
 				inputType: OptionType.InputType.TEXT,
 				fieldContext: 'config',
 				localCredential: true
@@ -124,6 +126,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				fieldCode: 'gomorpheus.optiontype.Password',
 				fieldLabel:'Password',
 				required: true,
+				editable: false,
 				inputType: OptionType.InputType.PASSWORD,
 				fieldContext: 'config',
 				localCredential: true
@@ -210,6 +213,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				fieldCode: 'gomorpheus.optiontype.WorkingPath',
 				fieldLabel:'Working Path',
 				required: true,
+				editable: false,
 				inputType: OptionType.InputType.TEXT,
 				defaultValue: 'c:\\Temp'
 		)
@@ -221,6 +225,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				fieldCode: 'gomorpheus.optiontype.DiskPath',
 				fieldLabel:'Disk Path',
 				required: true,
+				editable: false,
 				inputType: OptionType.InputType.TEXT,
 				defaultValue:'c:\\VirtualDisks'
 		)
