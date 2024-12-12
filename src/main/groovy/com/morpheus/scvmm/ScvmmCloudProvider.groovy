@@ -1,8 +1,11 @@
 package com.morpheus.scvmm
 
+import com.morpheus.scvmm.sync.CloudCapabilityProfilesSync
+import com.morpheus.scvmm.sync.ClustersSync
 import com.morpheus.scvmm.sync.DatastoresSync
 import com.morpheus.scvmm.sync.HostSync
 import com.morpheus.scvmm.sync.IsolationNetworkSync
+import com.morpheus.scvmm.sync.RegisteredStorageFileSharesSync
 import com.morpheus.scvmm.sync.NetworkSync
 import com.morpheus.scvmm.sync.VirtualMachineSync
 import com.morpheusdata.core.MorpheusContext
@@ -486,27 +489,17 @@ class ScvmmCloudProvider implements CloudProvider {
 						//updateZoneStatus(zone, 'syncing', null)
 						context.async.cloud.updateCloudStatus(cloudInfo, Cloud.Status.syncing, null, syncDate)
 
-						// TODO: Below sync cache code need to be implmented with sync story
-						/*cacheNetworks([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
-
 						def now = new Date().time
 						new NetworkSync(context, cloudInfo).execute()
 						log.debug("${cloudInfo.name}: NetworkSync in ${new Date().time - now}ms")
 
 						now = new Date().time
+						new ClustersSync(context, cloudInfo).execute()
+						log.debug("${cloudInfo.name}: ClustersSync in ${new Date().time - now}ms")
+
+						now = new Date().time
 						new IsolationNetworkSync(context, cloudInfo, apiService).execute()
 						log.debug("${cloudInfo.name}: IsolationNetworkSync in ${new Date().time - now}ms")
-
-
-						/*cacheClusters([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
 
 						now = new Date().time
 						new HostSync(cloudInfo, scvmmController, context).execute()
@@ -516,18 +509,15 @@ class ScvmmCloudProvider implements CloudProvider {
 						new DatastoresSync(scvmmController, cloudInfo, context).execute()
 						log.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
 
-						/*cacheRegisteredStorageFileShares([zone:zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new RegisteredStorageFileSharesSync(cloudInfo, scvmmController, context).execute()
+						log.debug("${cloudInfo.name}: RegisteredStorageFileSharesSync in ${new Date().time - now}ms")
 
-						/*cacheZoneCapabilityProfiles([zone: zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()
-						cacheTemplates([zone: zone], scvmmController).get()
+						now = new Date().time
+						new CloudCapabilityProfilesSync(context, cloudInfo).execute()
+						log.debug("${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
+
+						/*cacheTemplates([zone: zone], scvmmController).get()
 						sessionFactory.currentSession.clear()
 						zone.attach()
 						zone.account.attach()
