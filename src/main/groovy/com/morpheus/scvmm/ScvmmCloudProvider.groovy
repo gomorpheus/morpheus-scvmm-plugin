@@ -541,10 +541,8 @@ class ScvmmCloudProvider implements CloudProvider {
 
 						def doInventory = cloudInfo.getConfigProperty('importExisting')
 						def createNew = (doInventory == 'on' || doInventory == 'true' || doInventory == true)
-						// TODO: cacheVirtualMachines
-						//cacheVirtualMachines([zone:zone, createNew:createNew], scvmmController)
 						now = new Date().time
-						new VirtualMachineSync(scvmmController, cloudInfo, context).execute(createNew)
+						new VirtualMachineSync(scvmmController, cloudInfo, context, this).execute(createNew)
 						log.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
 						context.async.cloud.updateCloudStatus(cloudInfo, Cloud.Status.ok, null, syncDate)
 						log.debug "complete scvmm zone refresh"
