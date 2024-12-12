@@ -27,7 +27,7 @@ class ClustersSync {
     def execute() {
         log.debug "ClustersSync"
         try {
-            def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('zone.id', cloud.id))
+            def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('cloud.id', cloud.id))
 
             def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, server)
             def listResults = apiService.listClusters(scvmmOpts)

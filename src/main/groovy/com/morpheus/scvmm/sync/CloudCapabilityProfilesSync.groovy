@@ -22,7 +22,7 @@ class CloudCapabilityProfilesSync {
     def execute() {
         log.debug "CloudCapabilityProfilesSync"
         try {
-            def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('zone.id', cloud.id))
+            def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('cloud.id', cloud.id))
             def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, server)
 
             if(cloud.regionCode) {

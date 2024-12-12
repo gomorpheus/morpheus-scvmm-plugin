@@ -9,8 +9,6 @@ import com.morpheusdata.core.util.SyncTask
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.Network
-import com.morpheusdata.model.NetworkSubnet
-import com.morpheusdata.model.NetworkSubnetType
 import com.morpheusdata.model.NetworkType
 import com.morpheusdata.model.projection.NetworkIdentityProjection
 import groovy.util.logging.Slf4j
@@ -31,7 +29,7 @@ class IsolationNetworkSync {
         log.debug "IsolationNetworkSync"
         try {
             def networkType = new NetworkType(code: 'scvmmVLANNetwork')
-            def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('zone.id', cloud.id))
+            def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('cloud.id', cloud.id))
 
             def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, server)
             def listResults = apiService.listNoIsolationVLans(scvmmOpts)
