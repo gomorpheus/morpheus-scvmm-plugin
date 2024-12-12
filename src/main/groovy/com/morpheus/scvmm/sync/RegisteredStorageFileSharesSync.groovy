@@ -7,9 +7,8 @@ import com.morpheusdata.core.util.SyncTask
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.Datastore
-import com.morpheusdata.model.Network
 import com.morpheusdata.model.StorageVolume
-import com.morpheusdata.model.projection.DatastoreIdentityProjection
+import com.morpheusdata.model.projection.DatastoreIdentity
 import com.morpheusdata.model.projection.StorageVolumeIdentityProjection
 import groovy.util.logging.Slf4j
 import io.reactivex.rxjava3.core.Observable
@@ -48,23 +47,23 @@ class RegisteredStorageFileSharesSync {
                 def objList = listResults?.datastores
                 def serverType = context.async.cloud.findComputeServerTypeByCode('scvmmHypervisor').blockingGet()
 
-                Observable<DatastoreIdentityProjection> domainRecords = context.async.cloud.datastore.listIdentityProjections(new DataQuery()
+                def domainRecords = context.async.cloud.datastore.listIdentityProjections(new DataQuery()
                         .withFilter('category', '=~', 'scvmm.registered.file.share.datastore.%')
                         .withFilter('refType', 'ComputeZone').withFilter('refId', cloud.id)
                         .withFilter('type', 'generic'))
 
-                SyncTask<DatastoreIdentityProjection, Map, Datastore> syncTask = new SyncTask<>(domainRecords, objList as Collection<Map>)
+                SyncTask<DatastoreIdentity, Map, Datastore> syncTask = new SyncTask<>(domainRecords, objList as Collection<Map>)
 
-                syncTask.addMatchFunction { DatastoreIdentityProjection morpheusItem, Map cloudItem ->
+                syncTask.addMatchFunction { DatastoreIdentity morpheusItem, Map cloudItem ->
                     morpheusItem?.externalId == cloudItem?.ID
                 }.onDelete { removeItems ->
                     log.debug("removing datastore: ${removeItems?.size()}")
-                    context.async.cloud.datastore.bulkRemove(removeItems).blockingGet()
-                }.onUpdate { List<SyncTask.UpdateItem<Datastore, Map>> updateItems ->
+                    context.async.cloud.datastore.remove(removeItems).blockingGet()
+                }.onUpdate {  updateItems ->
                     updateMatchedFileShares(updateItems, objList)
                 }.onAdd { itemsToAdd ->
                     addMissingFileShares(itemsToAdd, objList)
-                }.withLoadObjectDetailsFromFinder { List<SyncTask.UpdateItemDto<DatastoreIdentityProjection, Map>> updateItems ->
+                }.withLoadObjectDetailsFromFinder {  updateItems ->
                     return context.async.cloud.datastore.listById(updateItems.collect { it.existingItem.id } as List<Long>)
                 }.start()
             } else {
@@ -136,7 +135,7 @@ class RegisteredStorageFileSharesSync {
 
     private updateMatchedFileShares(List<SyncTask.UpdateItem<Datastore, Map>> updateList, objList) {
         log.debug("RegisteredStorageFileSharesSync >> updateMatchedFileShares >> Entered")
-        List<Network> itemsToUpdate = []
+        def itemsToUpdate = []
         try {
             def hostToShareMap = [:]
 
@@ -209,6 +208,7 @@ class RegisteredStorageFileSharesSync {
                     .withFilter('category', '=~', 'scvmm.registered.file.share.datastore.%')
                     .withFilter('refType', 'ComputeZone').withFilter('refId', cloud.id)
                     .withFilter('type', 'generic'))
+
             existingHostIds?.each{ it ->
                 def hostId = it
                 def volumeType = context.services.storageVolume.storageVolumeType.find(new DataQuery()
@@ -283,7 +283,7 @@ class RegisteredStorageFileSharesSync {
                                     internalId:dsExternalId,
                                     name:match.name,
                                     volumePath:findMountPath(dsExternalId),
-                                    zoneId:cloud?.id
+                                    cloudId:cloud?.id
                             )
                             newVolume.datastore = match
                             context.async.storageVolume.create([newVolume], host).blockingGet()
