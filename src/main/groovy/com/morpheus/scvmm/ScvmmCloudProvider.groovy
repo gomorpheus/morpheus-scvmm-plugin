@@ -7,6 +7,7 @@ import com.morpheus.scvmm.sync.HostSync
 import com.morpheus.scvmm.sync.IsolationNetworkSync
 import com.morpheus.scvmm.sync.RegisteredStorageFileSharesSync
 import com.morpheus.scvmm.sync.NetworkSync
+import com.morpheus.scvmm.sync.TemplatesSync
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.data.DataFilter
@@ -516,11 +517,9 @@ class ScvmmCloudProvider implements CloudProvider {
 						new CloudCapabilityProfilesSync(context, cloudInfo).execute()
 						log.debug("${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
 
-						/*cacheTemplates([zone: zone], scvmmController).get()
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new TemplatesSync(cloudInfo, scvmmController, context, this).execute()
+						log.debug("${cloudInfo.name}: TemplatesSync in ${new Date().time - now}ms")
 
 						/*cacheIpPools([zone: zone], scvmmController)
 						sessionFactory.currentSession.clear()
