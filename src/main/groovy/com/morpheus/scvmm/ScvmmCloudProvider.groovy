@@ -516,9 +516,9 @@ class ScvmmCloudProvider implements CloudProvider {
 						now = new Date().time
 						new CloudCapabilityProfilesSync(context, cloudInfo).execute()
 						log.debug("${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
-						
+
 						now = new Date().time
-						new TemplatesSync(cloudInfo, scvmmController, context).execute()
+						new TemplatesSync(cloudInfo, scvmmController, context, this).execute()
 						log.debug("${cloudInfo.name}: TemplatesSync in ${new Date().time - now}ms")
 
 						/*cacheIpPools([zone: zone], scvmmController)
