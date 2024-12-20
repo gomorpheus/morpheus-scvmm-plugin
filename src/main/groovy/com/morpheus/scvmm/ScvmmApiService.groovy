@@ -1474,15 +1474,15 @@ Status=\$job.Status.toString()
             def waitForIp = opts.waitForIp
             while (pending) {
                 sleep(1000l * 5l)
-                ComputeServer.withNewSession {
+                //ComputeServer.withNewSession {
                     log.debug "checkServerReady: ${vmId}"
-                    ComputeServer server = ComputeServer.get(serverId)
+                    ComputeServer server = morpheusContext.services.computeServer.get(serverId)
                     opts.server = server
                     // Refresh the VM in SCVMM (seems to be needed for it to get the IP for windows)
                     refreshVM(opts, vmId)
                     def serverDetail = getServerDetails(opts, vmId)
                     if (serverDetail.success == true && serverDetail.server) {
-                        server.refresh()
+                        //server.refresh()
                         def ipAddress = serverDetail.server?.internalIp ?: server?.externalIp
                         log.debug "ipAddress found: ${ipAddress}"
                         if (ipAddress) {
@@ -1505,7 +1505,7 @@ Status=\$job.Status.toString()
                                 rtn.server.ipAddress = ipAddress ?: server?.internalIp
                                 pending = false
                             } else {
-                                server.refresh()
+                                //server.refresh()
                                 log.debug("check server loading server: ip: ${server.internalIp}")
                                 if (server.internalIp) {
                                     rtn.success = true
@@ -1520,7 +1520,7 @@ Status=\$job.Status.toString()
                             notFoundAttempts++
                         }
                     }
-                }
+                //}
                 attempts++
                 if (attempts > 300 || notFoundAttempts > 10)
                     pending = false
