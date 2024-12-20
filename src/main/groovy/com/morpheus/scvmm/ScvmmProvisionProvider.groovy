@@ -498,22 +498,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	 */
 	@Override
 	ServiceResponse startServer(ComputeServer computeServer) {
-		log.debug("startServer: computeServer.id: ${computeServer?.id}")
-		def rtn = ServiceResponse.prepare()
-		try {
-			if (computeServer?.externalId) {
-				def scvmmOpts = getAllScvmmServerOpts(computeServer)
-				def results = apiService.startServer(scvmmOpts, scvmmOpts.externalId)
-				if (results.success == true) {
-					rtn.success = true
-				}
-			} else {
-				rtn.msg = 'externalId not found'
-			}
-		} catch (e) {
-			log.error("startServer error:${e}", e)
-		}
-		return rtn
+		return ServiceResponse.success()
 	}
 
 	/**
