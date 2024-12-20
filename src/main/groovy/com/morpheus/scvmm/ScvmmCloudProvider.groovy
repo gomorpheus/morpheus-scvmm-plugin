@@ -718,7 +718,8 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	ServiceResponse stopServer(ComputeServer computeServer) {
-		return ServiceResponse.success()
+		ScvmmProvisionProvider provisionProvider = new ScvmmProvisionProvider(plugin, context)
+		return provisionProvider.stopServer(computeServer)
 	}
 
 	/**
