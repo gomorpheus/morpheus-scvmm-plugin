@@ -8,6 +8,7 @@ import com.morpheus.scvmm.sync.IpPoolsSync
 import com.morpheus.scvmm.sync.IsolationNetworkSync
 import com.morpheus.scvmm.sync.RegisteredStorageFileSharesSync
 import com.morpheus.scvmm.sync.NetworkSync
+import com.morpheus.scvmm.sync.VirtualMachineSync
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.data.DataFilter
@@ -529,8 +530,9 @@ class ScvmmCloudProvider implements CloudProvider {
 
 						def doInventory = cloudInfo.getConfigProperty('importExisting')
 						def createNew = (doInventory == 'on' || doInventory == 'true' || doInventory == true)
-						// TODO: cacheVirtualMachines
-						//cacheVirtualMachines([zone:zone, createNew:createNew], scvmmController)
+						now = new Date().time
+						new VirtualMachineSync(scvmmController, cloudInfo, context, this).execute(createNew)
+						log.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
 						context.async.cloud.updateCloudStatus(cloudInfo, Cloud.Status.ok, null, syncDate)
 						log.debug "complete scvmm zone refresh"
 						response.success = true
