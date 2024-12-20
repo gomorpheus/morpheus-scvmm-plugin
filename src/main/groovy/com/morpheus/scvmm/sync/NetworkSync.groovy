@@ -37,9 +37,8 @@ class NetworkSync {
             def networkType = new NetworkType(code: 'scvmmNetwork')
             NetworkSubnetType subnetType = new NetworkSubnetType(code: 'scvmm')
 
-            def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('zone.id', cloud.id))
+            def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('cloud.id', cloud.id))
             def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, server)
-
             def listResults = apiService.listNetworks(scvmmOpts)
 
             if (listResults.success == true && listResults.networks) {
@@ -116,7 +115,7 @@ class NetworkSync {
                         def subnetConfig = [
                                 dhcpServer         : true,
                                 account            : cloud.owner,
-                                externalId         :cloudItem.ID,
+                                externalId         : cloudItem.ID,
                                 networkSubnetType  : subnetType,
                                 category           : "scvmm.subnet.${cloud.id}",
                                 name               : cloudItem.Name,
