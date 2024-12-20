@@ -4,6 +4,7 @@ import com.morpheus.scvmm.sync.CloudCapabilityProfilesSync
 import com.morpheus.scvmm.sync.ClustersSync
 import com.morpheus.scvmm.sync.DatastoresSync
 import com.morpheus.scvmm.sync.HostSync
+import com.morpheus.scvmm.sync.IpPoolsSync
 import com.morpheus.scvmm.sync.IsolationNetworkSync
 import com.morpheus.scvmm.sync.RegisteredStorageFileSharesSync
 import com.morpheus.scvmm.sync.NetworkSync
@@ -521,11 +522,9 @@ class ScvmmCloudProvider implements CloudProvider {
 						new TemplatesSync(cloudInfo, scvmmController, context, this).execute()
 						log.debug("${cloudInfo.name}: TemplatesSync in ${new Date().time - now}ms")
 
-						/*cacheIpPools([zone: zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new IpPoolsSync(context, cloudInfo).execute()
+						log.debug("${cloudInfo.name}: IpPoolsSync in ${new Date().time - now}ms")
 
 						def doInventory = cloudInfo.getConfigProperty('importExisting')
 						def createNew = (doInventory == 'on' || doInventory == 'true' || doInventory == true)
