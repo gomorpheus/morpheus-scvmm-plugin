@@ -1,0 +1,59 @@
+resource "virtual-image" "scvmm-image-morpheus-ubuntu-22_04" {
+  code               = "scvmm.image.morpheus.ubuntu.22.04.1-v1.ubuntu.22.04.1.amd64"
+  category           = "scvmm.image.morpheus.ubuntu"
+  sshUsername        = null
+  sshPassword        = null
+  name               = "Morpheus Ubuntu 22.04.1 v1"
+  imageType          = "vhd"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/ubuntu/ubuntu-22_04_1-v1-amd64/morpheus-ubuntu-22_04-v1-amd64.vhd.tar.gz"
+  imagePath          = "hyperv/ubuntu/ubuntu-22_04_1-v1-amd64"
+  systemImage        = true
+  installAgent       = true
+  computeServerImage = false
+  isCloudInit        = true
+  externalId         = null
+  osType             = "ubuntu.22.04.64"
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "virtual-image" "scvmm-image-morpheus-ubuntu-20_04" {
+  code               = "scvmm.image.morpheus.ubuntu.20.04.1-v1.ubuntu.20.04.1.amd64"
+  category           = "scvmm.image.morpheus.ubuntu"
+  sshUsername        = null
+  sshPassword        = null
+  name               = "Morpheus Ubuntu 20.04.1 v1"
+  imageType          = "vhd"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/ubuntu/ubuntu-20_04_1-v1-amd64/morpheus-ubuntu-20_04-v1-amd64.vhd.tar.gz"
+  imagePath          = "hyperv/ubuntu/ubuntu-20_04_1-v1-amd64"
+  systemImage        = true
+  installAgent       = true
+  computeServerImage = false
+  isCloudInit        = true
+  externalId         = null
+  osType             = "ubuntu.20.04.64"
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "virtual-image" "scvmm-image-morpheus-windows-2012-r2" {
+  code               = "scvmm.image.morpheus.windows.2012.r2"
+  category           = "scvmm.image.morpheus.windows.2012.r2"
+  sshUsername        = "Administrator"
+  sshPassword        = "m0rp#3us"
+  name               = "morpheus windows 2012_r2"
+  imageType          = "vhd"
+  remotePath         = ""
+  imagePath          = "vhd/windows/windows-2012_r2"
+  systemImage        = true
+  installAgent       = true
+  trialVersion       = true
+  isCloudInit        = false
+  externalId         = null
+  osType             = "windows.server.2012"
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}

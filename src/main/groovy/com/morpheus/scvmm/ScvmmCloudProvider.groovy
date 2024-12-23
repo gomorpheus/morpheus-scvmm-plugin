@@ -749,7 +749,7 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	String getDefaultProvisionTypeCode() {
-		return ScvmmProvisionProvider.PROVISION_PROVIDER_CODE
+		return ScvmmProvisionProvider.PROVIDER_CODE
 	}
 
 	/**
