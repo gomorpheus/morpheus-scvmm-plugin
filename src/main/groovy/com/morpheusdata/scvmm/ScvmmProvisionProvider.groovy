@@ -1,4 +1,4 @@
-package com.morpheus.scvmm
+package com.morpheusdata.scvmm
 
 import com.morpheusdata.PrepareHostResponse
 import com.morpheusdata.core.AbstractProvisionProvider
@@ -97,6 +97,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	 */
 	@Override
 	ServiceResponse<PrepareWorkloadResponse> prepareWorkload(Workload workload, WorkloadRequest workloadRequest, Map opts) {
+		log.debug("prepare workload scvmm")
 		ServiceResponse<PrepareWorkloadResponse> resp = new ServiceResponse<PrepareWorkloadResponse>(
 			true, // successful
 			'', // no message

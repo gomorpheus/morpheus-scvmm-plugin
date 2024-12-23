@@ -1,13 +1,13 @@
-package com.morpheus.scvmm
+package com.morpheusdata.scvmm
 
-import com.morpheus.scvmm.sync.CloudCapabilityProfilesSync
-import com.morpheus.scvmm.sync.ClustersSync
-import com.morpheus.scvmm.sync.DatastoresSync
-import com.morpheus.scvmm.sync.HostSync
-import com.morpheus.scvmm.sync.IpPoolsSync
-import com.morpheus.scvmm.sync.IsolationNetworkSync
-import com.morpheus.scvmm.sync.RegisteredStorageFileSharesSync
-import com.morpheus.scvmm.sync.NetworkSync
+import com.morpheusdata.scvmm.sync.CloudCapabilityProfilesSync
+import com.morpheusdata.scvmm.sync.ClustersSync
+import com.morpheusdata.scvmm.sync.DatastoresSync
+import com.morpheusdata.scvmm.sync.HostSync
+import com.morpheusdata.scvmm.sync.IpPoolsSync
+import com.morpheusdata.scvmm.sync.IsolationNetworkSync
+import com.morpheusdata.scvmm.sync.RegisteredStorageFileSharesSync
+import com.morpheusdata.scvmm.sync.NetworkSync
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.data.DataFilter
