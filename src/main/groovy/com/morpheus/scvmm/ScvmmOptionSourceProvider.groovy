@@ -226,4 +226,21 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 		return sharedControllers?.collect{[name: it.name, value: it.id]}
 	}
 
+	def scvmmCapabilityProfile(params) {
+		params = params instanceof Object[] ? params.getAt(0) : params
+		def tmpZone = params.zoneId ? morpheusContext.services.cloud.get(params.zoneId?.toLong()) : null
+
+		def capabilityProfiles = tmpZone?.getConfigProperty('capabilityProfiles')
+
+		def profiles = []
+		if(capabilityProfiles) {
+			capabilityProfiles.each{ it ->
+				profiles << [name: it, value: it]
+			}
+		} else {
+			profiles << [name:'Not required', value: -1]
+		}
+		return profiles
+	}
+
 }

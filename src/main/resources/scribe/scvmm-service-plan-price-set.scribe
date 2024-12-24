@@ -1,0 +1,36 @@
+resource "service-plan-price-set" "scvmm-1024" {
+  servicePlan           = "scvmm-1024",
+  priceSet              = "default.priceset"
+}
+resource "service-plan-price-set" "scvmm-2048" {
+  servicePlan           = "scvmm-2048",
+  priceSet              = "default.priceset"
+}
+resource "service-plan-price-set" "scvmm-4096" {
+  servicePlan           = "scvmm-4096",
+  priceSet              = "default.priceset"
+}
+resource "service-plan-price-set" "scvmm-8192" {
+  servicePlan           = "scvmm-8192",
+  priceSet              = "default.priceset"
+}
+resource "service-plan-price-set" "scvmm-16384" {
+  servicePlan           = "scvmm-16384",
+  priceSet              = "default.priceset"
+}
+resource "service-plan-price-set" "scvmm-24576" {
+  servicePlan           = "scvmm-24576",
+  priceSet              = "default.priceset"
+}
+resource "service-plan-price-set" "scvmm-32768" {
+  servicePlan           = "scvmm-32768",
+  priceSet              = "default.priceset"
+}
+resource "service-plan-price-set" "scvmm-hypervisor" {
+  servicePlan           = "scvmm-hypervisor",
+  priceSet              = "scvmm-hypervisor.priceset"
+}
+resource "service-plan-price-set" "internal-custom-scvmm" {
+  servicePlan           = "internal-custom-scvmm",
+  priceSet              = "default.priceset"
+}

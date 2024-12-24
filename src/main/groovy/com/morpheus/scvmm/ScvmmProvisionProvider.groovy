@@ -132,7 +132,50 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	@Override
 	Collection<OptionType> getOptionTypes() {
 		Collection<OptionType> options = []
-		// TODO: create some option types for provisioning and add them to collection
+		options << new OptionType(
+				name: 'skip agent install',
+				code: 'provisionType.scvmm.noAgent',
+				category: 'provisionType.scvmm',
+				inputType: OptionType.InputType.CHECKBOX,
+				fieldName: 'noAgent',
+				fieldContext: 'config',
+				fieldCode: 'gomorpheus.optiontype.SkipAgentInstall',
+				fieldLabel: 'Skip Agent Install',
+				fieldGroup:'Advanced Options',
+				displayOrder: 4,
+				required: false,
+				enabled: true,
+				editable:false,
+				global:false,
+				placeHolder:null,
+				helpBlock:'Skipping Agent installation will result in a lack of logging and guest operating system statistics. Automation scripts may also be adversely affected.',
+				defaultValue:null,
+				custom:false,
+				fieldClass:null
+		)
+		options << new OptionType(
+				name: 'capability profile',
+				code: 'provisionType.scvmm.capabilityProfile',
+				category: 'provisionType.scvmm',
+				inputType: OptionType.InputType.SELECT,
+				fieldName: 'scvmmCapabilityProfile',
+				fieldContext: 'config',
+				fieldCode: 'gomorpheus.optiontype.CapabilityProfile',
+				fieldLabel: 'Capability Profile111',
+				fieldGroup:'Options',
+				displayOrder: 11,
+				required: true,
+				enabled: true,
+				editable:true,
+				global:false,
+				placeHolder:null,
+				helpBlock:'',
+				defaultValue:null,
+				custom:false,
+				fieldClass:null,
+				optionSource: 'scvmmCapabilityProfile',
+				optionSourceType:'scvmm'
+		)
 		return options
 	}
 
@@ -177,9 +220,17 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	 */
 	@Override
 	Collection<ServicePlan> getServicePlans() {
-		Collection<ServicePlan> plans = []
-		// TODO: create some service plans (sizing like cpus, memory, etc) and add to collection
-		return plans
+		def servicePlans = []
+		servicePlans << new ServicePlan([code: 'scvmm-1024', editable: true, name: '1 Core, 1GB Memory', description: '1 Core, 1GB Memory', sortOrder: 1, maxStorage: 10l * 1024l * 1024l * 1024l, maxMemory: 1l * 1024l * 1024l * 1024l, maxCpu: 0, maxCores: 1, customMaxStorage: true, customMaxDataStorage: true, addVolumes: true])
+		servicePlans << new ServicePlan([code: 'scvmm-2048', editable: true, name: '1 Core, 2GB Memory', description: '1 Core, 2GB Memory', sortOrder: 2, maxStorage: 20l * 1024l * 1024l * 1024l, maxMemory: 2l * 1024l * 1024l * 1024l, maxCpu: 0, maxCores: 1, customMaxStorage: true, customMaxDataStorage: true, addVolumes: true])
+		servicePlans << new ServicePlan([code: 'scvmm-4096', editable: true, name: '1 Core, 4GB Memory', description: '1 Core, 4GB Memory', sortOrder: 3, maxStorage: 40l * 1024l * 1024l * 1024l, maxMemory: 4l * 1024l * 1024l * 1024l, maxCpu: 0, maxCores: 1, customMaxStorage: true, customMaxDataStorage: true, addVolumes: true])
+		servicePlans << new ServicePlan([code: 'scvmm-8192', editable: true, name: '2 Core, 8GB Memory', description: '2 Core, 8GB Memory', sortOrder: 4, maxStorage: 80l * 1024l * 1024l * 1024l, maxMemory: 8l * 1024l * 1024l * 1024l, maxCpu: 0, maxCores: 2, customMaxStorage: true, customMaxDataStorage: true, addVolumes: true])
+		servicePlans << new ServicePlan([code: 'scvmm-16384', editable: true, name: '2 Core, 16GB Memory', description: '2 Core, 16GB Memory', sortOrder: 5, maxStorage: 160l * 1024l * 1024l * 1024l, maxMemory: 16l * 1024l * 1024l * 1024l, maxCpu: 0, maxCores: 2, customMaxStorage: true, customMaxDataStorage: true, addVolumes: true])
+		servicePlans << new ServicePlan([code: 'scvmm-24576', editable: true, name: '4 Core, 24GB Memory', description: '4 Core, 24GB Memory', sortOrder: 6, maxStorage: 240l * 1024l * 1024l * 1024l, maxMemory: 24l * 1024l * 1024l * 1024l, maxCpu: 0, maxCores: 4, customMaxStorage: true, customMaxDataStorage: true, addVolumes: true])
+		servicePlans << new ServicePlan([code: 'scvmm-32768', editable: true, name: '4 Core, 32GB Memory', description: '4 Core, 32GB Memory', sortOrder: 7, maxStorage: 320l * 1024l * 1024l * 1024l, maxMemory: 32l * 1024l * 1024l * 1024l, maxCpu: 0, maxCores: 4, customMaxStorage: true, customMaxDataStorage: true, addVolumes: true])
+		servicePlans << new ServicePlan([code: 'scvmm-hypervisor', editable: false, name: 'SCVMM hypervisor', description: 'custom hypervisor plan', sortOrder: 100, hidden: true, maxCores: 1, maxCpu: 1, maxStorage: 20l * 1024l * 1024l * 1024l, maxMemory: (long) (1l * 1024l * 1024l * 1024l), active: true, customCores: true, customMaxStorage: true, customMaxDataStorage: true, customMaxMemory: true])
+		servicePlans << new ServicePlan([code: 'internal-custom-scvmm', editable: false, name: 'Custom SCVMM', description: 'Custom SCVMM', sortOrder: 0, customMaxStorage: true, customMaxDataStorage: true, addVolumes: true, customCpu: true, customCores: true, customMaxMemory: true, deletable: false, provisionable: false, maxStorage: 0l, maxMemory: 0l, maxCpu: 0])
+		servicePlans
 	}
 
 	/**
@@ -1311,5 +1362,39 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		return 'vm'
 	}
 
+	/**
+	 * Returns the host type that is to be provisioned
+	 * @return HostType
+	 */
+	@Override
+	HostType getHostType() {
+		return HostType.vm
+	}
 
+	/**
+	 * Custom service plans can be created for this provider
+	 * @return Boolean
+	 */
+	@Override
+	Boolean supportsCustomServicePlans() {
+		return true
+	}
+
+	/**
+	 * Does this provision type allow more than one instance on a box
+	 * @return
+	 */
+	@Override
+	Boolean multiTenant() {
+		return false
+	}
+
+	/**
+	 * Can control firewall rules on the instance
+	 * @return
+	 */
+	@Override
+	Boolean aclEnabled() {
+		return false
+	}
 }
