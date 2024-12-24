@@ -1,4 +1,4 @@
-package com.morpheus.scvmm
+package com.morpheusdata.scvmm
 
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.data.DataQuery
