@@ -1,4 +1,4 @@
-package com.morpheus.scvmm
+package com.morpheusdata.scvmm
 
 import com.morpheusdata.core.MorpheusAccountCredentialService
 import com.morpheusdata.core.MorpheusContext

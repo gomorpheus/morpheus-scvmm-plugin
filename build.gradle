@@ -24,7 +24,7 @@ apply plugin: 'asset-pipeline'
 apply plugin: 'com.morpheusdata.morpheus-plugin-gradle'
 
 
-group = 'com.morpheus.scvmm'
+group = 'com.morpheusdata.scvmm'
 ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
 
 java {
@@ -82,7 +82,7 @@ sourceSets {
 jar {
 	manifest {
 		attributes(
-				'Plugin-Class': 'com.morpheus.scvmm.ScvmmPlugin',
+				'Plugin-Class': 'com.morpheusdata.scvmm.ScvmmPlugin',
 				'Plugin-Version': version,
 				'Morpheus-Name': 'SCVMM',
 				'Morpheus-Organization': 'morpheus',

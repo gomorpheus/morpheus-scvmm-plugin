@@ -1,13 +1,13 @@
-package com.morpheus.scvmm
+package com.morpheusdata.scvmm
 
-import com.morpheus.scvmm.sync.CloudCapabilityProfilesSync
-import com.morpheus.scvmm.sync.ClustersSync
-import com.morpheus.scvmm.sync.DatastoresSync
-import com.morpheus.scvmm.sync.HostSync
-import com.morpheus.scvmm.sync.IpPoolsSync
-import com.morpheus.scvmm.sync.IsolationNetworkSync
-import com.morpheus.scvmm.sync.RegisteredStorageFileSharesSync
-import com.morpheus.scvmm.sync.NetworkSync
+import com.morpheusdata.scvmm.sync.CloudCapabilityProfilesSync
+import com.morpheusdata.scvmm.sync.ClustersSync
+import com.morpheusdata.scvmm.sync.DatastoresSync
+import com.morpheusdata.scvmm.sync.HostSync
+import com.morpheusdata.scvmm.sync.IpPoolsSync
+import com.morpheusdata.scvmm.sync.IsolationNetworkSync
+import com.morpheusdata.scvmm.sync.RegisteredStorageFileSharesSync
+import com.morpheusdata.scvmm.sync.NetworkSync
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.data.DataFilter
@@ -325,6 +325,80 @@ class ScvmmCloudProvider implements CloudProvider {
 	@Override
 	Collection<ComputeServerType> getComputeServerTypes() {
 		Collection<ComputeServerType> serverTypes = []
+
+		// Host option type is used by multiple compute server types.
+		OptionType hostOptionType = new OptionType(code:'computeServerType.scvmm.capabilityProfile', inputType: OptionType.InputType.SELECT,
+				name:'capability profile', category:'provisionType.scvmm', optionSourceType:'scvmm', fieldName:'scvmmCapabilityProfile',
+				fieldCode: 'gomorpheus.optiontype.CapabilityProfile', fieldLabel:'Capability Profile', fieldContext:'config', fieldGroup:'Options',
+				required:true, enabled:true, optionSource:'scvmmCapabilityProfile', editable:true, global:false, placeHolder:null, helpBlock:'',
+				defaultValue:null, custom:false, displayOrder:10, fieldClass:null
+		)
+
+		//scvmm
+		serverTypes << new ComputeServerType(code:'scvmmController', name:'SCVMM Manager', description:'', platform:PlatformType.windows,
+				nodeType:'morpheus-scvmm-node', enabled:true, selectable:false, externalDelete:false, managed:false, controlPower:false,
+				controlSuspend:false, creatable:false, computeService:'scvmmComputeService', displayOrder:0, hasAutomation:false, containerHypervisor:false,
+				bareMetalHost:false, vmHypervisor:true, agentType: ComputeServerType.AgentType.node, provisionTypeCode:'scvmm-hypervisor'
+		)
+
+		//vms
+		serverTypes << new ComputeServerType(code:'scvmmHypervisor', name:'SCVMM Hypervisor', description:'', platform:PlatformType.windows,
+				nodeType:'morpheus-scvmm-node', enabled:true, selectable:false, externalDelete:false, managed:false, controlPower:false,
+				controlSuspend:false, creatable:false, computeService:'scvmmComputeService', displayOrder:0, hasAutomation:false, containerHypervisor:false,
+				bareMetalHost:false, vmHypervisor:true, agentType: ComputeServerType.AgentType.node, provisionTypeCode:'scvmm-hypervisor'
+		)
+		serverTypes << new ComputeServerType(code:'scvmmWindows', name:'SCVMM Windows Node', description:'', platform:PlatformType.windows,
+				nodeType:'morpheus-windows-node', enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true,
+				controlSuspend:false, creatable:false, computeService:'scvmmComputeService', displayOrder:7, hasAutomation:true, reconfigureSupported:true,
+				containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.node, guestVm:true,
+				provisionTypeCode:'scvmm'
+		)
+		serverTypes << new ComputeServerType(code:'scvmmVm', name:'SCVMM Instance', description:'', platform:PlatformType.linux,
+				nodeType:'morpheus-vm-node', enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true, controlSuspend:false,
+				creatable:false, computeService:'scvmmComputeService', displayOrder: 0, hasAutomation:true, reconfigureSupported:true,
+				containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.guest, guestVm:true,
+				provisionTypeCode:'scvmm'
+		)
+
+		//windows container host - not used
+		serverTypes << new ComputeServerType(code:'scvmmWindowsVm', name:'SCVMM Windows Instance', description:'', platform:PlatformType.windows,
+				nodeType:'morpheus-windows-vm-node', enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true,
+				controlSuspend:false, creatable:false, computeService:'scvmmComputeService', displayOrder: 0, hasAutomation:true, reconfigureSupported:true,
+				containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.guest, guestVm:true,
+				provisionTypeCode:'scvmm'
+		)
+
+		serverTypes << new ComputeServerType(code:'scvmmUnmanaged', name:'SCVMM Instance', description:'scvmm vm', platform:PlatformType.linux,
+				nodeType:'unmanaged', enabled:true, selectable:false, externalDelete:true, managed:false, controlPower:true, controlSuspend:false,
+				creatable:false, computeService:'scvmmComputeService', displayOrder:99, hasAutomation:false, containerHypervisor:false,
+				bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.guest, managedServerType:'scvmmVm', guestVm:true,
+				provisionTypeCode:'scvmm'
+		)
+
+		//docker
+		serverTypes << new ComputeServerType(code:'scvmmLinux', name:'SCVMM Docker Host', description:'', platform:PlatformType.linux,
+				nodeType:'morpheus-node', enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true, controlSuspend:false,
+				creatable:false, computeService:'scvmmComputeService', displayOrder: 6, hasAutomation:true, reconfigureSupported:true,
+				containerHypervisor:true, bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.node, containerEngine:'docker',
+				provisionTypeCode:'scvmm', computeTypeCode:'docker-host', optionTypes:[hostOptionType]
+		)
+
+		//kubernetes
+		serverTypes << new ComputeServerType(code:'scvmmKubeMaster', name:'SCVMM Kubernetes Master', description:'', platform:PlatformType.linux,
+				nodeType:'kube-master', reconfigureSupported: true, enabled:true, selectable:false, externalDelete:true, managed:true,
+				controlPower:true, controlSuspend:true, creatable:true, supportsConsoleKeymap: true, computeService:'scvmmComputeService',
+				displayOrder:10, hasAutomation:true, containerHypervisor:true, bareMetalHost:false, vmHypervisor:false,
+				agentType:ComputeServerType.AgentType.host, containerEngine:'docker', provisionTypeCode:'scvmm', computeTypeCode:'kube-master',
+				optionTypes:[hostOptionType]
+		)
+		serverTypes << new ComputeServerType(code:'scvmmKubeWorker', name:'SCVMM Kubernetes Worker', description:'', platform:PlatformType.linux,
+				nodeType:'kube-worker', reconfigureSupported: true, enabled:true, selectable:false, externalDelete:true, managed:true,
+				controlPower:true, controlSuspend:true, creatable:true, supportsConsoleKeymap: true, computeService:'scvmmComputeService',
+				displayOrder:10, hasAutomation:true, containerHypervisor:true, bareMetalHost:false, vmHypervisor:false,
+				agentType:ComputeServerType.AgentType.guest, containerEngine:'docker', provisionTypeCode:'scvmm', computeTypeCode:'kube-worker',
+				optionTypes:[hostOptionType]
+		)
+
 		return serverTypes
 	}
 

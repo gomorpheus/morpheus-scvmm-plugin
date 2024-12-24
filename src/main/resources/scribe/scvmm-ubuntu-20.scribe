@@ -1,9 +1,9 @@
-resource "workload-type" "ubuntu-scvmm-22_04" {
-  code             = "ubuntu-scvmm-22.04"
+resource "workload-type" "ubuntu-scvmm-20_04" {
+  code             = "ubuntu-scvmm-20.04"
   shortName        = "ubuntu"
-  name             = "Ubuntu 22.04"
+  name             = "Ubuntu 20.04"
   ports            = [22]
-  containerVersion = "22.04"
+  containerVersion = "20.04"
   repositoryImage  = null
   entryPoint       = null
   serverType       = "vm"
@@ -12,43 +12,43 @@ resource "workload-type" "ubuntu-scvmm-22_04" {
   showServerLogs   = true
   checkTypeCode    = "containerCheck"
   mountPoint       = "/morpheus"
-  virtualImage     = virtual-image.scvmm.image.morpheus.ubuntu.22.04.20240604.amd64
+  virtualImage     = virtual-image.scvmm.image.morpheus.ubuntu.20.04.20240604.amd64
   containerPorts   = ["ubuntu.22"]
   actions          = ["ubuntu-remove-node"]
   provisionType    = "scvmm"
   backupType       = "scvmmSnapshot"
 }
 
-resource "workload-type-set" "ubuntu-scvmm-22_04-set" {
-  code           = "ubuntu-scvmm-22.04-set"
-  workloadType   = workload-type.ubuntu-scvmm-22_04
+resource "workload-type-set" "ubuntu-scvmm-20_04-set" {
+  code           = "ubuntu-scvmm-20.04-set"
+  workloadType   = workload-type.ubuntu-scvmm-20_04
   priorityOrder  = 0
   dynamicCount   = true
   containerCount = 1
 }
 
-resource "instance-type-layout" "ubuntu-scvmm-22_04" {
-  code                     = "ubuntu-scvmm-22.04"
+resource "instance-type-layout" "ubuntu-scvmm-20_04" {
+  code                     = "ubuntu-scvmm-20.04"
   name                     = "SCVMM VM"
-  sortOrder                = 22
+  sortOrder                = 20
   serverType               = "vm"
   supportsConvertToManaged = true
-  instanceVersion          = "22.04"
+  instanceVersion          = "20.04"
   description              = "This will provision a single process with no redundancy"
   instanceType             = "ubuntu"
   serverCount              = 1
   portCount                = 1
   enabled                  = true
   creatable                = true
-  workloads                = [workload-type-set.ubuntu-scvmm-22_04-set]
+  workloads                = [workload-type-set.ubuntu-scvmm-20_04-set]
   actions                  = ["ubuntu-add-node"]
   provisionType            = "scvmm"
 }
 
-resource "scale-action" "ubuntu-scvmm-22_04" {
-  code       = "ubuntu-scvmm-22.04"
+resource "scale-action" "ubuntu-scvmm-20_04" {
+  code       = "ubuntu-scvmm-20.04"
   scaleType  = "action"
-  layout     = instance-type-layout.ubuntu-scvmm-22_04
+  layout     = instance-type-layout.ubuntu-scvmm-20_04
   upAction   = "ubuntu-add-node"
   downAction = "ubuntu-remove-node"
 }
