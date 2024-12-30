@@ -214,25 +214,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				fieldClass:null
 		)
 		nodeOptions << new OptionType(
-				/*code:'provisionType.scvmm.host',
-				inputType: OptionType.InputType.SELECT,
-				name:'host',
-				category:'provisionType.hyperv',
-				fieldName:'port',
-				fieldCode: 'gomorpheus.optiontype.Ports',
-				fieldLabel:'Ports',
-				fieldContext:'config',
-				fieldGroup:'Options',
-				required:false,
-				enabled:true,
-				editable:false,
-				global:false,
-				placeHolder:null,
-				helpBlock:'',
-				defaultValue:null,
-				custom:false,
-				displayOrder:9,
-				fieldClass:null*/
 				code:'provisionType.scvmm.host',
 				inputType: OptionType.InputType.SELECT,
 				name:'host',
@@ -256,26 +237,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				fieldClass:null
 		)
 		nodeOptions << new OptionType(
-				/*code:'provisionType.hyperv.host',
-				inputType: OptionType.InputType.SELECT,
-				name:'host',
-				category:'provisionType.hyperv',
-				fieldName:'hypervHostId',
-				fieldCode: 'gomorpheus.optiontype.Host',
-				fieldLabel:'Host',
-				fieldContext:'config',
-				fieldGroup:'Options',
-				required:true,
-				enabled:true,
-				optionSource:'hypervHost',
-				editable:false,
-				global:false,
-				placeHolder:null,
-				helpBlock:'',
-				defaultValue:null,
-				custom:false,
-				displayOrder:10,
-				fieldClass:null*/
 				code:'provisionType.scvmm.custom.containerType.virtualImageId',
 				inputType: OptionType.InputType.SELECT,
 				name:'virtual image',
@@ -299,26 +260,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				fieldClass:null
 		)
 		nodeOptions << new OptionType(
-				/*code:'provisionType.hyperv.custom.containerType.virtualImageId',
-				inputType: OptionType.InputType.SELECT,
-				name:'virtual image',
-				category:'provisionType.hyperv.custom',
-				optionSource:'hypervVirtualImages',
-				fieldName:'virtualImageId',
-				fieldCode: 'gomorpheus.optiontype.VirtualImage',
-				fieldLabel:'Virtual Image',
-				fieldContext:'containerType',
-				fieldGroup:'Hyper-V VM Options',
-				required:true,
-				enabled:true,
-				editable:false,
-				global:false,
-				placeHolder:null,
-				helpBlock:'',
-				defaultValue:null,
-				custom:false,
-				displayOrder:1,
-				fieldClass:null*/
 				code:'provisionType.scvmm.custom.containerType.config.logVolume',
 				inputType: OptionType.InputType.TEXT,
 				name:'log volume',
@@ -340,25 +281,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				fieldClass:null
 		)
 		nodeOptions << new OptionType(
-				/*code:'provisionType.hyperv.custom.containerType.config.logVolume',
-				inputType: OptionType.InputType.TEXT,
-				name:'log volume',
-				category:'provisionType.hyperv.custom',
-				fieldName:'logVolume',
-				fieldCode: 'gomorpheus.optiontype.LogVolume',
-				fieldLabel:'Log Volume',
-				fieldContext:'containerType.config',
-				fieldGroup:'Hyper-V VM Options',
-				required:false,
-				enabled:true,
-				editable:false,
-				global:false,
-				placeHolder:null,
-				helpBlock:'',
-				defaultValue:null,
-				custom:false,
-				displayOrder:2,
-				fieldClass:null*/
 				code:'provisionType.scvmm.custom.instanceType.backupType',
 				inputType: OptionType.InputType.HIDDEN,
 				name:'backup type',
@@ -380,25 +302,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				fieldClass:null
 		)
 		nodeOptions << new OptionType(
-				/*code:'provisionType.hyperv.custom.instanceType.backupType',
-				inputType: OptionType.InputType.HIDDEN,
-				name:'backup type',
-				category:'provisionType.hyperv.custom',
-				fieldName:'backupType',
-				fieldCode: 'gomorpheus.optiontype.BackupType',
-				fieldLabel:'Backup Type',
-				fieldContext:'instanceType',
-				fieldGroup:'Hyper-V VM Options',
-				required:false,
-				enabled:true,
-				editable:false,
-				global:false,
-				placeHolder:null,
-				helpBlock:'',
-				defaultValue:'hypervSnapshot',
-				custom:false,
-				displayOrder:4,
-				fieldClass:null*/
 				code:'provisionType.scvmm.custom.containerType.statTypeCode',
 				inputType: OptionType.InputType.HIDDEN,
 				name:'stat type code',
@@ -420,25 +323,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				fieldClass:null
 		)
 		nodeOptions << new OptionType(
-				/*code:'provisionType.hyperv.custom.containerType.statTypeCode',
-				inputType: OptionType.InputType.HIDDEN,
-				name:'stat type code',
-				category:'provisionType.hyperv.custom',
-				fieldName:'statTypeCode',
-				fieldCode: 'gomorpheus.optiontype.StatTypeCode',
-				fieldLabel:'Stat Type Code',
-				fieldContext:'containerType',
-				fieldGroup:'Hyper-V VM Options',
-				required:false,
-				enabled:true,
-				editable:false,
-				global:false,
-				placeHolder:null,
-				helpBlock:'',
-				defaultValue:'hyperv',
-				custom:false,
-				displayOrder:6,
-				fieldClass:null*/
 				code:'provisionType.scvmm.custom.containerType.logTypeCode',
 				inputType: OptionType.InputType.HIDDEN,
 				name:'log type code',
@@ -460,25 +344,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				fieldClass:null
 		)
 		nodeOptions << new OptionType(
-				/*code:'provisionType.hyperv.custom.containerType.logTypeCode',
-				inputType: OptionType.InputType.HIDDEN,
-				name:'log type code',
-				category:'provisionType.hyperv.custom',
-				fieldName:'logTypeCode',
-				fieldCode: 'gomorpheus.optiontype.LogTypeCode',
-				fieldLabel:'Log Type Code',
-				fieldContext:'containerType',
-				fieldGroup:'Hyper-V VM Options',
-				required:false,
-				enabled:true,
-				editable:false,
-				global:false,
-				placeHolder:null,
-				helpBlock:'',
-				defaultValue:'hyperv',
-				custom:false,
-				displayOrder:7,
-				fieldClass:null*/
 				code:'provisionType.scvmm.custom.instanceTypeLayout.description',
 				inputType: OptionType.InputType.HIDDEN,
 				name:'layout description',
@@ -970,6 +835,11 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	}
 
 	@Override
+	Boolean hasComputeZonePools() {
+		return true
+	}
+
+	@Override
 	HostType getHostType() {
 		return HostType.vm
 	}
@@ -1172,30 +1042,29 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		clusterId = clusterId && clusterId != 'null' ? clusterId : null
 		hostId = hostId && hostId.toString().trim() != '' ? hostId : null
 		def zoneHasCloud = cloud.regionCode != null && cloud.regionCode != ''
+		log.info("RAZI :: getHostAndDatastore >> clusterId: ${clusterId}")
+		log.info("RAZI :: getHostAndDatastore >> hostId: ${hostId}")
+		log.info("RAZI :: getHostAndDatastore >> if condition: ${zoneHasCloud && !clusterId && !hostId && !datastore && (datastoreOption == 'auto' || !datastoreOption)}")
 		if(zoneHasCloud && !clusterId && !hostId && !datastore && (datastoreOption == 'auto' || !datastoreOption)) {
+			log.info("RAZI :: getHostAndDatastore >> inside if highlyAvailable: ${highlyAvailable}")
 			return [node, datastore, volumePath, highlyAvailable]
 		}
 		// If host specified by the user, then use it
 		node = hostId ? context.services.computeServer.get(hostId.toLong()) : null
+		log.info("RAZI :: getHostAndDatastore >> node: ${node}")
+		log.info("RAZI :: getHostAndDatastore >> datastore: ${datastore}")
 		if(!datastore) {
 			def datastoreIds = context.services.resourcePermission.listAccessibleResources(account.id, ResourcePermission.ResourceType.Datastore, siteId, null)
 			def hasFilteredDatastores = false
 			// If hostId specifed.. gather all the datastoreIds for the host via storagevolumes
+			log.info("RAZI :: getHostAndDatastore >> datastoreIds: ${datastoreIds}")
 			if(hostId) {
 				hasFilteredDatastores = true
-				/*def scopedDatastoreIds = ComputeServer.withCriteria {
-					createAlias('volumes', 'volumes')
-					createAlias('volumes.datastore', 'datastore')
-					eq('id', hostId.toLong())
-					projections {
-						property('datastore.id')
-					}
-				} as Set
-				datastoreIds = scopedDatastoreIds*/
 				def scopedDatastoreIds = context.services.computeServer.list(new DataQuery()
 						.withFilter('hostId', hostId.toLong())
 						.withJoin('volumes.datastore')).collect { it.volumes.collect { it.datastore.id }}.flatten().unique()
 				datastoreIds = scopedDatastoreIds
+				log.info("RAZI :: getHostAndDatastore >> if(hostId) >> datastoreIds: ${datastoreIds}")
 			}
 
 			def query = new DataQuery()
@@ -1207,6 +1076,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 					.withFilter('freeSpace', size,)
 			def dsList
 			def dsQuery
+			log.info("RAZI :: getHostAndDatastore >> hasFilteredDatastores: ${hasFilteredDatastores}")
 			if(hasFilteredDatastores){
 				dsQuery = query.withFilters(
 						new DataFilter('id', 'in', datastoreIds),
@@ -1228,18 +1098,21 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			}
 			if(clusterId) {
 				if(clusterId.toString().isNumber()) {
-					dsQuery = query.withFilter('zonePool.id', clusterId.toLong())
+					dsQuery = dsQuery.withFilter('zonePool.id', clusterId.toLong())
 				} else {
-					dsQuery = query.withFilter('zonePool.externalId', clusterId)
+					dsQuery = dsQuery.withFilter('zonePool.externalId', clusterId)
 				}
 			}
+			log.info("RAZI :: getHostAndDatastore >> dsQuery: ${dsQuery}")
 			dsList = context.services.cloud.datastore.list(dsQuery.withSort('freeSpace', DataQuery.SortOrder.desc))
 
 			// Return the first one
+			log.info("RAZI :: getHostAndDatastore >> dsList.size(): ${dsList.size()}")
 			if(dsList.size() > 0) {
 				datastore = dsList[0]
 			}
 		}
+		log.info("RAZI :: getHostAndDatastore >> datastore: ${datastore}")
 
 		if(!node && datastore) {
 			// We've grabbed a datastore.. now pick a host that has this datastore
@@ -1250,9 +1123,14 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 					.withFilter('volumes.datastore.id', datastore.id)
 					.withFilter('powerState', ComputeServer.PowerState.on))
 			nodes = nodes.findAll { it.capacityInfo?.maxMemory - it.capacityInfo?.usedMemory > maxMemory }?.sort { -(it.capacityInfo?.maxMemory - it.capacityInfo?.usedMemory) }
+			log.info("RAZI :: getHostAndDatastore >> nodes?.size(): ${nodes?.size()}")
+			log.info("RAZI :: getHostAndDatastore >> nodes?.first(): ${nodes?.first()}")
 			node = nodes?.size() > 0 ? nodes.first() : null
 		}
 
+		log.info("RAZI :: getHostAndDatastore >> before if(!zoneHasCloud && (!node || !datastore)) >> zoneHasCloud: ${zoneHasCloud}")
+		log.info("RAZI :: getHostAndDatastore >> before if(!zoneHasCloud && (!node || !datastore)) >> node: ${node}")
+		log.info("RAZI :: getHostAndDatastore >> before if(!zoneHasCloud && (!node || !datastore)) >> datastore: ${datastore}")
 		if(!zoneHasCloud && (!node || !datastore)) {
 			// Need a node and a datastore for non-cloud scoped zones
 			throw new Exception('Unable to obtain datastore and host for options selected')
@@ -1362,6 +1240,10 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			log.info("RAZI :: runHost >> rootVolume?.datastoreOption: ${rootVolume?.datastoreOption}")
 			log.info("RAZI :: runHost >> server.provisionSiteId: ${server.provisionSiteId}")
 			(node, datastore, volumePath, highlyAvailable) = getHostAndDatastore(cloud, account, clusterId, config.hostId, rootVolume?.datastore, rootVolume?.datastoreOption, maxStorage, server.provisionSiteId, maxMemory)
+			log.info("RAZI :: runHost >> node: ${node}")
+			log.info("RAZI :: runHost >> datastore: ${datastore}")
+			log.info("RAZI :: runHost >> volumePath: ${volumePath}")
+			log.info("RAZI :: runHost >> highlyAvailable: ${highlyAvailable}")
 			nodeId = node?.id
 			scvmmOpts.datastoreId = datastore?.externalId
 			scvmmOpts.hostExternalId = node?.externalId
