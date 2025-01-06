@@ -1,0 +1,85 @@
+resource "compute-server-type" "scvmm-linux" {
+  code                 = "scvmmLinux"
+  name                 = "SCVMM Docker Host"
+  description          = ""
+  platform             = "linux"
+  nodeType             = "morpheus-node"
+  enabled              = true
+  selectable           = false
+  externalDelete       = true
+  managed              = true
+  controlPower         = true
+  controlSuspend       = false
+  creatable            = false
+  computeService       = "scvmmComputeService"
+  displayOrder         = 6
+  hasAutomation        = true
+  reconfigureSupported = true
+  hasAgent             = true
+  containerHypervisor  = true
+  bareMetalHost        = false
+  vmHypervisor         = false
+  agentType            = "node"
+  containerEngine      = "docker"
+  viewSet              = "docker"
+  containerMode        = "docker"
+  isEmbedded           = true
+  provisionType        = "scvmm"
+  computeType          = "docker-host"
+}
+
+resource "workload-type" "docker-scvmm-ubuntu-22_04" {
+  code             = "docker-scvmm-ubuntu-22.04"
+  shortName        = "ubuntu"
+  name             = "Docker Ubuntu 22.04"
+  ports            = [22]
+  containerVersion = "22.04"
+  repositoryImage  = ""
+  imageCode        = "morpheus ubuntu 22.04"
+  entryPoint       = ""
+  mountLogs        = "/var/log"
+  statTypeCode     = "vm"
+  logTypeCode      = "ubuntu"
+  showServerLogs   = "true"
+  category         = "ubuntu"
+  cloneType        = "ubuntu"
+  priorityOrder    = 0
+  serverType       = "vm"
+  providerType     = "scvmm"
+  checkTypeCode    = "vmCheck"
+  virtualImage     = virtual-image.scvmm-image-morpheus-ubuntu-22_04
+  containerPorts   = ["ubuntu.22"]
+  provisionType    = "scvmm"
+}
+
+resource "compute-type-set" "docker-scvmm-ubuntu-22_04-set" {
+  code                    = "docker-scvmm-ubuntu-22.04-set"
+  name                    = "docker host"
+  workloadType            = workload-type.docker-scvmm-ubuntu-22_04
+  computeServerType       = compute-server-types.scvmm-linux
+  category                = "ubuntu"
+  priorityOrder           = 0
+  dynamicCount            = true
+  nodeCount               = 1
+  nodeType                = "worker"
+  canAddNodes             = true
+  installContainerRuntime = true
+  installStorageRuntime   = true
+}
+
+resource "compute-type-layout" "docker-scvmm-ubuntu-22_04-single" {
+  code              = "docker-scvmm-ubuntu-22.04-single"
+  name              = "SCVMM Docker Host (Ubuntu 22.04)"
+  sortOrder         = 5
+  computeVersion    = "22.04"
+  description       = "This will provision a single docker host vm in scvmm"
+  type              = compute-server-types.scvmm-linux
+  serverCount       = 1
+  memoryRequirement = 1024 * 1024 * 1024
+  hasAutoScale      = true
+  groupType         = "docker-cluster"
+  computeServers    = [
+    compute-type-set.docker-scvmm-ubuntu-22_04-set
+  ]
+  provisionType = "scvmm"
+}

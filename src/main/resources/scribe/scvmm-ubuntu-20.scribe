@@ -12,7 +12,7 @@ resource "workload-type" "ubuntu-scvmm-20_04" {
   showServerLogs   = true
   checkTypeCode    = "containerCheck"
   mountPoint       = "/morpheus"
-  virtualImage     = virtual-image.scvmm.image.morpheus.ubuntu.20.04.20240604.amd64
+  virtualImage     = virtual-image.scvmm-image-morpheus-ubuntu-20_04
   containerPorts   = ["ubuntu.22"]
   actions          = ["ubuntu-remove-node"]
   provisionType    = "scvmm"

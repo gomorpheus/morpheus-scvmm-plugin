@@ -181,6 +181,29 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				optionSource: 'scvmmCapabilityProfile',
 				optionSourceType:'scvmm'
 		)
+		options << new OptionType(
+				code:'provisionType.scvmm.host',
+				inputType: OptionType.InputType.SELECT,
+				name:'host',
+				category:'provisionType.scvmm',
+				optionSourceType:'scvmm',
+				fieldName:'hostId',
+				fieldCode: 'gomorpheus.optiontype.Host',
+				fieldLabel:'Host',
+				fieldContext:'config',
+				fieldGroup:'Options',
+				required:false,
+				enabled:true,
+				optionSource:'scvmmHost',
+				editable:false,
+				global:false,
+				placeHolder:null,
+				helpBlock:'',
+				defaultValue:null,
+				custom:false,
+				displayOrder:102,
+				fieldClass:null
+		)
 
 		return options
 	}
@@ -449,6 +472,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	 */
 	@Override
 	ServiceResponse validateWorkload(Map opts) {
+		log.info ("Ray :: validateWorkload: opts: ${opts}")
 		return ServiceResponse.success()
 	}
 
@@ -1454,7 +1478,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 
 	@Override
 	String getNodeFormat() {
-		return HostType.vm
+		return "vm"
 	}
 
 	@Override
@@ -1481,6 +1505,16 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	Boolean createDefaultInstanceType() {
 		return false
 	}
+
+	/**
+	 * Determines if this provision type has ComputeZonePools that can be selected or not.
+	 * @return Boolean representation of whether or not this provision type has ComputeZonePools
+	 */
+	@Override
+	Boolean hasComputeZonePools() {
+		return true
+	}
+
 
 /*def validateServerConfig(ComputeServer server, Map opts=[:]) {
 		log.debug("validateServiceConfiguration:$opts")

@@ -1,12 +1,12 @@
 resource "virtual-image" "scvmm-image-morpheus-ubuntu-22_04" {
-  code               = "scvmm.image.morpheus.ubuntu.22.04.1-v1.ubuntu.22.04.1.amd64"
+  code               = "scvmm.image.morpheus.ubuntu.22.04.20230918.amd64"
   category           = "scvmm.image.morpheus.ubuntu"
   sshUsername        = null
   sshPassword        = null
-  name               = "Morpheus Ubuntu 22.04.1 v1"
+  name               = "Morpheus Ubuntu 22.04 20230918"
   imageType          = "vhd"
-  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/ubuntu/ubuntu-22_04_1-v1-amd64/morpheus-ubuntu-22_04-v1-amd64.vhd.tar.gz"
-  imagePath          = "hyperv/ubuntu/ubuntu-22_04_1-v1-amd64"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20230918/ubuntu-22/morpheus-ubuntu-22_04-amd64-20230918.vhd.tar.gz"
+  imagePath          = "hyperv/20230918/ubuntu-22"
   systemImage        = true
   installAgent       = true
   computeServerImage = false
