@@ -138,7 +138,6 @@ class VirtualMachineSync {
                     log.error "error adding new virtual machine: ${add}"
                 } else {
                     syncVolumes(savedServer, cloudItem.Disks)
-                    context.async.computeServer.save(savedServer).blockingGet()
                 }
             }
         } catch (ex) {
@@ -164,7 +163,6 @@ class VirtualMachineSync {
                     if (currentServer.status != 'provisioning') {
                         try {
                             Boolean save = false
-                            Boolean planInfoChanged = false
                             if (currentServer.name != masterItem.Name) {
                                 currentServer.name = masterItem.Name
                                 save = true
@@ -195,7 +193,6 @@ class VirtualMachineSync {
                             def maxCores = masterItem.CPUCount.toLong() ?: 1
                             if (currentServer.maxCores != maxCores) {
                                 currentServer.maxCores = maxCores
-                                planInfoChanged = true
                                 save = true
                             }
                             if (currentServer.capacityInfo && currentServer.capacityInfo.maxCores != maxCores) {
@@ -205,7 +202,6 @@ class VirtualMachineSync {
                             def maxMemory = (masterItem.Memory?.toLong() ?: 0) * 1024l * 1024l
                             if (currentServer.maxMemory != maxMemory) {
                                 currentServer.maxMemory = maxMemory
-                                planInfoChanged = true
                                 save = true
                             }
                             def parentServer = hosts?.find { host -> host.externalId == masterItem.HostId }
@@ -250,7 +246,6 @@ class VirtualMachineSync {
                                 currentServer.serverOs = osType
                                 currentServer.osType = currentServer.serverOs?.platform?.toLowerCase()
                                 currentServer.platform = osType?.platform
-                                planInfoChanged = true
                                 save = true
                             }
                             //plan
@@ -258,17 +253,11 @@ class VirtualMachineSync {
                                     null, fallbackPlan, currentServer.plan, currentServer.account, [])
                             if (currentServer.plan?.id != plan?.id) {
                                 currentServer.plan = plan
-                                planInfoChanged = true
                                 save = true
                             }
-                            def volumeChanged = false
                             if (masterItem.Disks) {
                                 if (currentServer.status != 'resizing' && currentServer.status != 'provisioning') {
-                                    volumeChanged = syncVolumes(currentServer, masterItem.Disks)
-                                    if (volumeChanged == true) {
-                                        planInfoChanged = true
-                                        save = true
-                                    }
+                                    syncVolumes(currentServer, masterItem.Disks)
                                 }
                             }
                             log.debug ("updateMatchedVirtualMachines: save: ${save}")
@@ -293,7 +282,7 @@ class VirtualMachineSync {
 
     def removeMissingVirtualMachines(List<ComputeServerIdentityProjection> removeList) {
         log.debug("removeMissingVirtualMachines: ${cloud} ${removeList.size()}")
-        def removeItems = context.services.computeServer.list(
+        def removeItems = context.services.computeServer.listIdentityProjections(
                 new DataQuery().withFilter("id", "in", removeList.collect { it.id })
                         .withFilter("computeServerType.code", 'scvmmUnmanaged')
         )
@@ -326,7 +315,7 @@ class VirtualMachineSync {
 
     def syncVolumes(server, externalVolumes) {
         log.debug "syncVolumes: ${server}, ${groovy.json.JsonOutput.prettyPrint(externalVolumes?.encodeAsJSON()?.toString())}"
-        def changes = false //returns if there are changes to be saved
+        def changes = false
         try {
             def maxStorage = 0
 
@@ -366,7 +355,6 @@ class VirtualMachineSync {
         def provisionProvider = cloudProvider.getProvisionProvider('morpheus-scvmm-plugin.provision')
         itemsToAdd?.each { diskData ->
             log.debug("adding new volume: ${diskData}")
-            //changes = true
             def datastore = diskData.datastore ?: loadDatastoreForVolume(diskData.HostVolumeId, diskData.FileShareId, diskData.PartitionUniqueId) ?: null
             def volumeConfig = [
                     name      : diskData.Name,
@@ -388,6 +376,7 @@ class VirtualMachineSync {
     }
 
     def updateMatchedStorageVolumes(updateItems, server, maxStorage, changes) {
+        def savedVolumes = []
         updateItems?.each { updateMap ->
             log.debug("updating volume: ${updateMap.masterItem}")
             StorageVolume volume = updateMap.existingItem
@@ -410,10 +399,13 @@ class VirtualMachineSync {
                 save = true
             }
             if (save) {
-                context.async.storageVolume.save(volume).blockingGet()
+                savedVolumes << volume
                 changes = true
             }
             maxStorage += masterDiskSize
+        }
+        if (savedVolumes.size() > 0) {
+            context.async.storageVolume.bulkSave(savedVolumes).blockingGet()
         }
     }
 
@@ -423,10 +415,7 @@ class VirtualMachineSync {
             changes = true
             currentVolume.controller = null
             currentVolume.datastore = null
-
-            context.async.storageVolume.save(currentVolume).blockingGet()
-            context.async.storageVolume.remove([currentVolume], server, changes).blockingGet()
-            context.async.storageVolume.remove(currentVolume).blockingGet()
+            context.async.storageVolume.remove(removeItems, server, false).blockingGet()
         }
     }
 
