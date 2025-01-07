@@ -41,11 +41,9 @@ class TemplatesSync {
         def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloud, node)
         def listResults = apiService.listTemplates(scvmmOpts)
         if (listResults.success && listResults.templates) {
-            def existingLocations = context.services.virtualImage.location.listIdentityProjections(new DataQuery()
-                    .withFilter('refType', 'ComputeZone')
-                    .withFilter('refId', cloud.id)
-                    .withFilter('virtualImage.imageType', 'in', ['vhd', 'vhdx'])
-                    .withJoin('virtualImage'))
+            def query = new DataQuery().withFilter('refType', 'ComputeZone').withFilter('refId', cloud.id)
+                    .withFilter('virtualImage.imageType', 'in', ['vhd', 'vhdx']).withJoin('virtualImage')
+            def existingLocations = context.services.virtualImage.location.listIdentityProjections(query)
             def groupedLocations = existingLocations.groupBy({ row -> row.externalId })
             def dupedLocations = groupedLocations.findAll { key, value -> value.size() > 1 }
             def dupeCleanup = []
@@ -63,7 +61,8 @@ class TemplatesSync {
                     existingLocations.remove(row)
                 }
             }
-            def domainRecords = Observable.fromIterable(existingLocations)
+            query = query.withFilter('id', 'in', existingLocations.collect{it.id})
+            def domainRecords = context.async.virtualImage.location.listIdentityProjections(query)
             SyncTask<VirtualImageLocationIdentityProjection, Map, VirtualImageLocation> syncTask = new SyncTask<>(domainRecords, listResults.templates as Collection<Map>)
             syncTask.addMatchFunction { VirtualImageLocationIdentityProjection domainObject, Map cloudItem ->
                 domainObject.externalId == cloudItem.ID.toString()
@@ -104,35 +103,16 @@ class TemplatesSync {
             def externalIds = updateItems?.findAll { it.existingItem.externalId }?.collect { it.existingItem.externalId }
             List<VirtualImage> existingItems = []
             if (imageIds && externalIds) {
-                existingItems = context.services.virtualImage.list(new DataQuery().withFilters(
-                        new DataFilter('id', 'in', imageIds),
-                        new DataOrFilter(
-                                new DataFilter('refType', 'ComputeZone'),
-                                new DataFilter('refId', cloud.id?.toString()),
-                                new DataFilter('externalId', 'in', externalIds),
-                                new DataFilter('locations', null)
-                        )
-                ).withJoin('locations'))
-            } else if (imageIds) {
-                existingItems = context.services.virtualImage.list(new DataQuery().withFilter('id', 'in', imageIds))
-            }
-            //dedupe
-            def groupedImages = existingItems.groupBy({ row -> row.externalId })
-            def dupedImages = groupedImages.findAll { key, value -> key != null && value.size() > 1 }
-            if (dupedImages?.size() > 0)
-                log.warn("removing duplicate images: {}", dupedImages.collect { it.key })
-            dupedImages?.each { key, value ->
-                //each pass is set of all the images with the same external id
-                def dupeCleanup = []
-                value.eachWithIndex { row, index ->
-                    def locationMatch = existingLocations.find { it.virtualImage.id == row.id }
-                    if (locationMatch == null) {
-                        dupeCleanup << row
-                        existingItems.remove(row)
-                    }
+                def tmpImgProjs = context.async.virtualImage.listIdentityProjections(cloud.id).filter { img ->
+                    img.id in imageIds || (!img.systemImage && img.externalId != null && img.externalId in externalIds)
+                }.toList().blockingGet()
+                if(tmpImgProjs) {
+                    existingItems = context.async.virtualImage.listById(tmpImgProjs.collect { it.id }).filter { img ->
+                        img.id in imageIds || img.imageLocations.size() == 0
+                    }.toList().blockingGet()
                 }
-                //cleanup
-                log.info("duplicate key: ${key} total: ${value.size()} remove count: ${dupeCleanup.size()}")
+            } else if (imageIds) {
+                existingItems = context.async.virtualImage.listById(imageIds).toList().blockingGet()
             }
             //updates
             List<VirtualImageLocation> locationsToCreate = []
@@ -154,6 +134,12 @@ class TemplatesSync {
                             }
                             save = true
                         }
+                        if (virtualImage?.isPublic != false) {
+                            virtualImage.isPublic = false
+                            imageLocation.isPublic = false
+                            save = true
+                            saveImage = true
+                        }
                     }
 
                     if (imageLocation.code == null) {
@@ -169,13 +155,6 @@ class TemplatesSync {
                         def changed = syncVolumes(imageLocation, matchedTemplate.Disks)
                         if (changed == true)
                             save = true
-                    }
-
-                    if (virtualImage?.isPublic != false) {
-                        virtualImage.isPublic = false
-                        imageLocation.isPublic = false
-                        save = true
-                        saveImage = true
                     }
 
                     if (save) {
@@ -199,7 +178,7 @@ class TemplatesSync {
                                 isPublic    : false
                         ]
                         def addLocation = new VirtualImageLocation(locationConfig)
-                        log.debug("save VirtualImageLocation: ${addLocation.errors}")
+                        log.debug("save VirtualImageLocation: ${addLocation}")
                         locationsToCreate << addLocation
                         //tmp fix
                         if (!image.owner && !image.systemImage)
@@ -271,6 +250,7 @@ class TemplatesSync {
                 def ids = it.existingItem.locations
                 locationIds << ids
             }
+
             def existingLocations = locationIds ? context.services.virtualImage.location.list(new DataQuery()
                     .withFilter('id', 'in', locationIds)
                     .withFilter('refType', 'ComputeZone')
@@ -279,34 +259,16 @@ class TemplatesSync {
             def externalIds = updateItems?.findAll { it.existingItem.externalId }?.collect { it.existingItem.externalId }
             List<VirtualImage> existingItems = []
             if (imageIds && externalIds) {
-                existingItems = context.services.virtualImage.list(new DataQuery().withFilters(
-                        new DataFilter('id', 'in', imageIds),
-                        new DataOrFilter(
-                                new DataFilter('refType', 'ComputeZone'),
-                                new DataFilter('refId', cloud.id?.toString()),
-                                new DataFilter('externalId', 'in', externalIds),
-                                new DataFilter('locations', null)
-                        )
-                ).withJoin('locations'))
-            } else if (imageIds) {
-                existingItems = context.services.virtualImage.list(new DataQuery().withFilter('id', 'in', imageIds))
-            }
-            //dedupe
-            def groupedImages = existingItems.groupBy({ row -> row.externalId })
-            def dupedImages = groupedImages.findAll { key, value -> key != null && value.size() > 1 }
-            if (dupedImages?.size() > 0)
-                log.warn("removing duplicate images: {}", dupedImages.collect { it.key })
-            dupedImages?.each { key, value ->
-                //each pass is set of all the images with the same external id
-                def dupeCleanup = []
-                value.eachWithIndex { row, index ->
-                    def locationMatch = existingLocations.find { it.virtualImage.id == row.id }
-                    if (locationMatch == null) {
-                        dupeCleanup << row
-                        existingItems.remove(row)
-                    }
+                def tmpImgProjs = context.async.virtualImage.listIdentityProjections(cloud.id).filter { img ->
+                    img.id in imageIds || (!img.systemImage && img.externalId != null && img.externalId in externalIds)
+                }.toList().blockingGet()
+                if(tmpImgProjs) {
+                    existingItems = context.async.virtualImage.listById(tmpImgProjs.collect { it.id }).filter { img ->
+                        img.id in imageIds || img.imageLocations.size() == 0
+                    }.toList().blockingGet()
                 }
-                log.info("duplicate key: ${key} total: ${value.size()} remove count: ${dupeCleanup.size()}")
+            } else if (imageIds) {
+                existingItems = context.async.virtualImage.listById(imageIds).toList().blockingGet()
             }
             //updates
             List<VirtualImageLocation> locationsToCreate = []
@@ -328,6 +290,12 @@ class TemplatesSync {
                             }
                             save = true
                         }
+                        if (virtualImage?.isPublic != false) {
+                            virtualImage.isPublic = false
+                            imageLocation.isPublic = false
+                            save = true
+                            saveImage = true
+                        }
                     }
 
                     if (imageLocation.code == null) {
@@ -345,12 +313,6 @@ class TemplatesSync {
                             save = true
                     }
 
-                    if (virtualImage?.isPublic != false) {
-                        virtualImage.isPublic = false
-                        imageLocation.isPublic = false
-                        save = true
-                        saveImage = true
-                    }
                     if (save) {
                         locationsToUpdate << imageLocation
                     }
@@ -372,7 +334,7 @@ class TemplatesSync {
                                 isPublic    : false
                         ]
                         def addLocation = new VirtualImageLocation(locationConfig)
-                        log.debug("save VirtualImageLocation: ${addLocation.errors}")
+                        log.debug("save VirtualImageLocation: ${addLocation}")
                         locationsToCreate << addLocation
                         //tmp fix
                         if (!image.owner && !image.systemImage)
@@ -448,7 +410,7 @@ class TemplatesSync {
                 ]
                 def addLocation = new VirtualImageLocation(locationConfig)
                 add.imageLocations = [addLocation]
-                def isSaved = context.async.virtualImage.create([add], cloud).blockingGet()
+                context.async.virtualImage.create([add], cloud).blockingGet()
                 def saved = syncVolumes(addLocation, it.Disks)
                 if (saved) {
                     context.async.virtualImage.save([add], cloud).blockingGet()
@@ -500,7 +462,7 @@ class TemplatesSync {
                     name      : diskData.Name,
                     size      : diskData.TotalSize?.toLong() ?: 0,
                     rootVolume: diskData.VolumeType == 'BootAndSystem' || !addLocation.volumes?.size(),
-                    deviceName: diskData.deviceName, //(diskData.deviceName ?: provisionProvider.getDiskName(diskNumber)), // check: need to check with dustin how to get the diskName (morpheus-logs-2024-12-09-11-00-15)
+                    deviceName: diskData.deviceName,
                     externalId: diskData.ID,
                     internalId: diskData.Name
             ]
