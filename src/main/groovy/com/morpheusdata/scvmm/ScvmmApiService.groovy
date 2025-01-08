@@ -60,10 +60,12 @@ class ScvmmApiService {
         def tgtFullPath = "${tgtFolder}\\$imageName.$imageType"
         def out = wrapExecuteCommand(generateCommandString("Get-SCVirtualHardDisk -VMMServer localhost | where {\$_.SharePath -like \"${tgtFolder}\\*\"} | Select ID"), opts)
         log.info("RAZI :: insertContainerImage >> out.success1: ${out.success}")
+        log.info("RAZI :: insertContainerImage >> out.data: ${out.data}")
+
         if (!out.success) {
             throw new Exception("Error in getting Get-SCVirtualHardDisk")
         }
-        def vhdBlocks = out.data
+        def vhdBlocks = out.data ?: []
         log.info("RAZI :: insertContainerImage >> vhdBlocks: ${vhdBlocks}")
         log.info("RAZI :: insertContainerImage >> vhdBlocks.size(): ${vhdBlocks.size()}")
         if (vhdBlocks.size() == 0) {
@@ -93,10 +95,13 @@ class ScvmmApiService {
                 log.info("RAZI :: insertContainerImage >> sourcePath: ${sourcePath}")
 
                 def commands = []
-                commands << "\$ignore = Import-SCLibraryPhysicalResource -SourcePath \"$sourcePath\" -SharePath \"$tgtFolder\" -OverwriteExistingFiles -VMMServer localhost"
+//                commands << "\$ignore = Import-SCLibraryPhysicalResource -SourcePath \"$sourcePath\" -SharePath \"$tgtFolder\" -OverwriteExistingFiles -VMMServer localhost"
+                commands << "Import-SCLibraryPhysicalResource -SourcePath \"$sourcePath\" -SharePath \"$tgtFolder\" -OverwriteExistingFiles -VMMServer localhost"
                 commands << "Get-SCVirtualHardDisk | where {\$_.SharePath -like \"${tgtFolder}\\*\"} | Select ID"
+                log.info("RAZI :: insertContainerImage >> commands: ${generateCommandString(commands.join(";"))}")
                 out = wrapExecuteCommand(generateCommandString(commands.join(";")), opts)
                 log.info("RAZI :: insertContainerImage >> out.success2: ${out.success}")
+                log.info("RAZI :: insertContainerImage >> out.data1: ${out.data}")
                 if (!out.success) {
                     throw new Exception("Error in importing physical resource")
                 } else {
@@ -2054,30 +2059,46 @@ For (\$i=0; \$i -le 10; \$i++) {
 
     def transferImage(opts, cloudFiles, imageName) {
         def rtn = [success: false, results: []]
-        CloudFile metadataFile = (CloudFile) cloudFiles?.findAll { cloudFile -> cloudFile.name == 'metadata.json' }
-        def vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf('.vhd') > -1 }
+//        CloudFile metadataFile = (CloudFile) cloudFiles?.findAll { cloudFile -> cloudFile.name == 'metadata.json' }
+//        def vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf('.vhd') > -1 }
+        CloudFile metadataFile = (CloudFile) cloudFiles?.find { cloudFile -> cloudFile.name == 'metadata.json' }
+        List<CloudFile> vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf(".morpkg") == -1 && (cloudFile.name.indexOf('.vhd') > -1 || cloudFile.name.indexOf('.vhdx')) && cloudFile.name.endsWith("/") == false }
         log.debug("vhdFiles: ${vhdFiles}")
         def zoneRoot = opts.zoneRoot ?: defaultRoot
         def imageFolderName = formatImageFolder(imageName)
-        def fileList = []
+        List<Map> fileList = []
         def tgtFolder = "${zoneRoot}\\images\\${imageFolderName}"
         opts.targetImageFolder = tgtFolder
         def cachePath = opts.cachePath
-        def command = "\$ignore = mkdir \"${tgtFolder}\""
+//        def command = "\$ignore = mkdir \"${tgtFolder}\""
+        def command = "mkdir \"${tgtFolder}\""
         log.debug("command: ${command}")
-        def dirResults = wrapExecuteCommand(generateCommandString(command), opts)
+//        def dirResults = wrapExecuteCommand(generateCommandString(command), opts)
+        def dirResults = executeCommand(command, opts)
+        log.info("RAZI :: transferImage >> dirResults.success: ${dirResults.success}")
+        log.info("RAZI :: transferImage >> dirResults.data: ${dirResults.data}")
 
+        log.info("RAZI :: transferImage >> metadataFile: ${metadataFile}")
         if (metadataFile) {
             fileList << [inputStream: metadataFile.inputStream, contentLength: metadataFile.contentLength, targetPath: "${tgtFolder}\\metadata.json".toString(), copyRequestFileName: "metadata.json"]
         }
+        log.info("RAZI :: transferImage >> fileList.size()1: ${fileList.size()}")
+        log.info("RAZI :: transferImage >> fileList1: ${fileList}")
+        log.info("RAZI :: transferImage >> vhdFiles.size(): ${vhdFiles.size()}")
         vhdFiles.each { CloudFile vhdFile ->
+            log.info("RAZI :: transferImage >> vhdFile.name: ${vhdFile.name}")
             def imageFileName = extractImageFileName(vhdFile.name)
+            log.info("RAZI :: transferImage >> imageFileName: ${imageFileName}")
             def filename = extractFileName(vhdFile.name)
+            log.info("RAZI :: transferImage >> filename: ${filename}")
             fileList << [inputStream: vhdFile.inputStream, contentLength: vhdFile.getContentLength(), targetPath: "${tgtFolder}\\${imageFileName}".toString(), copyRequestFileName: filename]
         }
+        log.info("RAZI :: transferImage >> fileList.size()2: ${fileList.size()}")
+        log.info("RAZI :: transferImage >> fileList2: ${fileList}")
         fileList.each { Map fileItem ->
             Long contentLength = (Long) fileItem.contentLength
             def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, fileItem.copyRequestFileName, fileItem.targetPath, fileItem.inputStream, contentLength, null, true)
+            log.info("RAZI :: transferImage >> fileResults.success: ${fileResults.success}")
             rtn.success = fileResults.success
         }
 

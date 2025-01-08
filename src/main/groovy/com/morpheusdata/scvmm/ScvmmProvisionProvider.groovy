@@ -899,25 +899,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		return 'lvm'
 	}
 
-	/*def validateServerConfig(ComputeServer server, Map opts=[:]) {
-		log.debug("validateServiceConfiguration:$opts")
-		def rtn = [success:false, errors:[]]
-		try {
-			if(server.computeServerType?.vmHypervisor == true) {
-				rtn = [success:true, errors:[]]
-			} else {
-				def validationOpts = [
-						networkId: opts?.networkInterface?.network?.id ?: opts?.config?.networkInterface?.network?.id ?: opts.networkInterfaces.getAt(0)?.network?.id,
-						scvmmCapabilityProfile: opts?.config?.scvmmCapabilityProfile ?: opts?.scvmmCapabilityProfile,
-						nodeCount: opts?.config?.nodeCount
-				]
-				rtn = ScvmmComputeUtility.validateServerConfig(validationOpts)
-			}
-		} catch(e) {
-			log.error("error in validateServerConfig:${e}", e)
-		}
-		return rtn
-	}*/
 	@Override
 	ServiceResponse validateHost(ComputeServer server, Map opts=[:]) {
 		log.debug("validateHostConfiguration:$opts")
@@ -1033,6 +1014,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 
 	def getHostAndDatastore(Cloud cloud, account, clusterId, hostId, Datastore datastore, datastoreOption, size, siteId=null, maxMemory) {
 		log.debug "clusterId: ${clusterId}, hostId: ${hostId}, datastore: ${datastore}, datastoreOption: ${datastoreOption}, size: ${size}, siteId: ${siteId}, maxMemory ${maxMemory}"
+		log.info("RAZI :: cloudId: ${cloud.id}, accountId: ${account.id}, clusterId: ${clusterId}, hostId: ${hostId}, datastore: ${datastore}, datastoreOption: ${datastoreOption}, size: ${size}, siteId: ${siteId}, maxMemory ${maxMemory}")
 		ComputeServer node
 		def volumePath
 		def highlyAvailable = false
@@ -1073,7 +1055,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 					.withFilter('type', 'generic')
 					.withFilter('online', true)
 					.withFilter('active', true)
-					.withFilter('freeSpace', size,)
+					.withFilter('freeSpace', '>', size)
 			def dsList
 			def dsQuery
 			log.info("RAZI :: getHostAndDatastore >> hasFilteredDatastores: ${hasFilteredDatastores}")
@@ -1096,6 +1078,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 						)
 				)
 			}
+			log.info("RAZI :: getHostAndDatastore >> dsQuery1: ${dsQuery}")
 			if(clusterId) {
 				if(clusterId.toString().isNumber()) {
 					dsQuery = dsQuery.withFilter('zonePool.id', clusterId.toLong())
@@ -1103,7 +1086,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 					dsQuery = dsQuery.withFilter('zonePool.externalId', clusterId)
 				}
 			}
-			log.info("RAZI :: getHostAndDatastore >> dsQuery: ${dsQuery}")
+			log.info("RAZI :: getHostAndDatastore >> dsQuery2: ${dsQuery}")
 			dsList = context.services.cloud.datastore.list(dsQuery.withSort('freeSpace', DataQuery.SortOrder.desc))
 
 			// Return the first one
@@ -1170,25 +1153,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			return datastore
 		}
 		null
-	}
-
-	def getResourcePoolFromIdString(resourcePoolId, Long accountId, Long siteId, Long zoneId, Boolean ignoreUpdate = false) {
-		def resourcePool
-		if (resourcePoolId instanceof String && resourcePoolId.startsWith('pool-')) {
-			resourcePool = ComputeZonePool.get(resourcePoolId.substring(5))
-		} else if (resourcePoolId instanceof String && resourcePoolId.startsWith('poolGroup-')) {
-			def poolGroup = ComputeZonePoolGroup.get(resourcePoolId.substring(10))
-			if (poolGroup) {
-				resourcePool = pickPoolGroupResourcePool(poolGroup, accountId, siteId, zoneId, ignoreUpdate)
-			}
-		} else {
-			try {
-				resourcePool = ComputeZonePool.get(resourcePoolId?.toLong())
-			} catch (NumberFormatException nEx) {
-				resourcePool = ComputeZonePool.where { refType == 'ComputeZone' && refId == zoneId && externalId == resourcePoolId }.get()
-			}
-		}
-		return resourcePool
 	}
 
 	@Override
