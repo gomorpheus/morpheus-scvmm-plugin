@@ -591,11 +591,9 @@ class ScvmmCloudProvider implements CloudProvider {
 						new CloudCapabilityProfilesSync(context, cloudInfo).execute()
 						log.debug("${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
 
-						/*cacheTemplates([zone: zone], scvmmController).get()
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new TemplatesSync(cloudInfo, scvmmController, context, this).execute()
+						log.debug("${cloudInfo.name}: TemplatesSync in ${new Date().time - now}ms")
 
 						now = new Date().time
 						new IpPoolsSync(context, cloudInfo).execute()
@@ -603,8 +601,9 @@ class ScvmmCloudProvider implements CloudProvider {
 
 						def doInventory = cloudInfo.getConfigProperty('importExisting')
 						def createNew = (doInventory == 'on' || doInventory == 'true' || doInventory == true)
-						// TODO: cacheVirtualMachines
-						//cacheVirtualMachines([zone:zone, createNew:createNew], scvmmController)
+						now = new Date().time
+						new VirtualMachineSync(scvmmController, cloudInfo, context, this).execute(createNew)
+						log.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
 						context.async.cloud.updateCloudStatus(cloudInfo, Cloud.Status.ok, null, syncDate)
 						log.debug "complete scvmm zone refresh"
 						response.success = true
