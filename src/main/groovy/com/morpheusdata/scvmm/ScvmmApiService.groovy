@@ -573,7 +573,7 @@ if(\$cloud) {
             def out = wrapExecuteCommand(command, opts)
             log.debug("out: ${out.data}")
             if (out.success) {
-                hasMore = out.data != ''
+                hasMore = (out.data != '' && out.data != null)
                 if (out.data) {
                     rtn.virtualMachines += out.data
                 }
