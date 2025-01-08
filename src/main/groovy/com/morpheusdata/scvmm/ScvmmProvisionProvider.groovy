@@ -1691,7 +1691,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 					.withFilter('type', 'generic')
 					.withFilter('online', true)
 					.withFilter('active', true)
-					.withFilter('freeSpace', size,)
+					.withFilter('freeSpace','>', size,)
 			def dsList
 			def dsQuery
 			if(hasFilteredDatastores){

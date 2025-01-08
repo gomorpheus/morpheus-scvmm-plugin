@@ -59,7 +59,7 @@ class ScvmmApiService {
         if (!out.success) {
             throw new Exception("Error in getting Get-SCVirtualHardDisk")
         }
-        def vhdBlocks = out.data
+        def vhdBlocks = out.data ?: []
         if (vhdBlocks.size() == 0) {
             // Upload it (if needed)
             def match = findImage(opts, imageName)
@@ -1998,12 +1998,14 @@ For (\$i=0; \$i -le 10; \$i++) {
 
     def transferImage(opts, cloudFiles, imageName) {
         def rtn = [success: false, results: []]
-        CloudFile metadataFile = (CloudFile) cloudFiles?.findAll { cloudFile -> cloudFile.name == 'metadata.json' }
-        def vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf('.vhd') > -1 }
+        /*CloudFile metadataFile = (CloudFile) cloudFiles?.findAll { cloudFile -> cloudFile.name == 'metadata.json' }
+        def vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf('.vhd') > -1 }*/
+        CloudFile metadataFile = (CloudFile) cloudFiles?.find { cloudFile -> cloudFile.name == 'metadata.json' }
+        List<CloudFile> vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf(".morpkg") == -1 && (cloudFile.name.indexOf('.vhd') > -1 || cloudFile.name.indexOf('.vhdx')) && cloudFile.name.endsWith("/") == false }
         log.debug("vhdFiles: ${vhdFiles}")
         def zoneRoot = opts.zoneRoot ?: defaultRoot
         def imageFolderName = formatImageFolder(imageName)
-        def fileList = []
+        List<Map> fileList = []
         def tgtFolder = "${zoneRoot}\\images\\${imageFolderName}"
         opts.targetImageFolder = tgtFolder
         def cachePath = opts.cachePath
