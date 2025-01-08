@@ -20,6 +20,8 @@ import com.morpheusdata.core.util.MorpheusUtils
 import com.morpheusdata.model.*
 import com.morpheusdata.request.ValidateCloudRequest
 import com.morpheusdata.response.ServiceResponse
+import com.morpheusdata.scvmm.sync.TemplatesSync
+import com.morpheusdata.scvmm.sync.VirtualMachineSync
 import groovy.util.logging.Slf4j
 
 @Slf4j
