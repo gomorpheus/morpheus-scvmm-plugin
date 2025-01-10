@@ -445,61 +445,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			rtn = server.maxStorage ?: server.plan.maxStorage
 		return rtn
 	}
-
-	def getServerRootDisk(server) {
-		def rtn = server?.volumes?.find { it.rootVolume == true }
-		return rtn
-	}
-
-	def getServerVolumeSize(server) {
-		def rtn = server.maxStorage ?: server.plan.maxStorage
-		if (server?.volumes?.size() > 0) {
-			def newMaxStorage = server.volumes.sum { it.maxStorage ?: 0 }
-			if (newMaxStorage > rtn)
-				rtn = newMaxStorage
-		}
-		return rtn
-	}
-
-	def getServerDataDiskList(server) {
-		def rtn = server?.volumes?.findAll { it.rootVolume == false }?.sort { it.id }
-		return rtn
-	}
-
-	def getScvmmServerOpts(server) {
-		def serverName = server.name //cleanName(server.name)
-		def serverConfig = server.getConfigMap()
-		def maxMemory = server.maxMemory ?:server.plan.maxMemory
-		def maxCpu = server.maxCpu ?:server.plan?.maxCpu ?:1
-		def maxCores = server.maxCores ?:server.plan.maxCores ?:1
-		def maxStorage = getServerRootSize(server)
-		def maxTotalStorage = getServerVolumeSize(server)
-		def dataDisks = getServerDataDiskList(server)
-		def network = context.services.cloud.network.get(serverConfig.networkId?.toLong())
-		def serverFolder = "morpheus\\morpheus_server_${server.id}"
-		return [name:serverName, vmId: server.externalId, config:serverConfig, server:server, serverId: server.id, memory:maxMemory, osDiskSize:maxStorage, externalId: server.externalId, maxCpu:maxCpu,
-				maxCores:maxCores, serverFolder:serverFolder, hostname:server.getExternalHostname(), network:network, networkId: network?.id, maxTotalStorage:maxTotalStorage,
-				dataDisks:dataDisks, scvmmCapabilityProfile: serverConfig.scvmmCapabilityProfile?.toString() != '-1' ? serverConfig.scvmmCapabilityProfile : null,
-				accountId: server.account?.id]
-	}
-
-	def getAllScvmmServerOpts(server) {
-		def controllerNode = pickScvmmController(server.cloud)
-		def rtn = apiService.getScvmmCloudOpts(context, server.cloud, controllerNode)
-		rtn += apiService.getScvmmControllerOpts(server.cloud, controllerNode)
-		rtn += getScvmmServerOpts(server)
-		return rtn
-	}
-
-	def getServerRootSize(server) {
-		def rtn
-		def rootDisk = getServerRootDisk(server)
-		if (rootDisk)
-			rtn = rootDisk.maxStorage
-		else
-			rtn = server.maxStorage ?: server.plan.maxStorage
-		return rtn
-	}
 	def getServerRootDisk(server) {
 		def rtn = server?.volumes?.find { it.rootVolume == true }
 		return rtn
