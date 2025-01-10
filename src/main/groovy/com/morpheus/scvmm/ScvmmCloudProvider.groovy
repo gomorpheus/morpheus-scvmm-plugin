@@ -4,9 +4,12 @@ import com.morpheus.scvmm.sync.CloudCapabilityProfilesSync
 import com.morpheus.scvmm.sync.ClustersSync
 import com.morpheus.scvmm.sync.DatastoresSync
 import com.morpheus.scvmm.sync.HostSync
+import com.morpheus.scvmm.sync.IpPoolsSync
 import com.morpheus.scvmm.sync.IsolationNetworkSync
 import com.morpheus.scvmm.sync.RegisteredStorageFileSharesSync
 import com.morpheus.scvmm.sync.NetworkSync
+import com.morpheus.scvmm.sync.TemplatesSync
+import com.morpheus.scvmm.sync.VirtualMachineSync
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.data.DataFilter
@@ -516,22 +519,19 @@ class ScvmmCloudProvider implements CloudProvider {
 						new CloudCapabilityProfilesSync(context, cloudInfo).execute()
 						log.debug("${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
 
-						/*cacheTemplates([zone: zone], scvmmController).get()
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new TemplatesSync(cloudInfo, scvmmController, context, this).execute()
+						log.debug("${cloudInfo.name}: TemplatesSync in ${new Date().time - now}ms")
 
-						/*cacheIpPools([zone: zone], scvmmController)
-						sessionFactory.currentSession.clear()
-						zone.attach()
-						zone.account.attach()
-						zone.owner.attach()*/
+						now = new Date().time
+						new IpPoolsSync(context, cloudInfo).execute()
+						log.debug("${cloudInfo.name}: IpPoolsSync in ${new Date().time - now}ms")
 
 						def doInventory = cloudInfo.getConfigProperty('importExisting')
 						def createNew = (doInventory == 'on' || doInventory == 'true' || doInventory == true)
-						// TODO: cacheVirtualMachines
-						//cacheVirtualMachines([zone:zone, createNew:createNew], scvmmController)
+						now = new Date().time
+						new VirtualMachineSync(scvmmController, cloudInfo, context, this).execute(createNew)
+						log.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
 						context.async.cloud.updateCloudStatus(cloudInfo, Cloud.Status.ok, null, syncDate)
 						log.debug "complete scvmm zone refresh"
 						response.success = true
@@ -707,7 +707,8 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	ServiceResponse startServer(ComputeServer computeServer) {
-		return ServiceResponse.success()
+		ScvmmProvisionProvider provisionProvider = new ScvmmProvisionProvider(plugin, context)
+		return provisionProvider.startServer(computeServer)
 	}
 
 	/**
@@ -718,7 +719,8 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	ServiceResponse stopServer(ComputeServer computeServer) {
-		return ServiceResponse.success()
+		ScvmmProvisionProvider provisionProvider = new ScvmmProvisionProvider(plugin, context)
+		return provisionProvider.stopServer(computeServer)
 	}
 
 	/**
