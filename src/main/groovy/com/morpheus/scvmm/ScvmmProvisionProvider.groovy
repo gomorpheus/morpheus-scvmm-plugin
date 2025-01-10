@@ -482,7 +482,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				dataDisks:dataDisks, scvmmCapabilityProfile: serverConfig.scvmmCapabilityProfile?.toString() != '-1' ? serverConfig.scvmmCapabilityProfile : null,
 				accountId: server.account?.id]
 	}
-
+	
 	def getAllScvmmServerOpts(server) {
 		def controllerNode = pickScvmmController(server.cloud)
 		def rtn = apiService.getScvmmCloudOpts(context, server.cloud, controllerNode)
