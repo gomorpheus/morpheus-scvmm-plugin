@@ -445,10 +445,12 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			rtn = server.maxStorage ?: server.plan.maxStorage
 		return rtn
 	}
+
 	def getServerRootDisk(server) {
 		def rtn = server?.volumes?.find { it.rootVolume == true }
 		return rtn
 	}
+
 	def getServerVolumeSize(server) {
 		def rtn = server.maxStorage ?: server.plan.maxStorage
 		if (server?.volumes?.size() > 0) {
@@ -458,10 +460,12 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		}
 		return rtn
 	}
+
 	def getServerDataDiskList(server) {
 		def rtn = server?.volumes?.findAll { it.rootVolume == false }?.sort { it.id }
 		return rtn
 	}
+
 	def getScvmmServerOpts(server) {
 		def serverName = server.name //cleanName(server.name)
 		def serverConfig = server.getConfigMap()
@@ -478,6 +482,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				dataDisks:dataDisks, scvmmCapabilityProfile: serverConfig.scvmmCapabilityProfile?.toString() != '-1' ? serverConfig.scvmmCapabilityProfile : null,
 				accountId: server.account?.id]
 	}
+	
 	def getAllScvmmServerOpts(server) {
 		def controllerNode = pickScvmmController(server.cloud)
 		def rtn = apiService.getScvmmCloudOpts(context, server.cloud, controllerNode)
