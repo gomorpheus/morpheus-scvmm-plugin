@@ -497,7 +497,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		log.info ("Ray :: runWorkload: server?.id: ${server?.id}")
 		def containerId = workload?.id
 		log.info ("Ray :: runWorkload: containerId: ${containerId}")
-		def cloud = server.cloud
+		Cloud cloud = server.cloud
 		log.info ("Ray :: runWorkload: cloud.id: ${cloud.id}")
 		try {
 			def containerConfig = workload.getConfigMap()
@@ -624,19 +624,24 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				if(!imageId) { //If its userUploaded and still needs uploaded
 					def cloudFiles = context.async.virtualImage.getVirtualImageFiles(virtualImage).blockingGet()
 					log.info ("Ray :: runWorkload: cloudFiles?.size(): ${cloudFiles?.size()}")
-					def imageFile = cloudFiles?.find { cloudFile -> cloudFile.name.toLowerCase().endsWith(".vhd") || cloudFile.name.toLowerCase().endsWith(".vhdx") || cloudFile.name.toLowerCase().endsWith(".vmdk") }
-					log.info ("Ray :: runWorkload: imageFile: ${imageFile}")
-					log.info ("Ray :: runWorkload: imageFile?.name: ${imageFile?.name}")
+					if (cloudFiles?.size() == 0) {
+						server.statusMessage = 'Failed to find cloud files'
+						provisionResponse.setError("Cloud files could not be found for ${virtualImage}")
+						provisionResponse.success = false
+					}
+					//def imageFile = cloudFiles?.find { cloudFile -> cloudFile.name.toLowerCase().endsWith(".vhd") || cloudFile.name.toLowerCase().endsWith(".vhdx") || cloudFile.name.toLowerCase().endsWith(".vmdk") }
+					//log.info ("Ray :: runWorkload: imageFile: ${imageFile}")
+					//log.info ("Ray :: runWorkload: imageFile?.name: ${imageFile?.name}")
 					def containerImage = [
-							name	: virtualImage.name ?: workload.workloadType.imageCode,
-							minDisk	: 5,
-							minRam	: 512* ComputeUtility.ONE_MEGABYTE,
+							name			: virtualImage.name ?: workload.workloadType.imageCode,
+							minDisk			: 5,
+							minRam			: 512* ComputeUtility.ONE_MEGABYTE,
 							virtualImageId	: virtualImage.id,
-							tags	: 'morpheus, ubuntu',
-							imageType	: virtualImage.imageType,
+							tags			: 'morpheus, ubuntu',
+							imageType		: virtualImage.imageType,
 							containerType	: 'vhd',
-							imageFile	: imageFile,
-							cloudFiles	: cloudFiles
+							//imageFile		: imageFile,
+							cloudFiles		: cloudFiles
 					]
 					log.info ("Ray :: runWorkload: containerImage: ${containerImage}")
 					scvmmOpts.image = containerImage
@@ -646,6 +651,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 					def imageResults = apiService.insertContainerImage(scvmmOpts)
 					log.info ("Ray :: runWorkload: imageResults: ${imageResults}")
 					if(imageResults.success == true) {
+						log.info ("Ray :: runWorkload: imageResults.imageId: ${imageResults.imageId}")
 						imageId = imageResults.imageId
 						log.info ("Ray :: runWorkload: imageId2: ${imageId}")
 						def locationConfig = [
@@ -708,7 +714,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				log.info ("Ray :: runWorkload: server.serverOs: ${server.serverOs}")
 				server.osType = (virtualImage.osType?.platform == 'windows' ? 'windows' : 'linux') ?: virtualImage.platform
 				log.info ("Ray :: runWorkload: server.osType: ${server.osType}")
-				def newType = this.findVmNodeServerTypeForCloud(cloud.id?.Long(), server.osType, PROVISION_TYPE_CODE)
+				def newType = this.findVmNodeServerTypeForCloud(cloud.id, server.osType, PROVISION_TYPE_CODE)
 				log.info ("Ray :: runWorkload: newType: ${newType}")
 				log.info ("Ray :: runWorkload: newType?.id: ${newType?.id}")
 				if(newType && server.computeServerType != newType)
@@ -748,16 +754,16 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				log.info ("Ray :: runWorkload: virtualImage?.isCloudInit: ${virtualImage?.isCloudInit}")
 				log.info ("Ray :: runWorkload: scvmmOpts.isSysprep: ${scvmmOpts.isSysprep}")
 				if(virtualImage?.isCloudInit || scvmmOpts.isSysprep) {
-					def initOptions = constructCloudInitOptions(workload, opts.installAgent, scvmmOpts.platform, opts.userConfig, virtualImage, scvmmOpts.networkConfig, scvmmOpts.licenses, scvmmOpts)
+					def initOptions = constructCloudInitOptions(workload, workloadRequest, opts.installAgent, scvmmOpts.platform, virtualImage, scvmmOpts.networkConfig, scvmmOpts.licenses, scvmmOpts)
 					opts.installAgent = initOptions.installAgent && !opts.noAgent
 					scvmmOpts.cloudConfigUser = initOptions.cloudConfigUser
 					scvmmOpts.cloudConfigMeta = initOptions.cloudConfigMeta
 					scvmmOpts.cloudConfigBytes = initOptions.cloudConfigBytes
 					scvmmOpts.cloudConfigNetwork = initOptions.cloudConfigNetwork
 					// check: if license is required
-					/*if(initOptions.licenseApplied) {
+					if(initOptions.licenseApplied) {
 						opts.licenseApplied = true
-					}*/
+					}
 					opts.unattendCustomized = initOptions.unattendCustomized
 					server.cloudConfigUser = scvmmOpts.cloudConfigUser
 					server.cloudConfigMeta = scvmmOpts.cloudConfigMeta
@@ -785,7 +791,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 					cloneBaseOpts.cloudInitIsoNeeded = (cloneContainer.server.sourceImage && cloneContainer.server.sourceImage.isCloudInit && cloneContainer.server.serverOs?.platform != 'windows')
 					log.info ("Ray :: runWorkload: cloneBaseOpts.cloudInitIsoNeeded: ${cloneBaseOpts.cloudInitIsoNeeded}")
 					if(cloneBaseOpts.cloudInitIsoNeeded) {
-						def initOptions = constructCloudInitOptions(cloneContainer, opts.installAgent, scvmmOpts.platform, opts.userConfig, virtualImage, scvmmOpts.networkConfig, scvmmOpts.licenses, scvmmOpts)
+						def initOptions = constructCloudInitOptions(cloneContainer, workloadRequest, opts.installAgent, scvmmOpts.platform, virtualImage, scvmmOpts.networkConfig, scvmmOpts.licenses, scvmmOpts)
 						log.info ("Ray :: runWorkload: initOptions: ${initOptions}")
 						def clonedScvmmOpts = apiService.getScvmmZoneOpts(context, cloud)
 						clonedScvmmOpts += apiService.getScvmmControllerOpts(cloud, controllerNode)
@@ -800,9 +806,9 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 						//cloneBaseOpts.clonedScvmmOpts.scvmmProvisionService = getService('scvmmProvisionService')
 						cloneBaseOpts.clonedScvmmOpts.controllerServerId = controllerNode.id
 						// check: if license is required?
-						/*if(initOptions.licenseApplied) {
+						if(initOptions.licenseApplied) {
 							opts.licenseApplied = true
-						}*/
+						}
 						opts.unattendCustomized = initOptions.unattendCustomized
 						log.info ("Ray :: runWorkload: opts.unattendCustomized: ${opts.unattendCustomized}")
 					} else {
@@ -994,8 +1000,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		additionalTemplateDisks
 	}
 
-	private constructCloudInitOptions(Workload container, workloadRequest, installAgent, platform, userConfig, VirtualImage virtualImage, networkConfig, licenses, scvmmOpts) {
-		log.debug("constructCloudInitOptions: ${container}, ${installAgent}, ${platform}, ${userConfig}")
+	private constructCloudInitOptions(Workload container, WorkloadRequest workloadRequest, installAgent, platform, VirtualImage virtualImage, networkConfig, licenses, scvmmOpts) {
+		log.debug("constructCloudInitOptions: ${container}, ${installAgent}, ${platform}")
 		def rtn = [:]
 		ComputeServer server = container.server
 		Cloud zone = server.cloud
@@ -1022,14 +1028,14 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		rtn.cloudConfigMeta = workloadRequest?.cloudConfigMeta ?: null
 		rtn.cloudConfigNetwork = workloadRequest?.cloudConfigNetwork ?: null
 		// check: if license required ?
-		/*if(cloudConfigOpts.licenseApplied) {
+		if(cloudConfigOpts.licenseApplied) {
 			rtn.licenseApplied = true
-		}*/
+		}
 		rtn.unattendCustomized = cloudConfigOpts.unattendCustomized
 		rtn.cloudConfigUnattend = context.services.provision.buildCloudUserData(PlatformType.valueOf(platform), workloadRequest.usersConfiguration, cloudConfigOpts)
 		def isoBuffer = context.services.provision.buildIsoOutputStream(virtualImage.isSysprep, PlatformType.valueOf(platform), rtn.cloudConfigMeta, rtn.cloudConfigUnattend, rtn.cloudConfigNetwork)
 		rtn.cloudConfigBytes = isoBuffer
-		log.info ("Ray :: constructCloudInitOptions: rtn: ${rtn}")
+		log.info ("Ray :: constructCloudInitOptions: rtn: not printing because of isoBuffer")
 		return rtn
 	}
 

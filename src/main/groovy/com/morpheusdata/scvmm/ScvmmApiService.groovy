@@ -42,66 +42,108 @@ class ScvmmApiService {
     }
 
     def insertContainerImage(opts) {
+        log.info ("Ray :: insertContainerImage: opts: ${opts}")
         log.debug "insertContainerImage: ${opts}"
         def rtn = [success: false, imageExists: false]
 //		rtn.success = true
 //		rtn.imageId = '41266f2e-062c-4356-9eb0-b3b0e64c1e15'
 //		return rtn
         def image = opts.image
+        log.info ("Ray :: insertContainerImage: image: ${image}")
         def imageName = image.name
+        log.info ("Ray :: insertContainerImage: imageName: ${imageName}")
         def imageType = image.imageType
+        log.info ("Ray :: insertContainerImage: imageType: ${imageType}")
         def imageFolderName = formatImageFolder(imageName)
+        log.info ("Ray :: insertContainerImage: imageFolderName: ${imageFolderName}")
         // First... see if it is already uploaded to the share
         def rootSharePath = opts.rootSharePath ?: getRootSharePath(opts)
+        log.info ("Ray :: insertContainerImage: rootSharePath: ${rootSharePath}")
         def tgtFolder = "${rootSharePath}\\images\\$imageFolderName"
+        log.info ("Ray :: insertContainerImage: tgtFolder: ${tgtFolder}")
         def tgtFullPath = "${tgtFolder}\\$imageName.$imageType"
+        log.info ("Ray :: insertContainerImage: tgtFullPath: ${tgtFullPath}")
         def out = wrapExecuteCommand(generateCommandString("Get-SCVirtualHardDisk -VMMServer localhost | where {\$_.SharePath -like \"${tgtFolder}\\*\"} | Select ID"), opts)
+        log.info ("Ray :: insertContainerImage: out: ${out}")
+        log.info ("Ray :: insertContainerImage: out.success: ${out?.success}")
+        log.info ("Ray :: insertContainerImage: out.data: ${out?.data}")
         if (!out.success) {
             throw new Exception("Error in getting Get-SCVirtualHardDisk")
         }
         def vhdBlocks = out.data ?: []
-        if (vhdBlocks.size() == 0) {
+        log.info ("Ray :: insertContainerImage: vhdBlocks: ${vhdBlocks}")
+        log.info ("Ray :: insertContainerImage: vhdBlocks?.size(): ${vhdBlocks?.size()}")
+        if (vhdBlocks?.size() == 0) {
             // Upload it (if needed)
             def match = findImage(opts, imageName)
+            log.info ("Ray :: insertContainerImage: match: ${match}")
             log.info("findImage: ${match}")
+            log.info ("Ray :: insertContainerImage: match.imageExists: ${match.imageExists}")
             if (match.imageExists == false) {
                 //transfer it to host
+                log.info ("Ray :: insertContainerImage: calling transferImage")
+                log.info ("Ray :: insertContainerImage: opts: ${opts}")
+                log.info ("Ray :: insertContainerImage: image.cloudFiles?.size(): ${image.cloudFiles?.size()}")
+                log.info ("Ray :: insertContainerImage: imageName: ${imageName}")
                 def transferResults = transferImage(opts, image.cloudFiles, imageName)
+                log.info ("Ray :: insertContainerImage: transferResults: ${transferResults}")
+                log.info ("Ray :: insertContainerImage: transferResults.success: ${transferResults.success}")
                 log.debug "transferImage: ${transferResults}"
                 if (transferResults.success == true) {
                     rtn.success = true
                 } else {
                     rtn.msg = 'Error transferring image'
                 }
+                log.info ("Ray :: insertContainerImage: rtn: ${rtn}")
             } else {
                 rtn.success = true
             }
+            log.info ("Ray :: insertContainerImage: rtn1: ${rtn}")
 
             // Import it as a physical resource
             if (rtn.success) {
+                log.info ("Ray :: insertContainerImage: opts2: ${opts}")
+                log.info ("Ray :: insertContainerImage: imageName3: ${imageName}")
                 def sourcePath = findImage(opts, imageName)?.imageName
+                log.info ("Ray :: insertContainerImage: sourcePath: ${sourcePath}")
 
                 def commands = []
                 commands << "\$ignore = Import-SCLibraryPhysicalResource -SourcePath \"$sourcePath\" -SharePath \"$tgtFolder\" -OverwriteExistingFiles -VMMServer localhost"
                 commands << "Get-SCVirtualHardDisk | where {\$_.SharePath -like \"${tgtFolder}\\*\"} | Select ID"
+                log.info ("Ray :: insertContainerImage: commands: ${commands}")
                 out = wrapExecuteCommand(generateCommandString(commands.join(";")), opts)
+                log.info ("Ray :: insertContainerImage: out: ${out}")
+                log.info ("Ray :: insertContainerImage: out.success: ${out.success}")
+                log.info ("Ray :: insertContainerImage: out.data: ${out.data}")
                 if (!out.success) {
+                    log.info ("Ray :: insertContainerImage: out.data: inside false")
                     throw new Exception("Error in importing physical resource")
                 } else {
+                    log.info ("Ray :: insertContainerImage: out.data: inside true")
                     // Delete it from the temp directory
+                    log.info ("Ray :: insertContainerImage: calling deleteImage")
+                    log.info ("Ray :: insertContainerImage: imageName: ${imageName}")
                     deleteImage(opts, imageName)
                 }
+                log.info ("Ray :: insertContainerImage: out.data[0]: ${out.data[0]}")
+                log.info ("Ray :: insertContainerImage: out.data[0].ID: ${out.data[0].ID}")
                 rtn.imageId = out.data[0].ID
+                log.info ("Ray :: insertContainerImage: rtn.imageId: ${rtn.imageId}")
             }
         } else {
             rtn.success = true
+            log.info ("Ray :: insertContainerImage: vhdBlocks: ${vhdBlocks}")
+            log.info ("Ray :: insertContainerImage: vhdBlocks.first().ID: ${vhdBlocks.first().ID}")
             rtn.imageId = vhdBlocks.first().ID
+            log.info ("Ray :: insertContainerImage: rtn.imageId2: ${rtn.imageId}")
         }
 
+        log.info ("Ray :: insertContainerImage: rtn3: ${rtn}")
         return rtn
     }
 
     def createServer(opts) {
+        log.info ("Ray :: createServer: opts: ${opts}")
         log.debug("createServer: ${opts}")
 
         def rtn = [success: false]
@@ -114,20 +156,29 @@ class ScvmmApiService {
 
             //these classes are not supposed to know our domain model or touch gorm - this needs to be out in the calling service
             ComputeServer server
-            ComputeServer.withNewSession {
-                opts.network = Network.get(opts.networkId)
-                opts.zone = ComputeZone.get(opts.zoneId)
+            //ComputeServer.withNewSession {
+                opts.network = morpheusContext.services.network.get(opts.networkId)
+                log.info ("Ray :: createServer: opts.network: ${opts.network}")
+                opts.zone = morpheusContext.services.cloud.get(opts.zoneId)
+                log.info ("Ray :: createServer: opts.zone: ${opts.zone}")
                 loadControllerServer(opts)
+                log.info ("Ray :: createServer: opts1: ${opts}")
 
                 def diskRoot = opts.diskRoot
+                log.info ("Ray :: createServer: diskRoot: ${diskRoot}")
                 def imageFolderName = opts.serverFolder
+                log.info ("Ray :: createServer: imageFolderName: ${imageFolderName}")
                 def diskFolder = "${diskRoot}\\${imageFolderName}"
+                log.info ("Ray :: createServer: diskFolder: ${diskFolder}")
+                log.info ("Ray :: createServer: opts.isSysprep: ${opts.isSysprep}")
                 if (opts.isSysprep) {
-                    loadControllerServer(opts)
+                    //loadControllerServer(opts)
                     opts.unattendPath = importScript(opts.cloudConfigUser, diskFolder, imageFolderName, [fileName: 'Unattend.xml'] + opts)
+                    log.info ("Ray :: createServer: opts.unattendPath: ${opts.unattendPath}")
                 }
 
                 createCommands = buildCreateServerCommands(opts)
+                log.info ("Ray :: createServer: createCommands: ${createCommands}")
 
                 if (createCommands.hardwareProfileName) {
                     removeTemplateCommands << "\$HWProfile = Get-SCHardwareProfile -VMMServer localhost | where { \$_.Name -eq \"${createCommands.hardwareProfileName}\"} ; \$ignore = Remove-SCHardwareProfile -HardwareProfile \$HWProfile;"
@@ -137,9 +188,11 @@ class ScvmmApiService {
                 }
 
                 launchCommand = createCommands.launchCommand
+                log.info ("Ray :: createServer: launchCommand: ${launchCommand}")
                 log.info("launchCommand: ${launchCommand}")
                 // throw new Exception('blah')
                 createData = wrapExecuteCommand(generateCommandString(launchCommand), opts)
+                log.info ("Ray :: createServer: createData: ${createData}")
                 log.debug "run server: ${createData}"
 
                 if (removeTemplateCommands) {
@@ -148,50 +201,74 @@ class ScvmmApiService {
                     wrapExecuteCommand(generateCommandString(command), opts)
                 }
 
+                log.info ("Ray :: createServer: createData.success: ${createData.success}")
                 if (createData.success != true) {
-                    if (createData.errorData?.contains('which includes generation 2')) {
+                    log.info ("Ray :: createServer: createData.error: ${createData.error}")
+                    if (createData.error?.contains('which includes generation 2')) {
                         rtn.errorMsg = 'The virtual hard disk selected is not compatible with the template which include generation 2 virtual machine functionality.'
-                    } else if (createData.errorData?.contains('which includes generation 1')) {
+                    } else if (createData.error?.contains('which includes generation 1')) {
                         rtn.errorMsg = 'The virtual hard disk selected is not compatible with the template which include generation 1 virtual machine functionality.'
                     }
                     throw new Exception("Error in launching VM: ${createData}")
                 }
-            }
+            //}
 
-            ComputeServer.withNewSession {
-                opts.network = Network.get(opts.networkId)
-                opts.zone = ComputeZone.get(opts.zoneId)
-                server = ComputeServer.get(opts.serverId)
+            //ComputeServer.withNewSession {
+                //opts.network = Network.get(opts.networkId)
+                //opts.zone = ComputeZone.get(opts.zoneId)
+                log.info ("Ray :: createServer: opts.serverId: ${opts.serverId}")
+                server = morpheusContext.services.computeServer.get(opts.serverId)//ComputeServer.get(opts.serverId)
+                log.info ("Ray :: createServer: server?.id: ${server?.id}")
                 log.info "Create results: ${createData}"
 
+                log.info ("Ray :: createServer: createData.data: ${createData.data}")
+                log.info ("Ray :: createServer: createData.data.size(): ${createData.data?.size()}")
+                if (createData.data.size() == 1) {
+                    log.info ("Ray :: createServer: createData.data[0]: ${createData.data[0]}")
+                    log.info ("Ray :: createServer: createData.data[0].ObjectType: ${createData.data[0].ObjectType}")
+                    log.info ("Ray :: createServer: createData.data[0].ID: ${createData.data[0].ID}")
+                }
+
+
                 def newServerExternalId = createData.data && createData.data.size() == 1 && createData.data[0].ObjectType?.toString() == '1' ? createData.data[0].ID : null
+                log.info ("Ray :: createServer: newServerExternalId: ${newServerExternalId}")
                 if (!newServerExternalId) {
                     throw new Exception("Failed to create VM with command: ${launchCommand}: ${createData.errorData}")
                 }
                 opts.externalId = newServerExternalId
                 // Make sure we save the externalId ASAP
                 server.externalId = newServerExternalId
-                server.save(flush: true)
-            }
+                server = morpheusContext.services.computeServer.save(server)
+                //server.save(flush: true)
+            //}
             // Find the newly assigned VM information
+            log.info ("Ray :: createServer: opts222: ${opts}")
             def serverCreated = checkServerCreated(opts, opts.externalId)
             log.debug "Servercreated: ${serverCreated}"
+            log.info ("Ray :: createServer: serverCreated: ${serverCreated}")
+            log.info ("Ray :: createServer: serverCreated.success: ${serverCreated.success}")
 
             if (serverCreated.success == true) {
-                ComputeServer.withNewSession {
-                    opts.network = Network.get(opts.networkId)
-                    opts.zone = ComputeZone.get(opts.zoneId)
-                    server = ComputeServer.get(opts.serverId)
-                    loadControllerServer(opts)
+                //ComputeServer.withNewSession {
+                    //opts.network = Network.get(opts.networkId)
+                    //opts.zone = ComputeZone.get(opts.zoneId)
+                    //server = ComputeServer.get(opts.serverId)
+                    //loadControllerServer(opts)
 
                     log.debug "opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}"
+                    log.info ("Ray :: createServer: opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}")
                     opts.additionalTemplateDisks?.each { diskConfig ->
+                        log.info ("Ray :: createServer: diskConfig: ${diskConfig}")
                         // Create the additional disks the user requests on the template
+                        log.info ("Ray :: createServer: opts1111: ${opts}")
+                        log.info ("Ray :: createServer: diskConfig.diskCounter: ${diskConfig.diskCounter}")
+                        log.info ("Ray :: createServer: diskConfig.diskSize: ${diskConfig.diskSize}")
                         createAndAttachDisk(opts, diskConfig.diskCounter, diskConfig.diskSize, '0', null, false)
                     }
                     log.debug "finished with adding additionalDisks: ${opts.additionalTemplateDisks}"
 
                     // Special stuff for cloned VMs
+                    log.info ("Ray :: createServer: opts.cloneVMId: ${opts.cloneVMId}")
                     if (opts.cloneVMId) {
                         // Update the VolumeType for the root disk (SCVMM doesn't preserve the VolumeType :( )
                         changeVolumeTypeForClonedBootDisk(opts, opts.cloneVMId, opts.externalId)
@@ -202,9 +279,14 @@ class ScvmmApiService {
                     }
                     // Fetch the disks to create a mapping
                     def disks = [osDisk: [externalId: ''], dataDisks: opts.dataDisks?.collect { [id: it.id] }, diskMetaData: [:]]
+                    log.info ("Ray :: createServer: disks: ${disks}")
                     def diskDrives = listVirtualDiskDrives(opts, opts.externalId)
+                    log.info ("Ray :: createServer: diskDrives: ${diskDrives}")
                     def bookDiskIndex = findBootDiskIndex(diskDrives)
+                    log.info ("Ray :: createServer: bookDiskIndex: ${bookDiskIndex}")
+                    log.info ("Ray :: createServer: diskDrives.disks: ${diskDrives.disks}")
                     diskDrives.disks?.eachWithIndex { disk, diskIndex ->
+                        log.info ("Ray :: createServer: disk: ${disk}")
                         if (diskIndex == bookDiskIndex) {
                             disks.osDisk.externalId = disk.ID
                             disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
@@ -216,55 +298,91 @@ class ScvmmApiService {
                     }
                     //resize disk
                     log.debug ".. about to resize disk ${opts.osDiskSize}"
-                    def diskRoot = opts.diskRoot
-                    def imageFolderName = opts.serverFolder
-                    def diskFolder = "${diskRoot}\\${imageFolderName}"
+                    diskRoot = opts.diskRoot
+                    imageFolderName = opts.serverFolder
+                    diskFolder = "${diskRoot}\\${imageFolderName}"
+                    log.info ("Ray :: createServer: opts.osDiskSize: ${opts.osDiskSize}")
                     if (opts.osDiskSize) {
                         def osDiskVhdID = disks.diskMetaData[disks.osDisk?.externalId]?.VhdID
+                        log.info ("Ray :: createServer: osDiskVhdID: ${osDiskVhdID}")
+                        log.info ("Ray :: createServer: before calling resizeDisk....")
                         resizeDisk(opts, osDiskVhdID, opts.osDiskSize)
+                        log.info ("Ray :: createServer: after calling resizeDisk....")
                     }
 
                     // Resize the data disks if template
+                    log.info ("Ray :: createServer: opts.isTemplate: ${opts.isTemplate}")
+                    log.info ("Ray :: createServer: opts.templateId: ${opts.templateId}")
+                    log.info ("Ray :: createServer: opts.dataDisks: ${opts.dataDisks}")
                     if (opts.isTemplate && opts.templateId && opts.dataDisks) {
+                        log.info ("Ray :: createServer: disks.diskMetaData: ${disks.diskMetaData}")
                         disks.diskMetaData?.each { externalId, map ->
+                            log.info ("Ray :: createServer: externalId: ${externalId}")
+                            log.info ("Ray :: createServer: map: ${map}")
                             def storageVolume = opts.dataDisks.find { it.externalId == externalId }
+                            log.info ("Ray :: createServer: storageVolume: ${storageVolume}")
                             if (storageVolume) {
                                 def diskVhdID = disks.diskMetaData[externalId]?.VhdID
+                                log.info ("Ray :: createServer: diskVhdID: ${diskVhdID}")
+                                log.info ("Ray :: createServer: storageVolume.maxStorage: ${storageVolume.maxStorage}")
+                                log.info ("Ray :: createServer: before calling resizeDisk1....")
                                 resizeDisk(opts, diskVhdID, storageVolume.maxStorage)
+                                log.info ("Ray :: createServer: after calling resizeDisk1....")
                             }
                         }
                     }
 
                     //cloud init
+                    log.info ("Ray :: createServer: opts.isSysprep: ${opts.isSysprep}")
                     if (opts.cloudConfigBytes && !opts.isSysprep) {
+                        log.info ("Ray :: createServer: before calling createDVD.........")
                         createDVD(opts)
+                        log.info ("Ray :: createServer: after calling createDVD.........")
+                        log.info ("Ray :: createServer: before calling importAndMountIso.........")
                         cloudInitIsoPath = importAndMountIso(opts.cloudConfigBytes, diskFolder, imageFolderName, opts)
+                        log.info ("Ray :: createServer: after calling cloudInitIsoPath.........")
+                        log.info ("Ray :: createServer: cloudInitIsoPath: ${cloudInitIsoPath}")
                     }
 
                     //start it
                     log.info("Starting Server  ${opts.name}")
+                    log.info ("Ray :: createServer: opts.name: Starting Server: ${opts.name}")
+                    log.info ("Ray :: createServer: opts.externalId: ${opts.externalId}")
+                    log.info ("Ray :: createServer: sleep started ------")
+                    sleep(10000) // just a test
+                    log.info ("Ray :: createServer: sleep ended ------")
+                    log.info ("Ray :: createServer: before calling startServer.....")
                     startServer(opts, opts.externalId)
+                    log.info ("Ray :: createServer: after calling startServer.....")
                     //get details
                     log.info("SCVMM Check for Server Ready ${opts.name}")
+                    log.info ("Ray :: createServer: opts.name: ${opts.name}")
                     def serverDetail = checkServerReady(opts, opts.externalId)
+                    log.info ("Ray :: createServer: serverDetail: ${serverDetail}")
+                    log.info ("Ray :: createServer: serverDetail.success: ${serverDetail.success}")
                     if (serverDetail.success == true) {
                         rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
                         rtn.success = true
                     } else {
                         rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
                     }
-                }
+                    log.info ("Ray :: createServer: rtn.server: ${rtn.server}")
+                //}
             }
 
+            log.info ("Ray :: createServer: cloudInitIsoPath: ${cloudInitIsoPath}")
             if (cloudInitIsoPath) {
                 // Unset the DVD
                 rtn.deleteDvdOnComplete = [removeIsoFromDvd: true, deleteIso: cloudInitIsoPath]
             }
+            log.info ("Ray :: createServer: rtn.deleteDvdOnComplete: ${rtn.deleteDvdOnComplete}")
+            log.info ("Ray :: createServer: opts.unattendPath: ${opts.unattendPath}")
             if (opts.unattendPath) {
                 deleteUnattend(opts, opts.unattendPath)
             }
 
             // Perform the remove again... in case they were locked above
+            log.info ("Ray :: createServer: removeTemplateCommands: ${removeTemplateCommands}")
             if (removeTemplateCommands) {
                 def command = removeTemplateCommands.join(';')
                 command += "@()"
@@ -273,10 +391,13 @@ class ScvmmApiService {
         } catch (e) {
             log.error("createServer error: ${e}", e)
         }
+        log.info ("Ray :: createServer: rtn: ${rtn}")
         return rtn
     }
 
     def getServerDetails(opts, externalId) {
+        log.info ("Ray :: getServerDetails: opts: ${opts}")
+        log.info ("Ray :: getServerDetails: externalId: ${externalId}")
         log.debug "getServerDetails: ${externalId}"
         def rtn = [success: false, server: null, networkAdapters: [], error: null]
         try {
@@ -312,8 +433,12 @@ if(\$vm) {
 	\$report += \$data
 }
 \$report """), opts)
+            log.info ("Ray :: getServerDetails: out: ${out}")
+            log.info ("Ray :: getServerDetails: out.success: ${out.success}")
             if (out.success) {
                 def serverData = out.data?.size() > 0 ? out.data.first() : null
+                log.info ("Ray :: getServerDetails: serverData: ${serverData}")
+                log.info ("Ray :: getServerDetails: serverData?.Error: ${serverData?.Error}")
                 if (!serverData?.Error) {
                     rtn.server = serverData
                     rtn.success = out.success
@@ -324,6 +449,7 @@ if(\$vm) {
         } catch (e) {
             log.error("getServerDetails error: ${e}", e)
         }
+        log.info ("Ray :: getServerDetails: rtn: ${rtn}")
         return rtn
     }
 
@@ -1284,6 +1410,9 @@ foreach (\$disk in \$disks) {
     }
 
     def resizeDisk(opts, diskId, diskSizeBytes) {
+        log.info ("Ray :: resizeDisk: opts: ${opts}")
+        log.info ("Ray :: resizeDisk: diskId: ${diskId}")
+        log.info ("Ray :: resizeDisk: diskSizeBytes: ${diskSizeBytes}")
         log.debug "resizeDisk: ${diskId} ${diskSizeBytes}"
         def commands = []
         commands << "\$VM = Get-SCVirtualMachine -VMMServer localhost -ID \"${opts.externalId}\""
@@ -1291,15 +1420,22 @@ foreach (\$disk in \$disks) {
         commands << "\$ignore = Expand-SCVirtualDiskDrive -RunAsynchronously -JobVariable \"expandHD\" -VirtualDiskDrive \$VirtualDiskDrive -VirtualHardDiskSizeGB ${(int) (diskSizeBytes.toLong()).div(ComputeUtility.ONE_GIGABYTE)}"
         commands << "\$expandHD.ID"
         def cmd = commands.join(';')
+        log.info ("Ray :: resizeDisk: cmd: ${cmd}")
 
         log.debug "resizeDisk: ${cmd}"
         def resizeResults = wrapExecuteCommand(generateCommandString(cmd), opts)
+        log.info ("Ray :: resizeDisk: resizeResults: ${resizeResults}")
+        log.info ("Ray :: resizeDisk: resizeResults?.success: ${resizeResults?.success}")
+        log.info ("Ray :: resizeDisk: resizeResults?.data: ${resizeResults?.data}")
         def jobGuid = resizeResults.data?.getAt(0)?.value
+        log.info ("Ray :: resizeDisk: jobGuid: ${jobGuid}")
         if (!jobGuid) {
             throw new Exception("Did not receive a job guid for resize disk: ${resizeResults}")
         }
         // Wait for the job to complete.. might take awhile!
+        log.info ("Ray :: resizeDisk: before waitForJobToComplete......")
         def waitResults = waitForJobToComplete(opts, jobGuid)
+        log.info ("Ray :: resizeDisk: after waitForJobToComplete......waitResults: ${waitResults}")
         return waitResults
     }
 
@@ -1368,21 +1504,36 @@ For (\$i=0; \$i -le 63; \$i++) {
     }
 
     def checkServerCreated(opts, vmId) {
+        log.info ("Ray :: checkServerCreated: opts: ${opts}")
+        log.info ("Ray :: checkServerCreated: vmId: ${vmId}")
         log.debug "checkServerCreated: ${vmId}"
         def rtn = [success: false]
         try {
             def pending = true
             def attempts = 0
+            log.info ("Ray :: checkServerCreated: pending: ${pending}")
             while (pending) {
+                log.info ("Ray :: checkServerCreated: attempts: ${attempts}")
                 sleep(1000l * 5l)
                 def serverDetail = getServerDetails(opts, vmId)
+                log.info ("Ray :: checkServerCreated: serverDetail: ${serverDetail}")
+                log.info ("Ray :: checkServerCreated: serverDetail.success: ${serverDetail.success}")
                 if (serverDetail.success == true) {
                     // There isn't a state on the VM to tell us it is created.. but, if the disk size matches
                     // the expected count.. we are good
                     log.debug "serverStatus: ${serverDetail.server?.Status}, opts.dataDisks: ${opts.dataDisks?.size()}, additionalTemplateDisks: ${opts.additionalTemplateDisks?.size()}"
-                    if (serverDetail.server?.Status != 'UnderCreation' &&
-                            serverDetail.server?.VirtualDiskDrives?.size() == 1 + ((opts.dataDisks?.size() ?: 0) - (opts.additionalTemplateDisks?.size() ?: 0))) {
+                    log.info ("Ray :: checkServerCreated: serverDetail.server?.Status: ${serverDetail.server?.Status}")
+                    log.info ("Ray :: checkServerCreated: serverDetail.server?.VirtualDiskDrives?.size(): ${serverDetail.server?.VirtualDiskDrives?.size()}")
+
+                    if (serverDetail.server?.Status == 'CreationFailed') {
+                        log.info ("Ray :: checkServerCreated: inside if condition ")
                         // additionalTemplateDisks are created after VM creation
+                        rtn.success = false
+                        pending = false
+
+                    } else if (serverDetail.server?.Status != 'UnderCreation' &&
+                            serverDetail.server?.VirtualDiskDrives?.size() == 1 + ((opts.dataDisks?.size() ?: 0) - (opts.additionalTemplateDisks?.size() ?: 0))) {
+                        log.info ("Ray :: checkServerCreated: inside elseif condition ")
                         rtn.success = true
                         rtn.server = serverDetail.server
                         pending = false
@@ -1391,9 +1542,6 @@ For (\$i=0; \$i -le 63; \$i++) {
                             // Discard saved state... can't modify it if so
                             discardSavedState(opts, vmId)
                         }
-                    } else if (serverDetail.server?.Status == 'CreationFailed') {
-                        rtn.success = false
-                        pending = false
                     }
                 }
                 attempts++
@@ -1403,29 +1551,39 @@ For (\$i=0; \$i -le 63; \$i++) {
         } catch (e) {
             log.error("An Exception Has Occurred", e)
         }
+        log.info ("Ray :: checkServerCreated: rtn: ${rtn}")
         return rtn
     }
 
     def waitForJobToComplete(opts, jobId) {
+        log.info ("Ray :: waitForJobToComplete: opts: ${opts}")
+        log.info ("Ray :: waitForJobToComplete: jobId: ${jobId}")
         def rtn = [success: false]
         try {
             log.debug "waitForJobToComplete: ${opts} ${jobId}"
             def pending = true
             def attempts = 0
             while (pending) {
+                log.info ("Ray :: waitForJobToComplete: pending: ${pending}")
                 sleep(1000l * 5l)
                 log.debug "waitForJobToComplete: ${jobId}"
                 def getJobResults = getJob(opts, jobId)
+                log.info ("Ray :: waitForJobToComplete: getJobResults: ${getJobResults}")
+                log.info ("Ray :: waitForJobToComplete: getJobResults?.success: ${getJobResults?.success}")
+                log.info ("Ray :: waitForJobToComplete: getJobResults?.jobDetail: ${getJobResults?.jobDetail}")
                 if (getJobResults.success == true && getJobResults.jobDetail) {
 
                     def status = getJobResults.jobDetail?.Status?.toLowerCase()
+                    log.info ("Ray :: waitForJobToComplete: status: ${status}")
                     if (['completed', 'failed', 'succeedwithinfo'].indexOf(status) > -1) {
                         pending = false
                         if (status == 'completed' || status == 'succeedwithinfo') {
                             rtn.success = true
                         }
+                        log.info ("Ray :: waitForJobToComplete: pending1: ${pending}")
                     }
                 }
+                log.info ("Ray :: waitForJobToComplete: pending2: ${pending}")
                 attempts++
                 if (attempts > 350)
                     pending = false
@@ -1433,6 +1591,7 @@ For (\$i=0; \$i -le 63; \$i++) {
         } catch (e) {
             log.error("An Exception Has Occurred", e)
         }
+        log.info ("Ray :: waitForJobToComplete: rtn: ${rtn}")
         return rtn
     }
 
@@ -1464,6 +1623,8 @@ Status=\$job.Status.toString()
     }
 
     def checkServerReady(opts, vmId) {
+        log.info ("Ray :: checkServerReady: opts: ${opts}")
+        log.info ("Ray :: checkServerReady: vmId: ${vmId}")
         def rtn = [success: false]
         try {
             log.debug "checkServerReady: ${opts} ${vmId}"
@@ -1472,28 +1633,40 @@ Status=\$job.Status.toString()
             def notFoundAttempts = 0
             def serverId = opts.server.id
             def waitForIp = opts.waitForIp
+            log.info ("Ray :: checkServerReady: serverId: ${serverId}")
+            log.info ("Ray :: checkServerReady: waitForIp: ${waitForIp}")
             while (pending) {
+                log.info ("Ray :: checkServerReady: attempts: ${attempts}")
                 sleep(1000l * 5l)
                 //ComputeServer.withNewSession {
                     log.debug "checkServerReady: ${vmId}"
                     ComputeServer server = morpheusContext.services.computeServer.get(serverId)
+                    log.info ("Ray :: checkServerReady: server?.id: ${server?.id}")
                     opts.server = server
                     // Refresh the VM in SCVMM (seems to be needed for it to get the IP for windows)
                     refreshVM(opts, vmId)
                     def serverDetail = getServerDetails(opts, vmId)
+                    log.info ("Ray :: checkServerReady: serverDetail: ${serverDetail}")
+                    log.info ("Ray :: checkServerReady: serverDetail.success: ${serverDetail.success}")
+                    log.info ("Ray :: checkServerReady: serverDetail.server: ${serverDetail.server}")
                     if (serverDetail.success == true && serverDetail.server) {
                         //server.refresh()
                         def ipAddress = serverDetail.server?.internalIp ?: server?.externalIp
+                        log.info ("Ray :: checkServerReady: ipAddress: ${ipAddress}")
                         log.debug "ipAddress found: ${ipAddress}"
                         if (ipAddress) {
                             server.internalIp = ipAddress
                         }
 
+                        log.info ("Ray :: checkServerReady: waitForIp: ${waitForIp}")
                         if (waitForIp && !ipAddress) {
                             // Keep waiting
                         } else {
                             // Most likely, server gets its IP from cloud-init calling back to cloudconfigcontroller/ipaddress... wait for that to happen
                             // Or... if the desire is to NOT install the agent, then we are not expecting an IP address
+                            log.info ("Ray :: checkServerReady: serverDetail.server?.VirtualMachineState: ${serverDetail.server?.VirtualMachineState}")
+                            log.info ("Ray :: checkServerReady: serverDetail.server?.Status: ${serverDetail.server?.Status}")
+                            log.info ("Ray :: checkServerReady: server?.internalIp: ${server?.internalIp}")
                             if (serverDetail.server?.VirtualMachineState == 'Running') {
                                 rtn.success = true
                                 rtn.server = serverDetail.server
@@ -1528,17 +1701,26 @@ Status=\$job.Status.toString()
         } catch (e) {
             log.error("An Exception Has Occurred", e)
         }
+        log.info ("Ray :: checkServerReady: rtn: ${rtn}")
         return rtn
     }
 
     def startServer(opts, vmId) {
+        log.info ("Ray :: startServer: opts: ${opts}")
+        log.info ("Ray :: startServer: vmId: ${vmId}")
         def rtn = [success: false]
         try {
             // Only start if it isn't already running
             def serverDetail = getServerDetails(opts, vmId)
+            log.info ("Ray :: startServer: serverDetail: ${serverDetail}")
+            log.info ("Ray :: startServer: serverDetail.success: ${serverDetail.success}")
             if (serverDetail.success == true) {
+                log.info ("Ray :: startServer: serverDetail.server: ${serverDetail.server}")
+                log.info ("Ray :: startServer: serverDetail.server?.VirtualMachineState: ${serverDetail.server?.VirtualMachineState}")
                 if (serverDetail.server?.VirtualMachineState != 'Running') {
                     def out = wrapExecuteCommand(generateCommandString("\$VM = Get-SCVirtualMachine -VMMServer localhost -ID \"${vmId}\"; \$ignore = Start-SCVirtualMachine -VM \$VM ${opts.async ? '-RunAsynchronously' : ''}"), opts)
+                    log.info ("Ray :: startServer: out: ${out}")
+                    log.info ("Ray :: startServer: out.success: ${out.success}")
                     rtn.success = out.success
                 } else {
                     rtn.msg = 'VM is already powered on'
@@ -1548,6 +1730,7 @@ Status=\$job.Status.toString()
         } catch (e) {
             log.error("startServer error: ${e}", e)
         }
+        log.info ("Ray :: startServer: rtn: ${rtn}")
         return rtn
     }
 
@@ -1594,15 +1777,22 @@ if(\$VM) {
     }
 
     def importPhysicalResource(opts, sourcePath, imageFolderName, resourceName) {
+        log.info ("Ray :: importPhysicalResource: sourcePath: ${sourcePath}")
+        log.info ("Ray :: importPhysicalResource: imageFolderName: ${imageFolderName}")
+        log.info ("Ray :: importPhysicalResource: resourceName: ${resourceName}")
         log.debug "importPhysicalResource: ${opts}, ${sourcePath}, ${imageFolderName}, ${resourceName}"
         def rtn = [success: false]
         def rootSharePath = opts.rootSharePath ?: getRootSharePath(opts)
+        log.info ("Ray :: importPhysicalResource: rootSharePath: ${rootSharePath}")
 
         def sharePath = "${rootSharePath}\\$imageFolderName"
+        log.info ("Ray :: importPhysicalResource: sharePath: ${sharePath}")
         def command = "New-Item -ItemType directory -Path \"${sharePath}\";Copy-Item -Path \"$sourcePath\" -Destination \"${sharePath}\\${resourceName}\""
 
+        log.info ("Ray :: importPhysicalResource: command: ${command}")
         def attempts = 0
         def importOpts = [baseBoxProvisionService: opts.scvmmProvisionService, controllerServer: opts.controllerNode] + opts
+        log.info ("Ray :: importPhysicalResource: importOpts: ${importOpts}")
         while (!rtn.success && attempts < 5) {
             def out = executeCommand(command, importOpts)
             rtn.success = out.success
@@ -1611,6 +1801,7 @@ if(\$VM) {
                 sleep(5000)
             }
         }
+        log.info ("Ray :: importPhysicalResource: rtn.success: ${rtn.success}")
 
         if (!rtn.success) {
             throw new Exception("Error in importing physical resource: ${rtn}")
@@ -1620,6 +1811,7 @@ if(\$VM) {
         rtn.success = true
         rtn.sharePath = "${sharePath}\\${resourceName}"
 
+        log.info ("Ray :: importPhysicalResource: rtn: ${rtn}")
         return rtn
     }
 
@@ -1641,6 +1833,7 @@ foreach(\$share in \$shares) {
         }
 
         def shareBlocks = out.data
+        log.info ("Ray :: getRootSharePath: shareBlocks: ${shareBlocks}")
         if (shareBlocks.size() == 0) {
             throw new Exception("No library share found")
         }
@@ -1677,16 +1870,25 @@ foreach(\$share in \$shares) {
     }
 
     def importScript(content, diskFolder, imageFolderName, opts) {
+        log.info ("Ray :: importScript: diskFolder: ${diskFolder}")
+        log.info ("Ray :: importScript: imageFolderName: ${imageFolderName}")
+        log.info ("Ray :: importScript: opts: ${opts}")
         log.debug "importScript: ${diskFolder}, ${imageFolderName}, ${opts}"
         def scriptPath
-        def importAction = [inline: true, action: 'rawfile', content: content.encodeAsBase64(), targetPath: "${diskFolder}\\${opts.fileName}".toString(), opts: [:]]
-        def importPromise = opts.scvmmProvisionService.commandService.sendAction(opts.hypervisor, importAction)
-        def importResult = importPromise.get(1000l * 60l * 3l)
-        if (!importResult.success) {
+        InputStream inputStream = new ByteArrayInputStream(opts.cloudConfigBytes)
+        def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "${opts.fileName}", "${diskFolder}\\${opts.fileName}", inputStream, opts.cloudConfigBytes?.size(), null, true)
+        //def importAction = [inline: true, action: 'rawfile', content: content.encodeAsBase64(), targetPath: "${diskFolder}\\${opts.fileName}".toString(), opts: [:]]
+        //def importPromise = opts.scvmmProvisionService.commandService.sendAction(opts.hypervisor, importAction)
+        //def importResult = importPromise.get(1000l * 60l * 3l)
+        log.info ("Ray :: importScript: fileResults: ${fileResults}")
+        log.info ("Ray :: importScript: fileResults?.success: ${fileResults?.success}")
+        if (!fileResults.success) {
             throw new Exception("Script Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
         }
-        def importResults = importPhysicalResource(opts, importAction.targetPath, imageFolderName, opts.fileName)
+        def importResults = importPhysicalResource(opts, "${diskFolder}\\${opts.fileName}".toString(), imageFolderName, opts.fileName)
+        log.info ("Ray :: importScript: importResults: ${importResults}")
         scriptPath = importResults.sharePath
+        log.info ("Ray :: importScript: scriptPath: ${scriptPath}")
         return scriptPath
     }
 
@@ -1731,17 +1933,45 @@ For (\$i=0; \$i -le 10; \$i++) {
     }
 
     def importAndMountIso(cloudConfigBytes, diskFolder, imageFolderName, opts) {
+        log.info ("Ray :: importAndMountIso: diskFolder: ${diskFolder}")
+        log.info ("Ray :: importAndMountIso: imageFolderName: ${imageFolderName}")
+        log.info ("Ray :: importAndMountIso: opts: ${opts}")
         log.debug "importAndMountIso: ${diskFolder}, ${imageFolderName}, ${opts}"
         def cloudInitIsoPath
         def isoAction = [inline: true, action: 'rawfile', content: cloudConfigBytes.encodeAsBase64(), targetPath: "${diskFolder}\\config.iso".toString(), opts: [:]]
-        def isoPromise = opts.scvmmProvisionService.commandService.sendAction(opts.hypervisor, isoAction)
-        def isoUploadResult = isoPromise.get(1000l * 60l * 3l)
+        //def isoPromise = opts.scvmmProvisionService.commandService.sendAction(opts.hypervisor, isoAction)
+
+        InputStream inputStream = new ByteArrayInputStream(cloudConfigBytes)
+        log.info ("Ray :: importAndMountIso: inputStream?.bytes?.size(): ${inputStream?.bytes?.size()}")
+        log.info ("Ray :: importAndMountIso: opts.hypervisor?.name: ${opts.hypervisor?.name}")
+        log.info ("Ray :: importAndMountIso: opts.cloudConfigBytes?.size(): ${opts.cloudConfigBytes?.size()}")
+        def command = "\$ignore = mkdir \"${diskFolder}\""
+        log.info ("Ray :: importAndMountIso: command: ${command}")
+        def dirResults = wrapExecuteCommand(generateCommandString(command), opts)
+        log.info ("Ray :: importAndMountIso: dirResults: ${dirResults}")
+        log.info ("Ray :: importAndMountIso: dirResults?.success: ${dirResults?.success}")
+        log.info ("Ray :: importAndMountIso: dirResults?.data: ${dirResults?.data}")
+        def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "config.iso", "${diskFolder}\\config.iso", inputStream, opts.cloudConfigBytes?.size(), null, true)
+
+        log.info ("Ray :: importAndMountIso: fileResults: ${fileResults}")
+        log.info ("Ray :: importAndMountIso: fileResults?.success: ${fileResults?.success}")
+
+        /*def isoUploadResult = isoPromise.get(1000l * 60l * 3l)
         if (!isoUploadResult.success) {
             throw new Exception("ISO Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
+        }*/
+        if (!fileResults.success) {
+            throw new Exception("ISO Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
         }
+        log.info ("Ray :: importAndMountIso: isoAction.targetPath: ${isoAction.targetPath}")
+        log.info ("Ray :: importAndMountIso: imageFolderName: ${imageFolderName}")
         def importResults = importPhysicalResource(opts, isoAction.targetPath, imageFolderName, 'config.iso')
+        log.info ("Ray :: importAndMountIso: importResults: ${importResults}")
         cloudInitIsoPath = importResults.sharePath
+        log.info ("Ray :: importAndMountIso: cloudInitIsoPath: ${cloudInitIsoPath}")
+        log.info ("Ray :: importAndMountIso: before calling setCdrom.......")
         setCdrom(opts, cloudInitIsoPath)
+        log.info ("Ray :: importAndMountIso: after calling setCdrom.......")
         return cloudInitIsoPath
     }
 
@@ -1967,66 +2197,107 @@ For (\$i=0; \$i -le 10; \$i++) {
     }
 
     def findImage(opts, imageName) {
+        log.info ("Ray :: findImage: opts: ${opts}")
+        log.info ("Ray :: findImage: imageName: ${imageName}")
         def rtn = [success: false, imageExists: false]
         def zoneRoot = opts.zoneRoot ?: defaultRoot
+        log.info ("Ray :: findImage: zoneRoot: ${zoneRoot}")
         def imageFolder = formatImageFolder(imageName)
+        log.info ("Ray :: findImage: imageFolder: ${imageFolder}")
         def imageFolderPath = "${zoneRoot}\\images\\${imageFolder}"
+        log.info ("Ray :: findImage: imageFolderPath: ${imageFolderPath}")
         def command = "(Get-ChildItem -File \"${imageFolderPath}\").FullName"
+        log.info ("Ray :: findImage: command: ${command}")
         log.debug("findImage command: ${command}")
         def out = executeCommand(command, opts)
+        log.info ("Ray :: findImage: out: ${out}")
         log.debug("findImage: ${out.data}")
+        log.info ("Ray :: findImage: out.success: ${out.success}")
         rtn.success = out.success
+        log.info ("Ray :: findImage: out.data: ${out.data}")
+        log.info ("Ray :: findImage: out.data?.length(): ${out.data?.length()}")
         if (out.data?.length() > 0) {
             rtn.imageExists = true
             rtn.imageName = out.data.trim()
         }
+        log.info ("Ray :: findImage: rtn: ${rtn}")
         return rtn
     }
 
     def deleteImage(opts, imageName) {
+        log.info ("Ray :: deleteImage: opts: ${opts}")
+        log.info ("Ray :: deleteImage: imageName: ${imageName}")
         def rtn = [success: false, imageExists: false]
         def zoneRoot = opts.zoneRoot ?: defaultRoot
+        log.info ("Ray :: deleteImage: zoneRoot: ${zoneRoot}")
         def imageFolder = formatImageFolder(imageName)
+        log.info ("Ray :: deleteImage: imageFolder: ${imageFolder}")
         def imageFolderPath = "${zoneRoot}\\images\\${imageFolder}"
+        log.info ("Ray :: deleteImage: imageFolderPath: ${imageFolderPath}")
         def command = "Remove-Item -LiteralPath \"${imageFolderPath}\" -Recurse -Force"
+        log.info ("Ray :: deleteImage: command: ${command}")
         log.debug("deleteImage command: ${command}")
         def out = wrapExecuteCommand(generateCommandString(command), opts)
+        log.info ("Ray :: deleteImage: out: ${out}")
+        log.info ("Ray :: deleteImage: out.success: ${out.success}")
+        log.info ("Ray :: deleteImage: out.data: ${out.data}")
         log.debug("deleteImage: ${out.data}")
         rtn.success = out.success
+        log.info ("Ray :: deleteImage: rtn: ${rtn}")
         return rtn
     }
 
     def transferImage(opts, cloudFiles, imageName) {
+        log.info ("Ray :: transferImage: opts: ${opts}")
+        log.info ("Ray :: transferImage: cloudFiles: ${cloudFiles}")
+        log.info ("Ray :: transferImage: imageName: ${imageName}")
         def rtn = [success: false, results: []]
         /*CloudFile metadataFile = (CloudFile) cloudFiles?.findAll { cloudFile -> cloudFile.name == 'metadata.json' }
         def vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf('.vhd') > -1 }*/
         CloudFile metadataFile = (CloudFile) cloudFiles?.find { cloudFile -> cloudFile.name == 'metadata.json' }
+        log.info ("Ray :: transferImage: metadataFile: ${metadataFile}")
+        log.info ("Ray :: transferImage: metadataFile?.name: ${metadataFile?.name}")
         List<CloudFile> vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf(".morpkg") == -1 && (cloudFile.name.indexOf('.vhd') > -1 || cloudFile.name.indexOf('.vhdx')) && cloudFile.name.endsWith("/") == false }
+        log.info ("Ray :: transferImage: vhdFiles: ${vhdFiles}")
+        log.info ("Ray :: transferImage: vhdFiles?.size(): ${vhdFiles?.size()}")
         log.debug("vhdFiles: ${vhdFiles}")
         def zoneRoot = opts.zoneRoot ?: defaultRoot
+        log.info ("Ray :: transferImage: zoneRoot: ${zoneRoot}")
         def imageFolderName = formatImageFolder(imageName)
+        log.info ("Ray :: transferImage: imageFolderName: ${imageFolderName}")
         List<Map> fileList = []
         def tgtFolder = "${zoneRoot}\\images\\${imageFolderName}"
+        log.info ("Ray :: transferImage: tgtFolder: ${tgtFolder}")
         opts.targetImageFolder = tgtFolder
+        log.info ("Ray :: transferImage: opts.targetImageFolder: ${opts.targetImageFolder}")
         def cachePath = opts.cachePath
+        log.info ("Ray :: transferImage: cachePath: ${cachePath}")
         def command = "\$ignore = mkdir \"${tgtFolder}\""
+        log.info ("Ray :: transferImage: command: ${command}")
         log.debug("command: ${command}")
         def dirResults = wrapExecuteCommand(generateCommandString(command), opts)
+        log.info ("Ray :: transferImage: dirResults: ${dirResults}")
 
+        log.info ("Ray :: transferImage: metadataFile1: ${metadataFile}")
         if (metadataFile) {
             fileList << [inputStream: metadataFile.inputStream, contentLength: metadataFile.contentLength, targetPath: "${tgtFolder}\\metadata.json".toString(), copyRequestFileName: "metadata.json"]
         }
         vhdFiles.each { CloudFile vhdFile ->
             def imageFileName = extractImageFileName(vhdFile.name)
+            log.info ("Ray :: transferImage: imageFileName: ${imageFileName}")
             def filename = extractFileName(vhdFile.name)
+            log.info ("Ray :: transferImage: filename: ${filename}")
             fileList << [inputStream: vhdFile.inputStream, contentLength: vhdFile.getContentLength(), targetPath: "${tgtFolder}\\${imageFileName}".toString(), copyRequestFileName: filename]
         }
         fileList.each { Map fileItem ->
             Long contentLength = (Long) fileItem.contentLength
             def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, fileItem.copyRequestFileName, fileItem.targetPath, fileItem.inputStream, contentLength, null, true)
+            log.info ("Ray :: transferImage: fileResults: ${fileResults}")
             rtn.success = fileResults.success
+            log.info ("Ray :: transferImage: rtn.success: ${rtn.success}")
         }
 
+        log.info ("Ray :: transferImage: rtn: ${rtn}")
         return rtn
     }
 
@@ -2103,26 +2374,42 @@ For (\$i=0; \$i -le 10; \$i++) {
 
 
     def buildCreateServerCommands(opts) {
+        log.info ("Ray :: buildCreateServerCommands: opts: ${opts}")
         log.debug "buildCreateServerCommands: ${opts}"
         def rtn = [launchCommand: null, hardwareProfileName: '', templateName: '']
         def commands = []
 
         def hardwareGuid = UUID.randomUUID().toString()
+        log.info ("Ray :: buildCreateServerCommands: hardwareGuid: ${hardwareGuid}")
         def networkConfig = opts.networkConfig
+        log.info ("Ray :: buildCreateServerCommands: networkConfig: ${networkConfig}")
         def scvmmCapabilityProfile = opts.scvmmCapabilityProfile
+        log.info ("Ray :: buildCreateServerCommands: scvmmCapabilityProfile: ${scvmmCapabilityProfile}")
         def scvmmGeneration = opts.scvmmGeneration ?: 'generation1'
+        log.info ("Ray :: buildCreateServerCommands: scvmmGeneration: ${scvmmGeneration}")
         def hardwareProfileName = "Profile${UUID.randomUUID().toString()}"
+        log.info ("Ray :: buildCreateServerCommands: hardwareProfileName: ${hardwareProfileName}")
         def maxCores = opts.maxCores
+        log.info ("Ray :: buildCreateServerCommands: maxCores: ${maxCores}")
         def memoryMB = (int) opts.memory.div(ComputeUtility.ONE_MEGABYTE)
+        log.info ("Ray :: buildCreateServerCommands: memoryMB: ${memoryMB}")
         def minDynamicMemoryMB = opts.minDynamicMemory ? (int) opts.minDynamicMemory.div(ComputeUtility.ONE_MEGABYTE) : null
+        log.info ("Ray :: buildCreateServerCommands: minDynamicMemoryMB: ${minDynamicMemoryMB}")
         def maxDynamicMemoryMB = opts.maxDynamicMemory ? (int) opts.maxDynamicMemory.div(ComputeUtility.ONE_MEGABYTE) : null
+        log.info ("Ray :: buildCreateServerCommands: maxDynamicMemoryMB: ${maxDynamicMemoryMB}")
         def zone = opts.zone
         def cloneVMId = opts.cloneVMId
+        log.info ("Ray :: buildCreateServerCommands: cloneVMId: ${cloneVMId}")
         def vmId = opts.vmId
+        log.info ("Ray :: buildCreateServerCommands: vmId: ${vmId}")
         def imageId = opts.imageId
+        log.info ("Ray :: buildCreateServerCommands: imageId: ${imageId}")
         def templateName = "Temporary Morpheus Template ${UUID.randomUUID().toString()}"
+        log.info ("Ray :: buildCreateServerCommands: templateName: ${templateName}")
         def dataDisks = opts.dataDisks
+        log.info ("Ray :: buildCreateServerCommands: dataDisks: ${dataDisks}")
         def hostExternalId = opts.hostExternalId
+        log.info ("Ray :: buildCreateServerCommands: hostExternalId: ${hostExternalId}")
         def volumePath = opts.volumePath
         def highlyAvailable = opts.highlyAvailable
         def isSyncdImage = opts.isSyncdImage
@@ -2134,9 +2421,12 @@ For (\$i=0; \$i -le 10; \$i++) {
         def templateId = opts.templateId
         def deployingToCloud = opts.zone.regionCode ? true : false
         def volumePaths = (opts.volumePaths && opts.volumePaths?.size() == 1 + dataDisks?.size()) ? opts.volumePaths : null
+        log.info ("Ray :: buildCreateServerCommands: volumePaths: ${volumePaths}")
 
         // Static v DHCP
+        log.info ("Ray :: buildCreateServerCommands: networkConfig: ${networkConfig}")
         def doStatic = networkConfig?.doStatic
+        log.info ("Ray :: buildCreateServerCommands: doStatic: ${doStatic}")
         def doPool = doStatic && networkConfig?.primaryInterface?.poolType == 'scvmm'
         def ipAddress = networkConfig?.primaryInterface?.ipAddress
         def poolId = networkConfig?.primaryInterface?.networkPool?.externalId
@@ -2145,12 +2435,18 @@ For (\$i=0; \$i -le 10; \$i++) {
         // network may be a vlan network... therefore, the externalId includes the VLAN id.. need to remove it
         def networkExternalId = networkConfig.primaryInterface.network.externalId?.take(36)
         def subnetExternalId = networkConfig.primaryInterface.subnet?.externalId?.take(36)
+        log.info ("Ray :: buildCreateServerCommands: networkExternalId: ${networkExternalId}")
+        log.info ("Ray :: buildCreateServerCommands: subnetExternalId: ${subnetExternalId}")
 
+        log.info ("Ray :: buildCreateServerCommands: isTemplate: ${isTemplate}")
+        log.info ("Ray :: buildCreateServerCommands: templateId: ${templateId}")
         if (isTemplate && templateId) {
             commands << "\$template = Get-SCVMTemplate -VMMServer localhost | where {\$_.ID -eq \"$templateId\"}"
         }
         // mac settings
         def hasMACAddress = false
+        log.info ("Ray :: buildCreateServerCommands: doStatic: ${doStatic}")
+        log.info ("Ray :: buildCreateServerCommands: doPool: ${doPool}")
         if (doStatic && doPool) {  // This seems weird.. why does the static networking affect the MAC setting?
             hasMACAddress = true
             commands << "\$MACAddress = \"00:00:00:00:00:00\""
@@ -2178,12 +2474,16 @@ For (\$i=0; \$i -le 10; \$i++) {
         commands << "\$ignore = New-SCVirtualNetworkAdapter -VMMServer localhost -JobGroup $hardwareGuid -MACAddressType \$MACAddressType -VLanEnabled ${vlanEnabled ? "\$true" : "\$false"} ${vlanEnabled ? "-VLanID ${vlanId}" : ''} -Synthetic -EnableVMNetworkOptimization \$false -EnableMACAddressSpoofing \$false -EnableGuestIPNetworkVirtualizationUpdates \$false -IPv4AddressType ${doStatic && doPool ? 'Static' : 'Dynamic'} -IPv6AddressType Dynamic ${subnetExternalId ? '-VMSubnet \$VMSubnet' : ''} -VMNetwork \$VMNetwork"
         commands << "}"
 
+        log.info ("Ray :: buildCreateServerCommands: scvmmCapabilityProfile: ${scvmmCapabilityProfile}")
         if (scvmmCapabilityProfile) {
             commands << "\$CapabilityProfile = Get-SCCapabilityProfile -VMMServer localhost | where {\$_.Name -eq \"${scvmmCapabilityProfile?.trim()}\"}"
         }
 
         // Generation
+        log.info ("Ray :: buildCreateServerCommands: isTemplate11: ${isTemplate}")
+        log.info ("Ray :: buildCreateServerCommands: templateId11: ${templateId}")
         def generationNumber = !scvmmGeneration || scvmmGeneration == 'generation1' ? '1' : '2'
+        log.info ("Ray :: buildCreateServerCommands: generationNumber: ${generationNumber}")
         if (isTemplate && templateId) {
             // Copying all of the hardware profiles from the existing template over
             commands << "\$CPUExpectedUtilizationPercent = If (-not ([string]::IsNullOrEmpty(\$template.CPUExpectedUtilizationPercent))) {\$template.CPUExpectedUtilizationPercent} Else { 20 }"
@@ -2378,6 +2678,7 @@ For (\$i=0; \$i -le 10; \$i++) {
         rtn.launchCommand = commands.join('\n')
         rtn.hardwareProfileName = hardwareProfileName
         rtn.templateName = templateName
+        log.info ("Ray :: buildCreateServerCommands: rtn: ${rtn}")
         rtn
     }
 
@@ -2501,6 +2802,7 @@ For (\$i=0; \$i -le 10; \$i++) {
 
     def wrapExecuteCommand(String command, Map opts = [:]) {
         def out = executeCommand(command, opts)
+
         if (out.data) {
             def payload = out.data
             if (!out.data.startsWith('[')) {
@@ -2518,8 +2820,11 @@ For (\$i=0; \$i -le 10; \$i++) {
     }
 
     def loadControllerServer(opts) {
-        if (opts.controllerServerId && opts.scvmmProvisionService) {
+        /*if (opts.controllerServerId && opts.scvmmProvisionService) {
             opts.controllerServer = opts.scvmmProvisionService.loadControllerServer(opts.controllerServerId)
+        }*/
+        if (opts.controllerServerId) {
+            opts.controllerServer = morpheusContext.services.computeServer.get(opts.controllerServerId)
         }
     }
 
