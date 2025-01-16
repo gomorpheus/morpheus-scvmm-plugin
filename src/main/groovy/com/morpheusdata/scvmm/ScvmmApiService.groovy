@@ -1951,7 +1951,7 @@ For (\$i=0; \$i -le 10; \$i++) {
         log.info ("Ray :: importAndMountIso: dirResults: ${dirResults}")
         log.info ("Ray :: importAndMountIso: dirResults?.success: ${dirResults?.success}")
         log.info ("Ray :: importAndMountIso: dirResults?.data: ${dirResults?.data}")
-        def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "config.iso", "${diskFolder}\\config.iso", inputStream, opts.cloudConfigBytes?.size(), null, true)
+        def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "config.iso", "${diskFolder}\\config.iso", inputStream, opts.cloudConfigBytes?.size())
 
         log.info ("Ray :: importAndMountIso: fileResults: ${fileResults}")
         log.info ("Ray :: importAndMountIso: fileResults?.success: ${fileResults?.success}")
