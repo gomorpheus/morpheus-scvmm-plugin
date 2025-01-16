@@ -1695,7 +1695,7 @@ Status=\$job.Status.toString()
                     }
                 //}
                 attempts++
-                if (attempts > 300 || notFoundAttempts > 10)
+                if (attempts > 50 || notFoundAttempts > 10) // TODO: 50 to 300
                     pending = false
             }
         } catch (e) {
@@ -1942,16 +1942,16 @@ For (\$i=0; \$i -le 10; \$i++) {
         //def isoPromise = opts.scvmmProvisionService.commandService.sendAction(opts.hypervisor, isoAction)
 
         InputStream inputStream = new ByteArrayInputStream(cloudConfigBytes)
-        log.info ("Ray :: importAndMountIso: inputStream?.bytes?.size(): ${inputStream?.bytes?.size()}")
+        /*log.info ("Ray :: importAndMountIso: inputStream?.bytes?.size(): ${inputStream?.bytes?.size()}")*/
         log.info ("Ray :: importAndMountIso: opts.hypervisor?.name: ${opts.hypervisor?.name}")
-        log.info ("Ray :: importAndMountIso: opts.cloudConfigBytes?.size(): ${opts.cloudConfigBytes?.size()}")
+        log.info ("Ray :: importAndMountIso: cloudConfigBytes?.size(): ${cloudConfigBytes?.size()}")
         def command = "\$ignore = mkdir \"${diskFolder}\""
         log.info ("Ray :: importAndMountIso: command: ${command}")
         def dirResults = wrapExecuteCommand(generateCommandString(command), opts)
         log.info ("Ray :: importAndMountIso: dirResults: ${dirResults}")
         log.info ("Ray :: importAndMountIso: dirResults?.success: ${dirResults?.success}")
         log.info ("Ray :: importAndMountIso: dirResults?.data: ${dirResults?.data}")
-        def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "config.iso", "${diskFolder}\\config.iso", inputStream, opts.cloudConfigBytes?.size())
+        def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "config.iso", "${diskFolder}\\config.iso", inputStream, cloudConfigBytes?.size())
 
         log.info ("Ray :: importAndMountIso: fileResults: ${fileResults}")
         log.info ("Ray :: importAndMountIso: fileResults?.success: ${fileResults?.success}")
