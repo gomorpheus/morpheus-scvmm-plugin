@@ -95,8 +95,8 @@ class ScvmmApiService {
                 log.info("RAZI :: insertContainerImage >> sourcePath: ${sourcePath}")
 
                 def commands = []
-//                commands << "\$ignore = Import-SCLibraryPhysicalResource -SourcePath \"$sourcePath\" -SharePath \"$tgtFolder\" -OverwriteExistingFiles -VMMServer localhost"
-                commands << "Import-SCLibraryPhysicalResource -SourcePath \"$sourcePath\" -SharePath \"$tgtFolder\" -OverwriteExistingFiles -VMMServer localhost"
+                commands << "\$ignore = Import-SCLibraryPhysicalResource -SourcePath \"$sourcePath\" -SharePath \"$tgtFolder\" -OverwriteExistingFiles -VMMServer localhost"
+//                commands << "Import-SCLibraryPhysicalResource -SourcePath \"$sourcePath\" -SharePath \"$tgtFolder\" -OverwriteExistingFiles -VMMServer localhost"
                 commands << "Get-SCVirtualHardDisk | where {\$_.SharePath -like \"${tgtFolder}\\*\"} | Select ID"
                 log.info("RAZI :: insertContainerImage >> commands: ${generateCommandString(commands.join(";"))}")
                 out = wrapExecuteCommand(generateCommandString(commands.join(";")), opts)
@@ -139,73 +139,72 @@ class ScvmmApiService {
             log.info("RAZI :: createServer >> opts.zoneId: ${opts.zoneId}")
             opts.network = morpheusContext.services.cloud.network.get(opts.networkId)
             opts.cloud = morpheusContext.services.cloud.get(opts.zoneId)
-                loadControllerServer(opts)
+            log.info("RAZI :: createServer >> opts.controllerServerId: ${opts.controllerServerId}")
+            loadControllerServer(opts)
 
-                def diskRoot = opts.diskRoot
+            def diskRoot = opts.diskRoot
             log.info("RAZI :: createServer >> diskRoot: ${diskRoot}")
-                def imageFolderName = opts.serverFolder
+            def imageFolderName = opts.serverFolder
             log.info("RAZI :: createServer >> imageFolderName: ${imageFolderName}")
-                def diskFolder = "${diskRoot}\\${imageFolderName}"
+            def diskFolder = "${diskRoot}\\${imageFolderName}"
             log.info("RAZI :: createServer >> diskFolder: ${diskFolder}")
             log.info("RAZI :: createServer >> opts.isSysprep1: ${opts.isSysprep}")
-                if (opts.isSysprep) {
-                    loadControllerServer(opts)
-                    opts.unattendPath = importScript(opts.cloudConfigUser, diskFolder, imageFolderName, [fileName: 'Unattend.xml'] + opts)
-                }
+            if (opts.isSysprep) {
+                loadControllerServer(opts)
+                opts.unattendPath = importScript(opts.cloudConfigUser, diskFolder, imageFolderName, [fileName: 'Unattend.xml'] + opts)
+            }
 
-                createCommands = buildCreateServerCommands(opts)
+            createCommands = buildCreateServerCommands(opts)
             log.info("RAZI :: createServer >> createCommands.hardwareProfileName: ${createCommands.hardwareProfileName}")
 
-                if (createCommands.hardwareProfileName) {
-                    removeTemplateCommands << "\$HWProfile = Get-SCHardwareProfile -VMMServer localhost | where { \$_.Name -eq \"${createCommands.hardwareProfileName}\"} ; \$ignore = Remove-SCHardwareProfile -HardwareProfile \$HWProfile;"
-                }
+            if (createCommands.hardwareProfileName) {
+                removeTemplateCommands << "\$HWProfile = Get-SCHardwareProfile -VMMServer localhost | where { \$_.Name -eq \"${createCommands.hardwareProfileName}\"} ; \$ignore = Remove-SCHardwareProfile -HardwareProfile \$HWProfile;"
+            }
             log.info("RAZI :: createServer >> createCommands.templateName: ${createCommands.templateName}")
-                if (createCommands.templateName) {
-                    removeTemplateCommands << "\$template = Get-SCVMTemplate -VMMServer localhost -Name \"${createCommands.templateName}\";  \$ignore = Remove-SCVMTemplate -VMTemplate \$template -RunAsynchronously;"
-                }
+            if (createCommands.templateName) {
+                removeTemplateCommands << "\$template = Get-SCVMTemplate -VMMServer localhost -Name \"${createCommands.templateName}\";  \$ignore = Remove-SCVMTemplate -VMTemplate \$template -RunAsynchronously;"
+            }
 
-                launchCommand = createCommands.launchCommand
+            launchCommand = createCommands.launchCommand
 //                log.info("launchCommand: ${launchCommand}")
             log.info("RAZI :: createServer >> launchCommand: ${launchCommand}")
-                // throw new Exception('blah')
-                createData = wrapExecuteCommand(generateCommandString(launchCommand), opts)
-            log.info("RAZI :: createServer >> createData: ${createData}")
-                log.debug "run server: ${createData}"
+            // throw new Exception('blah')
+            createData = wrapExecuteCommand(generateCommandString(launchCommand), opts)
+//            log.debug "run server: ${createData}"
 
             log.info("RAZI :: createServer >> removeTemplateCommands: ${removeTemplateCommands}")
-                if (removeTemplateCommands) {
-                    def command = removeTemplateCommands.join(';')
-                    command += "@()"
-                    wrapExecuteCommand(generateCommandString(command), opts)
-                }
+            if (removeTemplateCommands) {
+                def command = removeTemplateCommands.join(';')
+                command += "@()"
+                wrapExecuteCommand(generateCommandString(command), opts)
+            }
 
             log.info("RAZI :: createServer >> createData.success: ${createData.success}")
-                if (createData.success != true) {
-                    if (createData.errorData?.contains('which includes generation 2')) {
-                        rtn.errorMsg = 'The virtual hard disk selected is not compatible with the template which include generation 2 virtual machine functionality.'
-                    } else if (createData.errorData?.contains('which includes generation 1')) {
-                        rtn.errorMsg = 'The virtual hard disk selected is not compatible with the template which include generation 1 virtual machine functionality.'
-                    }
-                    throw new Exception("Error in launching VM: ${createData}")
+            log.info("RAZI :: createServer >> createData.data: ${createData.data}")
+            if (createData.success != true) {
+                if (createData.error?.contains('which includes generation 2')) {
+                    rtn.errorMsg = 'The virtual hard disk selected is not compatible with the template which include generation 2 virtual machine functionality.'
+                } else if (createData.error?.contains('which includes generation 1')) {
+                    rtn.errorMsg = 'The virtual hard disk selected is not compatible with the template which include generation 1 virtual machine functionality.'
                 }
-//            }
+                throw new Exception("Error in launching VM: ${createData}")
+            }
 
-//            ComputeServer.withNewSession {
 //                opts.network = Network.get(opts.networkId)
 //                opts.zone = ComputeZone.get(opts.zoneId)
 //                server = ComputeServer.get(opts.serverId)
             log.info("RAZI :: createServer >> opts.serverId: ${opts.serverId}")
-            morpheusContext.services.computeServer.get(opts.serverId)
+            server = morpheusContext.services.computeServer.get(opts.serverId)
 //                log.info "Create results: ${createData}"
 
-                def newServerExternalId = createData.data && createData.data.size() == 1 && createData.data[0].ObjectType?.toString() == '1' ? createData.data[0].ID : null
+            def newServerExternalId = createData.data && createData.data.size() == 1 && createData.data[0].ObjectType?.toString() == '1' ? createData.data[0].ID : null
             log.info("RAZI :: createServer >> newServerExternalId: ${newServerExternalId}")
-                if (!newServerExternalId) {
-                    throw new Exception("Failed to create VM with command: ${launchCommand}: ${createData.errorData}")
-                }
-                opts.externalId = newServerExternalId
-                // Make sure we save the externalId ASAP
-                server.externalId = newServerExternalId
+            if (!newServerExternalId) {
+                throw new Exception("Failed to create VM with command: ${launchCommand}: ${createData.error}")
+            }
+            opts.externalId = newServerExternalId
+            // Make sure we save the externalId ASAP
+            server.externalId = newServerExternalId
 //                server.save(flush: true)
             morpheusContext.services.computeServer.save(server)
 //            }
@@ -219,89 +218,89 @@ class ScvmmApiService {
 //                    opts.network = Network.get(opts.networkId)
 //                    opts.zone = ComputeZone.get(opts.zoneId)
 //                    server = ComputeServer.get(opts.serverId)
-                    loadControllerServer(opts)
+                loadControllerServer(opts)
 
-                    log.debug "opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}"
+                log.debug "opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}"
                 log.info("RAZI :: createServer >> opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}")
-                    opts.additionalTemplateDisks?.each { diskConfig ->
-                        // Create the additional disks the user requests on the template
-                        log.info("RAZI :: createServer >> diskConfig.diskCounter: ${diskConfig.diskCounter}")
-                        log.info("RAZI :: createServer >> diskConfig.diskSize: ${diskConfig.diskSize}")
-                        createAndAttachDisk(opts, diskConfig.diskCounter, diskConfig.diskSize, '0', null, false)
-                    }
-                    log.debug "finished with adding additionalDisks: ${opts.additionalTemplateDisks}"
+                opts.additionalTemplateDisks?.each { diskConfig ->
+                    // Create the additional disks the user requests on the template
+                    log.info("RAZI :: createServer >> diskConfig.diskCounter: ${diskConfig.diskCounter}")
+                    log.info("RAZI :: createServer >> diskConfig.diskSize: ${diskConfig.diskSize}")
+                    createAndAttachDisk(opts, diskConfig.diskCounter, diskConfig.diskSize, '0', null, false)
+                }
+                log.debug "finished with adding additionalDisks: ${opts.additionalTemplateDisks}"
 
-                    // Special stuff for cloned VMs
+                // Special stuff for cloned VMs
                 log.info("RAZI :: createServer >> opts.cloneVMId: ${opts.cloneVMId}")
-                    if (opts.cloneVMId) {
-                        // Update the VolumeType for the root disk (SCVMM doesn't preserve the VolumeType :( )
-                        changeVolumeTypeForClonedBootDisk(opts, opts.cloneVMId, opts.externalId)
-                        // Need to re-create the ISO for the original cloned box and mount the ISO
-                        if (opts.cloneBaseOpts && opts.cloneBaseOpts.cloudInitIsoNeeded) {
-                            rtn.cloneBaseResults = [cloudInitIsoPath: importAndMountIso(opts.cloneBaseOpts.cloudConfigBytes, opts.cloneBaseOpts.diskFolder, opts.cloneBaseOpts.imageFolderName, opts.cloneBaseOpts.clonedScvmmOpts)]
-                        }
+                if (opts.cloneVMId) {
+                    // Update the VolumeType for the root disk (SCVMM doesn't preserve the VolumeType :( )
+                    changeVolumeTypeForClonedBootDisk(opts, opts.cloneVMId, opts.externalId)
+                    // Need to re-create the ISO for the original cloned box and mount the ISO
+                    if (opts.cloneBaseOpts && opts.cloneBaseOpts.cloudInitIsoNeeded) {
+                        rtn.cloneBaseResults = [cloudInitIsoPath: importAndMountIso(opts.cloneBaseOpts.cloudConfigBytes, opts.cloneBaseOpts.diskFolder, opts.cloneBaseOpts.imageFolderName, opts.cloneBaseOpts.clonedScvmmOpts)]
                     }
-                    // Fetch the disks to create a mapping
-                    def disks = [osDisk: [externalId: ''], dataDisks: opts.dataDisks?.collect { [id: it.id] }, diskMetaData: [:]]
-                    def diskDrives = listVirtualDiskDrives(opts, opts.externalId)
-                    def bookDiskIndex = findBootDiskIndex(diskDrives)
-                    diskDrives.disks?.eachWithIndex { disk, diskIndex ->
-                        if (diskIndex == bookDiskIndex) {
-                            disks.osDisk.externalId = disk.ID
-                            disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
-                        } else {
-                            disks.dataDisks[diskIndex - 1].externalId = disk.ID
+                }
+                // Fetch the disks to create a mapping
+                def disks = [osDisk: [externalId: ''], dataDisks: opts.dataDisks?.collect { [id: it.id] }, diskMetaData: [:]]
+                def diskDrives = listVirtualDiskDrives(opts, opts.externalId)
+                def bookDiskIndex = findBootDiskIndex(diskDrives)
+                diskDrives.disks?.eachWithIndex { disk, diskIndex ->
+                    if (diskIndex == bookDiskIndex) {
+                        disks.osDisk.externalId = disk.ID
+                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
+                    } else {
+                        disks.dataDisks[diskIndex - 1].externalId = disk.ID
 
-                            disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, dataDisk: true, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
-                        }
+                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, dataDisk: true, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
                     }
-                    //resize disk
-                    log.debug ".. about to resize disk ${opts.osDiskSize}"
+                }
+                //resize disk
+                log.debug ".. about to resize disk ${opts.osDiskSize}"
 //                    def diskRoot = opts.diskRoot
 //                    def imageFolderName = opts.serverFolder
 //                    def diskFolder = "${diskRoot}\\${imageFolderName}"
                 log.info("RAZI :: createServer >> opts.osDiskSize: ${opts.osDiskSize}")
-                    if (opts.osDiskSize) {
-                        def osDiskVhdID = disks.diskMetaData[disks.osDisk?.externalId]?.VhdID
-                        resizeDisk(opts, osDiskVhdID, opts.osDiskSize)
-                    }
+                if (opts.osDiskSize) {
+                    def osDiskVhdID = disks.diskMetaData[disks.osDisk?.externalId]?.VhdID
+                    resizeDisk(opts, osDiskVhdID, opts.osDiskSize)
+                }
 
-                    // Resize the data disks if template
+                // Resize the data disks if template
                 log.info("RAZI :: createServer >> opts.isTemplate: ${opts.isTemplate}")
                 log.info("RAZI :: createServer >> opts.templateId: ${opts.templateId}")
                 log.info("RAZI :: createServer >> opts.dataDisks: ${opts.dataDisks}")
-                    if (opts.isTemplate && opts.templateId && opts.dataDisks) {
-                        log.info("RAZI :: createServer >> disks.diskMetaData: ${disks.diskMetaData}")
-                        disks.diskMetaData?.each { externalId, map ->
-                            def storageVolume = opts.dataDisks.find { it.externalId == externalId }
-                            if (storageVolume) {
-                                def diskVhdID = disks.diskMetaData[externalId]?.VhdID
-                                resizeDisk(opts, diskVhdID, storageVolume.maxStorage)
-                            }
+                if (opts.isTemplate && opts.templateId && opts.dataDisks) {
+                    log.info("RAZI :: createServer >> disks.diskMetaData: ${disks.diskMetaData}")
+                    disks.diskMetaData?.each { externalId, map ->
+                        def storageVolume = opts.dataDisks.find { it.externalId == externalId }
+                        if (storageVolume) {
+                            def diskVhdID = disks.diskMetaData[externalId]?.VhdID
+                            resizeDisk(opts, diskVhdID, storageVolume.maxStorage)
                         }
                     }
+                }
 
-                    //cloud init
+                //cloud init
                 log.info("RAZI :: createServer >> opts.cloudConfigBytes: ${opts.cloudConfigBytes}")
                 log.info("RAZI :: createServer >> opts.isSysprep2: ${opts.isSysprep}")
-                    if (opts.cloudConfigBytes && !opts.isSysprep) {
-                        createDVD(opts)
-                        cloudInitIsoPath = importAndMountIso(opts.cloudConfigBytes, diskFolder, imageFolderName, opts)
-                    }
+                if (opts.cloudConfigBytes && !opts.isSysprep) {
+                    createDVD(opts)
+                    cloudInitIsoPath = importAndMountIso(opts.cloudConfigBytes, diskFolder, imageFolderName, opts)
+                }
 
-                    //start it
-                    log.info("Starting Server  ${opts.name}")
-                    startServer(opts, opts.externalId)
-                    //get details
-                    log.info("SCVMM Check for Server Ready ${opts.name}")
-                    def serverDetail = checkServerReady(opts, opts.externalId)
+                //start it
+                log.info("Starting Server  ${opts.name}")
+                startServer(opts, opts.externalId)
+                //get details
+                log.info("SCVMM Check for Server Ready ${opts.name}")
+                def serverDetail = checkServerReady(opts, opts.externalId)
                 log.info("RAZI :: createServer >> serverDetail: ${serverDetail}")
-                    if (serverDetail.success == true) {
-                        rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
-                        rtn.success = true
-                    } else {
-                        rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
-                    }
+                if (serverDetail.success == true) {
+                    rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
+                    rtn.success = true
+                } else {
+                    rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
+                }
 //                }
             }
 
@@ -2592,10 +2591,14 @@ For (\$i=0; \$i -le 10; \$i++) {
         out
     }
 
-    def loadControllerServer(opts) {
+    /*def loadControllerServer(opts) {
         if (opts.controllerServerId && opts.scvmmProvisionService) {
             opts.controllerServer = opts.scvmmProvisionService.loadControllerServer(opts.controllerServerId)
         }
+    }*/
+    def loadControllerServer(opts) {
+//        return ComputeServer.get(controllerServerId)
+        return morpheusContext.services.computeServer.get(opts.controllerServerId)
     }
 
     def isHostInHostGroup(String currentHostPath, String testHostPath) {

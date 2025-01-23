@@ -1304,16 +1304,9 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				scvmmOpts.cloudConfigMeta = hostRequest.cloudConfigMeta
 				scvmmOpts.cloudConfigNetwork = hostRequest.cloudConfigNetwork
 				scvmmOpts.isSysprep = virtualImage?.isSysprep
-				log.info("RAZI :: runHost >> if(imageId) >> scvmmOpts5: ${scvmmOpts}")
-				log.info("RAZI :: runHost >> if(imageId) >> scvmmOpts.isSysprep: ${scvmmOpts.isSysprep}")
-				log.info("RAZI :: runHost >> if(imageId) >> PlatformType.valueOf(server.osType): ${PlatformType.valueOf(server.osType)}")
-				log.info("RAZI :: runHost >> if(imageId) >> scvmmOpts.cloudConfigMeta: ${scvmmOpts.cloudConfigMeta}")
-				log.info("RAZI :: runHost >> if(imageId) >> scvmmOpts.cloudConfigUser: ${scvmmOpts.cloudConfigUser}")
-				log.info("RAZI :: runHost >> if(imageId) >> scvmmOpts.cloudConfigNetwork: ${scvmmOpts.cloudConfigNetwork}")
 
 				def isoBuffer = context.services.provision.buildIsoOutputStream(
 						scvmmOpts.isSysprep, PlatformType.valueOf(server.osType), scvmmOpts.cloudConfigMeta, scvmmOpts.cloudConfigUser, scvmmOpts.cloudConfigNetwork)
-				log.info("RAZI :: runHost >> if(imageId) >> isoBuffer: ${isoBuffer}")
 
 				scvmmOpts.cloudConfigBytes = isoBuffer
 				server.cloudConfigUser = scvmmOpts.cloudConfigUser
