@@ -804,7 +804,24 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	ServiceResponse deleteServer(ComputeServer computeServer) {
-		return ServiceResponse.success()
+		log.debug("deleteServer: ${computeServer}")
+		def rtn = [success: false]
+		try {
+			ScvmmProvisionProvider provisionProvider = new ScvmmProvisionProvider(plugin, context)
+			def scvmmOpts = provisionProvider.getAllScvmmServerOpts(computeServer)
+
+			def stopResults = apiService.stopServer(scvmmOpts, scvmmOpts.externalId)
+			if(stopResults.success == true) {
+			def deleteResults = apiService.deleteServer(scvmmOpts, scvmmOpts.externalId)
+				if(deleteResults.success == true) {
+					rtn.success = true
+				}
+			}
+		} catch (e) {
+			log.error("deleteServer error: ${e}", e)
+			rtn.msg = e.message
+		}
+		return ServiceResponse.create(rtn)
 	}
 
 	/**
