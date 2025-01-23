@@ -1,6 +1,6 @@
 package com.morpheusdata.scvmm
 
-import com.morpheusdata.PrepareHostResponse
+
 import com.morpheusdata.core.AbstractProvisionProvider
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
@@ -8,13 +8,10 @@ import com.morpheusdata.core.data.DataAndFilter
 import com.morpheusdata.core.data.DataFilter
 import com.morpheusdata.core.data.DataOrFilter
 import com.morpheusdata.core.data.DataQuery
-import com.morpheusdata.core.providers.HostProvisionProvider
 import com.morpheusdata.core.providers.ProvisionProvider
 import com.morpheusdata.core.providers.WorkloadProvisionProvider
 import com.morpheusdata.core.util.ComputeUtility
-import com.morpheusdata.core.util.NetworkUtility
 import com.morpheusdata.model.*
-import com.morpheusdata.model.provisioning.HostRequest
 import com.morpheusdata.model.provisioning.WorkloadRequest
 import com.morpheusdata.response.InitializeHypervisorResponse
 import com.morpheusdata.response.PrepareWorkloadResponse
@@ -23,7 +20,7 @@ import com.morpheusdata.response.ServiceResponse
 import groovy.util.logging.Slf4j
 
 @Slf4j
-class ScvmmProvisionProvider extends AbstractProvisionProvider implements WorkloadProvisionProvider, HostProvisionProvider, ProvisionProvider.HypervisorProvisionFacet {
+class ScvmmProvisionProvider extends AbstractProvisionProvider implements WorkloadProvisionProvider, ProvisionProvider.HypervisorProvisionFacet {
 	public static final String PROVIDER_CODE = 'scvmm.provision'
 	public static final String PROVISION_TYPE_CODE = 'scvmm'
 
@@ -1370,55 +1367,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		return true
 	}
 
-
-/*def validateServerConfig(ComputeServer server, Map opts=[:]) {
-		log.debug("validateServiceConfiguration:$opts")
-		def rtn = [success:false, errors:[]]
-		try {
-			if(server.computeServerType?.vmHypervisor == true) {
-				rtn = [success:true, errors:[]]
-			} else {
-				def validationOpts = [
-						networkId: opts?.networkInterface?.network?.id ?: opts?.config?.networkInterface?.network?.id ?: opts.networkInterfaces.getAt(0)?.network?.id,
-						scvmmCapabilityProfile: opts?.config?.scvmmCapabilityProfile ?: opts?.scvmmCapabilityProfile,
-						nodeCount: opts?.config?.nodeCount
-				]
-				rtn = ScvmmComputeUtility.validateServerConfig(validationOpts)
-			}
-		} catch(e) {
-			log.error("error in validateServerConfig:${e}", e)
-		}
-		return rtn
-	}*/
-	@Override
-	ServiceResponse validateHost(ComputeServer server, Map opts=[:]) {
-		log.debug("validateHostConfiguration:$opts")
-		log.info("RAZI :: validateHost >> opts: ${opts}")
-		def rtn =  ServiceResponse.success()
-		try {
-			log.info("RAZI :: server.computeServerType?.vmHypervisor: ${server.computeServerType?.vmHypervisor}")
-			if(server.computeServerType?.vmHypervisor == true) {
-				rtn =  ServiceResponse.success()
-			} else {
-				def validationOpts = [
-						networkId: opts?.networkInterface?.network?.id ?: opts?.config?.networkInterface?.network?.id ?: opts.networkInterfaces.getAt(0)?.network?.id,
-						scvmmCapabilityProfile: opts?.config?.scvmmCapabilityProfile ?: opts?.scvmmCapabilityProfile,
-						nodeCount: opts?.config?.nodeCount
-				]
-				log.info("RAZI :: validationOpts: ${validationOpts}")
-				def validationResults = apiService.validateServerConfig(validationOpts)
-				log.info("RAZI :: validationResults: ${validationResults}")
-				if(!validationResults.success) {
-					rtn.success = false
-					rtn.errors += validationResults.errors
-				}
-			}
-		} catch(e) {
-			log.error("error in validateHost:${e.message}", e)
-		}
-		return rtn
-	}
-
 	protected ComputeServer saveAndGet(ComputeServer server) {
 		def saveResult = context.async.computeServer.bulkSave([server]).blockingGet()
 		def updatedServer
@@ -1429,42 +1377,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			log.warn("Error saving server: ${server?.id}")
 		}
 		return updatedServer ?: server
-	}
-
-	@Override
-	ServiceResponse<PrepareHostResponse> prepareHost(ComputeServer server, HostRequest hostRequest, Map opts) {
-		log.debug "prepareHost: ${server} ${hostRequest} ${opts}"
-		log.info("RAZI :: prepareHost >> opts: ${opts}")
-
-		def prepareResponse = new PrepareHostResponse(computeServer: server, disableCloudInit: false, options: [sendIp: true])
-		ServiceResponse<PrepareHostResponse> rtn = ServiceResponse.prepare(prepareResponse)
-
-		try {
-			VirtualImage virtualImage
-			Long computeTypeSetId = server.typeSet?.id
-			log.info("RAZI :: prepareHost >> computeTypeSetId: ${computeTypeSetId}")
-			if(computeTypeSetId) {
-				ComputeTypeSet computeTypeSet = morpheus.async.computeTypeSet.get(computeTypeSetId).blockingGet()
-				log.info("RAZI :: prepareHost >> computeTypeSet.workloadType: ${computeTypeSet.workloadType}")
-				if(computeTypeSet.workloadType) {
-					WorkloadType workloadType = morpheus.async.workloadType.get(computeTypeSet.workloadType.id).blockingGet()
-					virtualImage = workloadType.virtualImage
-				}
-			}
-			log.info("RAZI :: prepareHost >> virtualImage: ${virtualImage}")
-			if(!virtualImage) {
-				rtn.msg = "No virtual image selected"
-			} else {
-				server.sourceImage = virtualImage
-				saveAndGet(server)
-				rtn.success = true
-			}
-		} catch(e) {
-			rtn.msg = "Error in prepareHost: ${e}"
-			log.error("${rtn.msg}, ${e}", e)
-
-		}
-		return rtn
 	}
 
 	protected ComputeServer getMorpheusServer(Long id) {
@@ -1492,7 +1404,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	def getVolumePathForDatastore(Datastore datastore) {
 		log.debug "getVolumePathForDatastore: ${datastore}"
 		def volumePath
-		if(datastore) {
+		if (datastore) {
 			StorageVolume storageVolume = context.services.storageVolume.find(new DataQuery()
 					.withFilter('datastore', datastore)
 					.withFilter('volumePath', '!=', null))
@@ -1502,8 +1414,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		return volumePath
 	}
 
-
-	def getHostAndDatastore(Cloud cloud, account, clusterId, hostId, Datastore datastore, datastoreOption, size, siteId=null, maxMemory) {
+	def getHostAndDatastore(Cloud cloud, account, clusterId, hostId, Datastore datastore, datastoreOption, size, siteId = null, maxMemory) {
 		log.debug "clusterId: ${clusterId}, hostId: ${hostId}, datastore: ${datastore}, datastoreOption: ${datastoreOption}, size: ${size}, siteId: ${siteId}, maxMemory ${maxMemory}"
 		ComputeServer node
 		def volumePath
@@ -1514,29 +1425,20 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		clusterId = clusterId && clusterId != 'null' ? clusterId : null
 		hostId = hostId && hostId.toString().trim() != '' ? hostId : null
 		def zoneHasCloud = cloud.regionCode != null && cloud.regionCode != ''
-		if(zoneHasCloud && !clusterId && !hostId && !datastore && (datastoreOption == 'auto' || !datastoreOption)) {
+		if (zoneHasCloud && !clusterId && !hostId && !datastore && (datastoreOption == 'auto' || !datastoreOption)) {
 			return [node, datastore, volumePath, highlyAvailable]
 		}
 		// If host specified by the user, then use it
 		node = hostId ? context.services.computeServer.get(hostId.toLong()) : null
-		if(!datastore) {
+		if (!datastore) {
 			def datastoreIds = context.services.resourcePermission.listAccessibleResources(account.id, ResourcePermission.ResourceType.Datastore, siteId, null)
 			def hasFilteredDatastores = false
 			// If hostId specifed.. gather all the datastoreIds for the host via storagevolumes
-			if(hostId) {
+			if (hostId) {
 				hasFilteredDatastores = true
-				/*def scopedDatastoreIds = ComputeServer.withCriteria {
-					createAlias('volumes', 'volumes')
-					createAlias('volumes.datastore', 'datastore')
-					eq('id', hostId.toLong())
-					projections {
-						property('datastore.id')
-					}
-				} as Set
-				datastoreIds = scopedDatastoreIds*/
 				def scopedDatastoreIds = context.services.computeServer.list(new DataQuery()
 						.withFilter('hostId', hostId.toLong())
-						.withJoin('volumes.datastore')).collect { it.volumes.collect { it.datastore.id }}.flatten().unique()
+						.withJoin('volumes.datastore')).collect { it.volumes.collect { it.datastore.id } }.flatten().unique()
 				datastoreIds = scopedDatastoreIds
 			}
 
@@ -1546,10 +1448,10 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 					.withFilter('type', 'generic')
 					.withFilter('online', true)
 					.withFilter('active', true)
-					.withFilter('freeSpace','>', size,)
+					.withFilter('freeSpace', '>', size,)
 			def dsList
 			def dsQuery
-			if(hasFilteredDatastores){
+			if (hasFilteredDatastores) {
 				dsQuery = query.withFilters(
 						new DataFilter('id', 'in', datastoreIds),
 						new DataOrFilter(
@@ -1562,14 +1464,14 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 						new DataOrFilter(
 								new DataFilter('id', 'in', datastoreIds),
 								new DataOrFilter(
-											new DataFilter('visibility', 'public'),
-											new DataFilter('owner.id', account.id)
+										new DataFilter('visibility', 'public'),
+										new DataFilter('owner.id', account.id)
 								)
 						)
 				)
 			}
-			if(clusterId) {
-				if(clusterId.toString().isNumber()) {
+			if (clusterId) {
+				if (clusterId.toString().isNumber()) {
 					dsQuery = query.withFilter('zonePool.id', clusterId.toLong())
 				} else {
 					dsQuery = query.withFilter('zonePool.externalId', clusterId)
@@ -1578,12 +1480,12 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			dsList = context.services.cloud.datastore.list(dsQuery.withSort('freeSpace', DataQuery.SortOrder.desc))
 
 			// Return the first one
-			if(dsList.size() > 0) {
+			if (dsList.size() > 0) {
 				datastore = dsList[0]
 			}
 		}
 
-		if(!node && datastore) {
+		if (!node && datastore) {
 			// We've grabbed a datastore.. now pick a host that has this datastore
 			def nodes = context.services.computeServer.list(new DataQuery()
 					.withFilter('cloud.id', cloud.id)
@@ -1595,7 +1497,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			node = nodes?.size() > 0 ? nodes.first() : null
 		}
 
-		if(!zoneHasCloud && (!node || !datastore)) {
+		if (!zoneHasCloud && (!node || !datastore)) {
 			// Need a node and a datastore for non-cloud scoped zones
 			throw new Exception('Unable to obtain datastore and host for options selected')
 		}
@@ -1604,29 +1506,26 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		volumePath = getVolumePathForDatastore(datastore)
 
 		// Highly Available (in the Failover Cluster Manager) if we are in a cluster and the datastore is a shared volume
-		if(clusterId && datastore?.zonePool) {  // datastore found above MUST be part of a shared volume because it has a zonepool
+		if (clusterId && datastore?.zonePool) {
+			// datastore found above MUST be part of a shared volume because it has a zonepool
 			highlyAvailable = true
 		}
-
 		return [node, datastore, volumePath, highlyAvailable]
 	}
 
-	def loadDatastoreForVolume(Cloud cloud, hostVolumeId=null, fileShareId=null, partitionUniqueId=null) {
+	def loadDatastoreForVolume(Cloud cloud, hostVolumeId = null, fileShareId = null, partitionUniqueId = null) {
 		log.debug "loadDatastoreForVolume: ${hostVolumeId}, ${fileShareId}"
-		if(hostVolumeId) {
-
+		if (hostVolumeId) {
 			StorageVolume storageVolume = context.services.storageVolume.find(new DataQuery().withFilter('internalId', hostVolumeId)
 					.withFilter('datastore.refType', 'ComputeZone').withFilter('datastore.refId', cloud.id))
 			def ds = storageVolume?.datastore
-			if(!ds && partitionUniqueId) {
-
+			if (!ds && partitionUniqueId) {
 				storageVolume = context.services.storageVolume.find(new DataQuery().withFilter('externalId', partitionUniqueId)
 						.withFilter('datastore.refType', 'ComputeZone').withFilter('datastore.refId', cloud.id))
 				ds = storageVolume?.datastore
 			}
 			return ds
-		} else if(fileShareId) {
-
+		} else if (fileShareId) {
 			Datastore datastore = context.services.cloud.datastore.find(new DataQuery()
 					.withFilter('externalId', fileShareId)
 					.withFilter('refType', 'ComputeZone')
@@ -1634,263 +1533,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			return datastore
 		}
 		null
-	}
-
-	@Override
-	ServiceResponse<ProvisionResponse> runHost(ComputeServer server, HostRequest hostRequest, Map opts) {
-		log.debug("runHost: ${server} ${hostRequest} ${opts}")
-		ProvisionResponse provisionResponse = new ProvisionResponse()
-		try {
-			def config = server.getConfigMap()
-			log.info("RAZI :: runHost >> config: ${config}")
-			Cloud cloud = server.cloud
-			def account = server.account
-			def layout = server.layout
-			def typeSet = server.typeSet
-			def controllerNode = pickScvmmController(cloud)
-			def scvmmOpts = apiService.getScvmmCloudOpts(context, cloud, controllerNode)
-			log.info("RAZI :: runHost >> scvmmOpts1: ${scvmmOpts}")
-			scvmmOpts.controllerServerId = controllerNode.id
-			scvmmOpts.creatingDockerHost = true
-			scvmmOpts.name = server.name
-
-			def imageType = config.templateTypeSelect ?:'default'
-			def virtualImage
-			def clusterId
-			log.info("RAZI :: runHost >> config.resourcePoolId: ${config.resourcePoolId}")
-			log.info("RAZI :: runHost >> config.resourcePool: ${config.resourcePool}")
-			if(config.resourcePoolId || config.resourcePool) {
-				def pool = server.resourcePool
-				log.info("RAZI :: runHost >> pool.externalId: ${pool?.externalId}")
-				if(pool) {
-					clusterId = pool.externalId
-				}
-			}
-
-			// host, datastore configuration
-			ComputeServer node
-			Datastore datastore
-			def volumePath, nodeId, highlyAvailable
-			def storageVolumes = server.volumes
-			log.info("RAZI :: runHost >> storageVolumes: ${storageVolumes}")
-			def rootVolume = getServerRootDisk(server)
-			log.info("RAZI :: runHost >> rootVolume: ${rootVolume}")
-			def maxStorage = getServerRootSize(server)
-			log.info("RAZI :: runHost >> maxStorage: ${maxStorage}")
-			def maxMemory = server.maxMemory ?: server.plan.maxMemory
-			log.info("RAZI :: runHost >> maxMemory: ${maxMemory}")
-			log.info("RAZI :: runHost >> clusterId: ${clusterId}")
-			log.info("RAZI :: runHost >> config.hostId: ${config.hostId}")
-			log.info("RAZI :: runHost >> rootVolume?.datastore: ${rootVolume?.datastore}")
-			log.info("RAZI :: runHost >> rootVolume?.datastoreOption: ${rootVolume?.datastoreOption}")
-			log.info("RAZI :: runHost >> server.provisionSiteId: ${server.provisionSiteId}")
-			(node, datastore, volumePath, highlyAvailable) = getHostAndDatastore(cloud, account, clusterId, config.hostId, rootVolume?.datastore, rootVolume?.datastoreOption, maxStorage, server.provisionSiteId, maxMemory)
-			nodeId = node?.id
-			scvmmOpts.datastoreId = datastore?.externalId
-			scvmmOpts.hostExternalId = node?.externalId
-			scvmmOpts.volumePath = volumePath
-			scvmmOpts.highlyAvailable = highlyAvailable
-
-			if (rootVolume) {
-				rootVolume.datastore = datastore
-				context.services.storageVolume.save(rootVolume)
-			}
-
-			storageVolumes?.each { vol ->
-				if(!vol.rootVolume) {
-					def tmpNode, tmpDatastore, tmpVolumePath, tmpHighlyAvailable
-					(tmpNode, tmpDatastore, tmpVolumePath, tmpHighlyAvailable) = getHostAndDatastore(cloud, account, clusterId, config.hostId, vol?.datastore, vol?.datastoreOption, maxStorage, server.provisionSiteId, maxMemory)
-					vol.datastore = tmpDatastore
-					context.services.storageVolume.save(vol)
-				}
-			}
-
-			log.info("RAZI :: runHost >> scvmmOpts2: ${scvmmOpts}")
-			scvmmOpts += apiService.getScvmmControllerOpts(cloud, controllerNode)
-			log.info("RAZI :: runHost >> scvmmOpts3: ${scvmmOpts}")
-			def imageId
-			log.info("RAZI :: runHost >> layout: ${layout}")
-			log.info("RAZI :: runHost >> typeSet: ${typeSet}")
-			log.info("RAZI :: runHost >> imageType: ${imageType}")
-			log.info("RAZI :: runHost >> config.template: ${config.template}")
-			if(layout && typeSet) {
-				virtualImage = typeSet.workloadType.virtualImage
-				log.info("RAZI :: runHost >> virtualImage: ${virtualImage}")
-				imageId = virtualImage.externalId
-				log.info("RAZI :: runHost >> imageId: ${imageId}")
-			} else if(imageType == 'custom' && config.template) {
-				def virtualImageId = config.template?.toLong()
-				log.info("RAZI :: runHost >> else if >> virtualImageId: ${virtualImageId}")
-				virtualImage = context.services.virtualImage.get(virtualImageId)
-				log.info("RAZI :: runHost >> else if >> virtualImage: ${virtualImage}")
-				imageId = virtualImage.externalId
-				log.info("RAZI :: runHost >> else if >> imageId: ${imageId}")
-			} else {
-				virtualImage = new VirtualImage(code: 'scvmm.image.morpheus.ubuntu.16.04.3-v1.ubuntu.16.04.3.amd64') //better this later
-			}
-			log.info("RAZI :: runHost >> before if(!imageId) >> imageId: ${imageId}")
-			if(!imageId) { //If its userUploaded and still needs uploaded
-				def cloudFiles = context.async.virtualImage.getVirtualImageFiles(virtualImage).blockingGet()
-				log.info("RAZI :: runHost >> cloudFiles: ${cloudFiles}")
-				def imageFile = cloudFiles?.find { cloudFile -> cloudFile.name.toLowerCase().endsWith(".vhd") || cloudFile.name.toLowerCase().endsWith(".vhdx") || cloudFile.name.toLowerCase().endsWith(".vmdk") }
-				log.info("RAZI :: runHost >> imageFile: ${imageFile}")
-
-				def containerImage = [
-						name			: virtualImage.name,
-						minDisk			: 5,
-						minRam			: 512l * ComputeUtility.ONE_MEGABYTE,
-						virtualImageId	: virtualImage.id,
-						tags			: 'morpheus, ubuntu',
-						imageType		: virtualImage.imageType,
-						containerType	: 'vhd',
-						imageFile		: imageFile,
-						cloudFiles		: cloudFiles,
-				]
-				log.info("RAZI :: runHost >> containerImage: ${containerImage}")
-
-				scvmmOpts.image = containerImage
-				scvmmOpts.userId = server.createdBy?.id
-				log.debug("scvmmOpts: {}", scvmmOpts)
-				log.info("RAZI :: runHost >> scvmmOpts4: ${scvmmOpts}")
-
-				def imageResults = apiService.insertContainerImage(scvmmOpts)
-				log.info("RAZI :: runHost >> imageResults: ${imageResults}")
-				if(imageResults.success == true) {
-					imageId = imageResults.imageId
-					log.info("RAZI :: runHost >> if(imageResults.success == true) >> imageResults: ${imageResults}")
-				}
-			}
-
-			log.info("RAZI :: runHost >> before if(imageId) >> imageId: ${imageId}")
-			if(imageId) {
-				server.sourceImage = virtualImage
-				server.serverOs = server.serverOs ?: virtualImage.osType
-				log.info("RAZI :: runHost >> if(imageId) >> server.serverOs: ${server.serverOs}")
-				server.osType = (virtualImage.osType?.platform == 'windows' ? 'windows' :'linux') ?: virtualImage.platform
-				log.info("RAZI :: runHost >> if(imageId) >> server.osType: ${server.osType}")
-				server.parentServer = node
-				scvmmOpts.secureBoot = virtualImage?.uefi ?: false
-				scvmmOpts.imageId = imageId
-				scvmmOpts.scvmmGeneration = virtualImage?.getConfigProperty('generation') ?: 'generation1'
-				scvmmOpts.diskMap = context.services.virtualImage.getImageDiskMap(virtualImage)
-				server = saveAndGetMorpheusServer(server, true)
-				scvmmOpts += getScvmmServerOpts(server)
-
-				scvmmOpts.networkConfig = hostRequest.networkConfiguration
-				scvmmOpts.cloudConfigUser = hostRequest.cloudConfigUser
-				scvmmOpts.cloudConfigMeta = hostRequest.cloudConfigMeta
-				scvmmOpts.cloudConfigNetwork = hostRequest.cloudConfigNetwork
-				scvmmOpts.isSysprep = virtualImage?.isSysprep
-				log.info("RAZI :: runHost >> if(imageId) >> scvmmOpts5: ${scvmmOpts}")
-				log.info("RAZI :: runHost >> if(imageId) >> scvmmOpts.isSysprep: ${scvmmOpts.isSysprep}")
-				log.info("RAZI :: runHost >> if(imageId) >> PlatformType.valueOf(server.osType): ${PlatformType.valueOf(server.osType)}")
-				log.info("RAZI :: runHost >> if(imageId) >> scvmmOpts.cloudConfigMeta: ${scvmmOpts.cloudConfigMeta}")
-				log.info("RAZI :: runHost >> if(imageId) >> scvmmOpts.cloudConfigUser: ${scvmmOpts.cloudConfigUser}")
-				log.info("RAZI :: runHost >> if(imageId) >> scvmmOpts.cloudConfigNetwork: ${scvmmOpts.cloudConfigNetwork}")
-
-				def isoBuffer = context.services.provision.buildIsoOutputStream(
-						scvmmOpts.isSysprep, PlatformType.valueOf(server.osType), scvmmOpts.cloudConfigMeta, scvmmOpts.cloudConfigUser, scvmmOpts.cloudConfigNetwork)
-				log.info("RAZI :: runHost >> if(imageId) >> isoBuffer: ${isoBuffer}")
-
-				scvmmOpts.cloudConfigBytes = isoBuffer
-				server.cloudConfigUser = scvmmOpts.cloudConfigUser
-				server.cloudConfigMeta = scvmmOpts.cloudConfigMeta
-				server.cloudConfigNetwork = scvmmOpts.cloudConfigNetwork
-
-				//save the server
-				server = saveAndGetMorpheusServer(server, true)
-				scvmmOpts.newServer = server
-				log.debug("create server:${scvmmOpts}")
-
-				//create it in scvmm
-				def createResults = apiService.createServer(scvmmOpts)
-				log.info("RAZI :: runHost >> createResults: ${createResults}")
-				log.debug "create server results:${createResults}"
-				if(createResults.success == true) {
-					def instance = createResults.server
-					log.info("RAZI :: runHost >> instance: ${instance}")
-					if(instance) {
-						server.externalId = instance.id
-						server.parentServer = node
-						def serverDisks = createResults.server.disks
-						log.info("RAZI :: runHost >> serverDisks: ${serverDisks}")
-						if (serverDisks) {
-							storageVolumes = server.volumes
-							log.info("RAZI :: runHost >> if (serverDisks) >> storageVolumes: ${storageVolumes}")
-							rootVolume = storageVolumes.find { it.rootVolume == true }
-							log.info("RAZI :: runHost >> if (serverDisks) >> rootVolume: ${rootVolume}")
-							rootVolume.externalId = serverDisks.diskMetaData[serverDisks.osDisk?.externalId]?.VhdID
-							log.info("RAZI :: runHost >> if (serverDisks) >> rootVolume.externalId: ${rootVolume.externalId}")
-							// Fix up the externalId.. initially set to the VirtualDiskDrive ID.. now setting to VirtualHardDisk ID
-							log.info("RAZI :: runHost >> serverDisks.diskMetaData[rootVolume.externalId]?.HostVolumeId: ${serverDisks.diskMetaData[rootVolume.externalId]?.HostVolumeId}")
-							log.info("RAZI :: runHost >> serverDisks.diskMetaData[rootVolume.externalId]?.FileShareId: ${serverDisks.diskMetaData[rootVolume.externalId]?.FileShareId}")
-							log.info("RAZI :: runHost >> serverDisks.diskMetaData[rootVolume.externalId]?.PartitionUniqueId: ${serverDisks.diskMetaData[rootVolume.externalId]?.PartitionUniqueId}")
-							rootVolume.datastore = loadDatastoreForVolume(cloud, serverDisks.diskMetaData[rootVolume.externalId]?.HostVolumeId, serverDisks.diskMetaData[rootVolume.externalId]?.FileShareId, serverDisks.diskMetaData[rootVolume.externalId]?.PartitionUniqueId) ?: rootVolume.datastore
-							log.info("RAZI :: runHost >> before storageVolumes.each >> rootVolume.datastore: ${rootVolume.datastore}")
-							storageVolumes.each { storageVolume ->
-								def dataDisk = serverDisks.dataDisks.find { it.id == storageVolume.id }
-								if (dataDisk) {
-									def newExternalId = serverDisks.diskMetaData[dataDisk.externalId]?.VhdID
-									if (newExternalId) {
-										storageVolume.externalId = newExternalId
-									}
-
-									// Ensure the datastore is set
-									storageVolume.datastore = loadDatastoreForVolume(cloud, serverDisks.diskMetaData[storageVolume.externalId]?.HostVolumeId, serverDisks.diskMetaData[storageVolume.externalId]?.FileShareId, serverDisks.diskMetaData[storageVolume.externalId]?.PartitionUniqueId) ?: storageVolume.datastore
-								}
-							}
-							log.info("RAZI :: runHost >> after storageVolumes.each >> rootVolume.datastore: ${rootVolume.datastore}")
-						}
-						server.capacityInfo = new ComputeCapacityInfo(server: server, maxCores: scvmmOpts.maxCores,
-								maxMemory: scvmmOpts.memory, maxStorage: scvmmOpts.maxTotalStorage)
-						server.osDevice = '/dev/sda'
-						server.dataDevice = '/dev/sdb'
-						server.managed = true
-						server = saveAndGetMorpheusServer(server, true)
-
-						log.info("RAZI :: runHost >> server.externalId: ${server.externalId}")
-						def serverDetails = apiService.getServerDetails(scvmmOpts, server.externalId)
-						log.info("RAZI :: runHost >> serverDetails: ${serverDetails}")
-						if(serverDetails.success == true) {
-							//fill in ip address.
-							def newIpAddress = serverDetails.server?.ipAddress ?: createResults.server?.ipAddress
-							log.info("RAZI :: runHost >> newIpAddress: ${newIpAddress}")
-							def macAddress = serverDetails.server?.macAddress
-							log.info("RAZI :: runHost >> macAddress: ${macAddress}")
-							applyComputeServerNetworkIp(server, newIpAddress, newIpAddress, 0, macAddress)
-							provisionResponse.success = true
-						} else {
-							//no server detail
-							server.statusMessage = 'Error loading server details'
-						}
-					} else {
-						//no reservation
-						server.statusMessage = 'Error loading created server'
-					}
-				} else {
-					if(createResults.server?.id) {
-						// we did create a vm though so we need to bind it to the server
-						server.externalId = createResults.server.id
-						context.async.computeServer.save(server).blockingGet()
-					}
-					server.statusMessage = 'Error creating server'
-					//tell someone :)
-				}
-			} else {
-				server.statusMessage = 'Error creating server'
-			}
-			log.info("RAZI :: runHost >> server.interfaces.size(): ${server?.interfaces?.size()}")
-			if(provisionResponse.success != true) {
-				return new ServiceResponse(success: false, msg: provisionResponse.message ?: 'vm config error', error: provisionResponse.message, data: provisionResponse)
-			} else {
-				return new ServiceResponse<ProvisionResponse>(success: true, data: provisionResponse)
-			}
-
-		} catch(Exception e) {
-			log.error("Error in runHost method: ${e.message}", e)
-			provisionResponse.setError(e.message)
-			return new ServiceResponse(success: false, msg: e.message, error: e.message, data: provisionResponse)
-		}
 	}
 
 	private applyComputeServerNetworkIp(ComputeServer server, privateIp, publicIp, index, macAddress) {
@@ -1938,87 +1580,5 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		}
 		saveAndGetMorpheusServer(server, true)
 		return netInterface
-	}
-
-	@Override
-	ServiceResponse<ProvisionResponse> waitForHost(ComputeServer server) {
-		log.debug("waitForHost: ${server}")
-		def provisionResponse = new ProvisionResponse()
-		ServiceResponse<ProvisionResponse> rtn = ServiceResponse.prepare(provisionResponse)
-		try {
-			def config = server.getConfigMap()
-			def scvmmOpts = apiService.getScvmmZoneOpts(context, server.cloud)
-			def node = config.hostId ? context.services.computeServer.get(config.hostId.toLong()) : pickScvmmController(server.cloud)
-			scvmmOpts += getScvmmServerOpts(node)
-			def serverDetail = apiService.checkServerReady(scvmmOpts, server.externalId)
-			log.info("RAZI :: waitForHost >> serverDetail: ${serverDetail}")
-			if (serverDetail.success == true) {
-				provisionResponse.privateIp = serverDetail.ipAddress
-				provisionResponse.publicIp = serverDetail.ipAddress
-				provisionResponse.externalId = server.externalId
-				def finalizeResults = finalizeHost(server)
-				log.info("RAZI :: waitForHost >> finalizeResults: ${finalizeResults}")
-				if(finalizeResults.success == true) {
-					provisionResponse.success = true
-					rtn.success = true
-				}
-			}
-		} catch (e){
-			log.error("Error waitForHost: ${e.message}", e)
-			rtn.success = false
-			rtn.msg = "Error in waiting for Host: ${e}"
-		}
-		return rtn
-	}
-
-	def isValidIpv6Address(String address) {
-		// validate the ipv6 address is an ipv6 address. There is no separate validation for ipv6 addresses, so validate that its not an ipv4 address and it is a valid ip address
-		return address && NetworkUtility.validateIpAddr(address, false) == false && NetworkUtility.validateIpAddr(address, true) == true
-	}
-
-	@Override
-	ServiceResponse finalizeHost(ComputeServer server) {
-		ServiceResponse rtn = ServiceResponse.prepare()
-		log.debug("finalizeHost: ${server?.id}")
-		log.info("RAZI :: finalizeHost >> server.interfaces.size()1: ${server.interfaces.size()}")
-		try {
-			def config = server.getConfigMap()
-			def scvmmOpts = apiService.getScvmmZoneOpts(context, server.cloud)
-			def node = config.hostId ? context.services.computeServer.get(config.hostId.toLong()) : pickScvmmController(server.cloud)
-			scvmmOpts += getScvmmServerOpts(node)
-			def serverDetail = apiService.checkServerReady(scvmmOpts, server.externalId)
-			if (serverDetail.success == true){
-				serverDetail.ipAddresses.each { interfaceName, data ->
-					ComputeServerInterface netInterface = server.interfaces?.find{it.name == interfaceName}
-					if(netInterface) {
-						if(data.ipAddress) {
-							def address = new NetAddress(address: data.ipAddress, type: NetAddress.AddressType.IPV4)
-							if(!NetworkUtility.validateIpAddr(address.address)){
-								log.debug("NetAddress Errors: ${address}")
-							}
-							netInterface.addresses << address
-							netInterface.publicIpAddress = data.ipAddress
-						}
-						if(data.ipv6Address && isValidIpv6Address(data.ipv6Address)) {
-							def address = new NetAddress(address: data.ipv6Address, type: NetAddress.AddressType.IPV6)
-							netInterface.addresses << address
-							netInterface.publicIpv6Address = data.ipv6Address
-						}
-						context.async.computeServer.computeServerInterface.save([netInterface]).blockingGet()
-					}
-				}
-//				def newIpAddress = serverDetail.server?.ipAddress
-//				def macAddress = serverDetail.server?.macAddress
-//				applyComputeServerNetworkIp(server, newIpAddress, newIpAddress, 0, macAddress)
-				context.async.computeServer.save(server).blockingGet()
-				log.info("RAZI :: finalizeHost >> server.interfaces.size()2: ${server.interfaces.size()}")
-				rtn.success = true
-			}
-		} catch (e){
-			rtn.success = false
-			rtn.msg = "Error in finalizing server: ${e.message}"
-			log.error("Error in finalizeHost: ${e.message}", e)
-		}
-		return rtn
 	}
 }
