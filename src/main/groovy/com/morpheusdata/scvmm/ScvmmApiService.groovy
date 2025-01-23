@@ -223,17 +223,17 @@ class ScvmmApiService {
 
                 log.info ("Ray :: createServer: createData.data: ${createData.data}")
                 log.info ("Ray :: createServer: createData.data.size(): ${createData.data?.size()}")
-                if (createData.data.size() == 1) {
+                /*if (createData.data.size() == 1) {
                     log.info ("Ray :: createServer: createData.data[0]: ${createData.data[0]}")
                     log.info ("Ray :: createServer: createData.data[0].ObjectType: ${createData.data[0].ObjectType}")
                     log.info ("Ray :: createServer: createData.data[0].ID: ${createData.data[0].ID}")
-                }
+                }*/
 
 
                 def newServerExternalId = createData.data && createData.data.size() == 1 && createData.data[0].ObjectType?.toString() == '1' ? createData.data[0].ID : null
                 log.info ("Ray :: createServer: newServerExternalId: ${newServerExternalId}")
                 if (!newServerExternalId) {
-                    throw new Exception("Failed to create VM with command: ${launchCommand}: ${createData.errorData}")
+                    throw new Exception("Failed to create VM with command: ${launchCommand}: ${createData.error}")
                 }
                 opts.externalId = newServerExternalId
                 // Make sure we save the externalId ASAP

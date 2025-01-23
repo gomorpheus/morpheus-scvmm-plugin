@@ -925,7 +925,9 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 						log.info ("Ray :: runWorkload: serverDetails?.success: ${serverDetails?.success}")
 						if (serverDetails.success == true) {
 							log.info("serverDetail: ${serverDetails}")
-							applyComputeServerNetworkIp(server, serverDetails.server?.ipAddress, serverDetails.server?.ipAddress, 0, null)
+							log.info ("Ray :: runWorkload: before calling applyComputeServerNetworkIp......")
+							opts.network = applyComputeServerNetworkIp(server, serverDetails.server?.ipAddress, serverDetails.server?.ipAddress, 0, null)
+							log.info ("Ray :: runWorkload: after calling applyComputeServerNetworkIp......")
 							server.osDevice = '/dev/sda'
 							server.dataDevice = '/dev/sda'
 							server.lvmEnabled = false
@@ -2045,17 +2047,31 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	}
 
 	private applyComputeServerNetworkIp(ComputeServer server, privateIp, publicIp, index, macAddress) {
+		log.info ("Ray :: applyComputeServerNetworkIp: server?.id: ${server?.id}")
+		log.info ("Ray :: applyComputeServerNetworkIp: privateIp: ${privateIp}")
+		log.info ("Ray :: applyComputeServerNetworkIp: publicIp: ${publicIp}")
+		log.info ("Ray :: applyComputeServerNetworkIp: index: ${index}")
+		log.info ("Ray :: applyComputeServerNetworkIp: macAddress: ${macAddress}")
 		ComputeServerInterface netInterface
 		if (privateIp) {
 			privateIp = privateIp?.toString().contains("\n") ? privateIp.toString().replace("\n", "") : privateIp.toString()
-			log.info("RAZI :: applyComputeServerNetworkIp >> privateIp: ${privateIp}")
+			log.info ("Ray :: applyComputeServerNetworkIp: privateIp1: ${privateIp}")
 			def newInterface = false
 			server.internalIp = privateIp
 			server.sshHost = privateIp
 			server.macAddress = macAddress
 			log.debug("Setting private ip on server:${server.sshHost}")
+			log.info ("Ray :: applyComputeServerNetworkIp: server.interfaces?.size(): ${server.interfaces?.size()}")
+			server.interfaces?.each { it ->
+				log.info ("Ray :: applyComputeServerNetworkIp: it.name: ${it.name}")
+				log.info ("Ray :: applyComputeServerNetworkIp: it.publicIpAddress: ${it.publicIpAddress}")
+				log.info ("Ray :: applyComputeServerNetworkIp: it.ipAddress: ${it.ipAddress}")
+				log.info ("Ray :: applyComputeServerNetworkIp: it.macAddress: ${it.macAddress}")
+				log.info ("Ray :: applyComputeServerNetworkIp: it.publicIpv6Address: ${it.publicIpv6Address}")
+			}
 			netInterface = server.interfaces?.find { it.ipAddress == privateIp }
-			log.info("RAZI :: applyComputeServerNetworkIp >> netInterface: ${netInterface}")
+			log.info ("Ray :: applyComputeServerNetworkIp: netInterface: ${netInterface}")
+			log.info ("Ray :: applyComputeServerNetworkIp: netInterface?.name: ${netInterface?.name}")
 
 			if (netInterface == null) {
 				if (index == 0)
@@ -2065,8 +2081,10 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 				if (netInterface == null)
 					netInterface = server.interfaces?.size() > index ? server.interfaces[index] : null
 			}
+			log.info ("Ray :: applyComputeServerNetworkIp: netInterface11: ${netInterface}")
 			if (netInterface == null) {
 				def interfaceName = server.sourceImage?.interfaceName ?: 'eth0'
+				log.info ("Ray :: applyComputeServerNetworkIp: interfaceName: ${interfaceName}")
 				netInterface = new ComputeServerInterface(
 						name: interfaceName,
 						ipAddress: privateIp,
@@ -2074,24 +2092,33 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 						displayOrder: (server.interfaces?.size() ?: 0) + 1
 						//externalId		: networkOpts.externalId
 				)
-				netInterface.addresses += new NetAddress(type: NetAddress.AddressType.IPV4, address: privateIp)
+				//netInterface.addresses += new NetAddress(type: NetAddress.AddressType.IPV4, address: privateIp)
 				newInterface = true
 			} else {
 				netInterface.ipAddress = privateIp
 			}
+			log.info ("Ray :: applyComputeServerNetworkIp: netInterface?.ipAddress22: ${netInterface?.ipAddress}")
+			log.info ("Ray :: applyComputeServerNetworkIp: publicIp22: ${publicIp}")
 			if (publicIp) {
 				publicIp = publicIp?.toString().contains("\n") ? publicIp.toString().replace("\n", "") : publicIp.toString()
-				log.info("RAZI :: applyComputeServerNetworkIp >> publicIp: ${publicIp}")
+				log.info ("Ray :: applyComputeServerNetworkIp: publicIp33: ${publicIp}")
 				netInterface.publicIpAddress = publicIp
 				server.externalIp = publicIp
 			}
+			log.info ("Ray :: applyComputeServerNetworkIp: netInterface?.addresses?.size(): ${netInterface?.addresses?.size()}")
+			log.info ("Ray :: applyComputeServerNetworkIp: privateIp333: ${privateIp}")
+			log.info ("Ray :: applyComputeServerNetworkIp: netInterface?.addresses?.size()1111: ${netInterface?.addresses?.size()}")
 			netInterface.macAddress = macAddress
+			log.info ("Ray :: applyComputeServerNetworkIp: newInterface: ${newInterface}")
 			if (newInterface == true)
 				context.async.computeServer.computeServerInterface.create([netInterface], server).blockingGet()
 			else
 				context.async.computeServer.computeServerInterface.save([netInterface]).blockingGet()
 		}
 		saveAndGetMorpheusServer(server, true)
+		log.info ("Ray :: applyComputeServerNetworkIp: netInterface333: ${netInterface}")
+		log.info ("Ray :: applyComputeServerNetworkIp: netInterface?.name333: ${netInterface?.name}")
+		log.info ("Ray :: applyComputeServerNetworkIp: netInterface?.ipAddress: ${netInterface?.ipAddress}")
 		return netInterface
 	}
 
