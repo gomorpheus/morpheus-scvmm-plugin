@@ -1102,7 +1102,27 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 	 */
 	@Override
 	ServiceResponse removeWorkload(Workload workload, Map opts) {
-		return ServiceResponse.success()
+		log.debug("removeWorkload: opts: ${opts}")
+		ServiceResponse response = ServiceResponse.prepare()
+		try {
+			log.debug("Removing container: ${workload?.dump()}")
+			if (workload.server?.externalId) {
+				def scvmmOpts = getAllScvmmOpts(workload)
+				def deleteResults = apiService.deleteServer(scvmmOpts, scvmmOpts.externalId)
+				log.debug "deleteResults: ${deleteResults?.dump()}"
+				if (deleteResults.success == true) {
+					response.success = true
+				} else {
+					response.msg = 'Failed to remove vm'
+				}
+			} else {
+				response.msg = 'vm not found'
+			}
+		} catch (e) {
+			log.error("removeWorkload error: ${e}", e)
+			response.error = e.message
+		}
+		return response
 	}
 
 	/**
