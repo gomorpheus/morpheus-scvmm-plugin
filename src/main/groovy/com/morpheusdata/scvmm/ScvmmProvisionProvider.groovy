@@ -892,8 +892,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 							//credentials
 							server.consoleHost = server.parentServer?.name
 							server.consoleType = 'vmrdp'
-							server.sshUsername = server.cloud.credentialData?.username ?: server.cloud.getConfigProperty('username')
-							server.consolePassword = server.cloud.credentialData?.password ?: server.cloud.getConfigProperty('password')
+							server.sshUsername = server.cloud.accountCredentialData?.username ?: server.cloud.getConfigProperty('username')
+							server.consolePassword = server.cloud.accountCredentialData?.password ?: server.cloud.getConfigProperty('password')
 							server.consolePort = 2179
 						}
 						def serverDisks = createResults.server.disks
