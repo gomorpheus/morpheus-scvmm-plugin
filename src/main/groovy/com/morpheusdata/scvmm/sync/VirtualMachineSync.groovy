@@ -1,6 +1,6 @@
-package com.morpheus.scvmm.sync
+package com.morpheusdata.scvmm.sync
 
-import com.morpheus.scvmm.ScvmmApiService
+import com.morpheusdata.scvmm.ScvmmApiService
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.data.DataFilter
 import com.morpheusdata.core.data.DataQuery

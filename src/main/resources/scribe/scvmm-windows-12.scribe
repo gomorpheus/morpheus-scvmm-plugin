@@ -1,0 +1,58 @@
+resource "workload-type" "scvmm-windows-2012_r2" {
+  code             = "scvmm-windows-2012_r2"
+  shortName        = "windows"
+  name             = "Windows 2012 r2"
+  ports            = [3389]
+  containerVersion = "2012 r2"
+  repositoryImage  = null
+  imageCode        = "morpheus windows 2012 r2",
+  entryPoint       = null
+  statTypeCode     = "vm"
+  logTypeCode      = "windows"
+  category         = "windows",
+  cloneType        = "windows",
+  priorityOrder    = 0,
+  serverType       = "vm",
+  providerType     = "scvmm",
+  showServerLogs   = true
+  checkTypeCode    = null
+  virtualImage     = virtual-image.scvmm.image.morpheus.windows.2012.r2
+  containerPorts   = ["windows.3389"]
+  actions          = ["generic-remove-node"]
+  provisionType    = "scvmm"
+  backupType       = "scvmmSnapshot"
+}
+
+resource "workload-type-set" "scvmm-windows-2012_r2-set" {
+  code           = "scvmm-windows-2012_r2-set"
+  containerType  = container-type.scvmm-windows-2012_r2
+  priorityOrder  = 0
+  category       = "windows",
+  containerCount = 1
+}
+
+resource "instance-type-layout" "scvmm-windows-2012_r2-single" {
+  code                        = "scvmm-windows-2012_r2-single"
+  name                        = "SCVMM VM"
+  sortOrder                  = 30
+  serverType                 = "vm"
+  supportsConvertToManaged = true
+  instanceVersion            = "2012 r2"
+  description                 = "This will provision a single vm in scvmm"
+  instanceType               = "windows"
+  serverCount                = 1
+  portCount                  = 1
+  enabled                     = false
+  creatable                   = false
+  containers                  = [scvmm-windows-2012_r2-set]
+  actions                     = ["generic-add-node"]
+  provisionType              = "scvmm"
+}
+
+resource "scale-action" "scvmm-windows-2012_r2_core-single" {
+  code        = "scvmm-windows-2012_r2_core-single"
+  scaleType  = "action"
+  layout      = instance-type-layout.scvmm-windows-2012_r2-single
+  upAction   = "generic-add-node"
+  downAction = "generic-remove-node"
+}
