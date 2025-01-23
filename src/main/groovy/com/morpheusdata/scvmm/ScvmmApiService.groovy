@@ -1505,7 +1505,7 @@ Status=\$job.Status.toString()
                     }
                 }
                 attempts++
-                if (attempts > 50 || notFoundAttempts > 10) // TODO: 50 to 300
+                if (attempts > 300 || notFoundAttempts > 10)
                     pending = false
             }
         } catch (e) {
