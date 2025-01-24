@@ -4,6 +4,8 @@ import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.backup.BackupExecutionProvider
 import com.morpheusdata.core.backup.response.BackupExecutionResponse
+import com.morpheusdata.core.backup.util.BackupResultUtility
+import com.morpheusdata.core.util.DateUtility
 import com.morpheusdata.model.Backup
 import com.morpheusdata.model.BackupResult
 import com.morpheusdata.model.Cloud
@@ -14,12 +16,16 @@ import groovy.util.logging.Slf4j
 @Slf4j
 class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 
-	Plugin plugin
+	ScvmmPlugin plugin
 	MorpheusContext morpheusContext
+	ScvmmProvisionProvider provisionProvider
+	ScvmmApiService apiService
 
-	ScvmmBackupExecutionProvider(Plugin plugin, MorpheusContext morpheusContext) {
+	ScvmmBackupExecutionProvider(ScvmmPlugin plugin, MorpheusContext morpheusContext) {
 		this.plugin = plugin
 		this.morpheusContext = morpheusContext
+		this.provisionProvider = new ScvmmProvisionProvider(plugin, morpheusContext)
+		this.apiService = new ScvmmApiService(morpheusContext)
 	}
 	
 	/**
@@ -137,8 +143,88 @@ class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 	 * of 'false' will halt the execution process.
 	 */
 	@Override
-	ServiceResponse<BackupExecutionResponse> executeBackup(Backup backup, BackupResult backupResult, Map executionConfig, Cloud cloud, ComputeServer computeServer, Map opts) {
-		return ServiceResponse.success(new BackupExecutionResponse(backupResult))
+	ServiceResponse<BackupExecutionResponse> executeBackup(Backup backup, BackupResult backupResult, Map executionConfig, Cloud cloud, ComputeServer server, Map opts) {
+//		return ServiceResponse.success(new BackupExecutionResponse(backupResult))
+		log.debug("executeBackup: executionConfig: {}, opts: {}", executionConfig, opts)
+		ServiceResponse<BackupExecutionResponse> rtn = ServiceResponse.prepare(new BackupExecutionResponse(backupResult))
+		try {
+			log.info("backupConfig container: ${rtn}")
+			//config
+//			def backupResult = backupConfig.backupResult
+//			def container = Container.read(rtn.containerId)
+			def container = morpheusContext.services.workload.get(executionConfig.containerId)
+//			def server = ComputeServer.read(container.serverId)
+//			def zone = ComputeZone.read(server.zoneId)
+			def snapshotName = "${server.externalId}.${System.currentTimeMillis()}".toString()
+			def outputPath = executionConfig.workingPath
+			log.debug("outputPath: ${outputPath}")
+			//set process id
+//			setBackupProcessId(backupResult, '1000', 'executeSnapshot')
+			//update status
+//			updateBackupStatus(backupResult.id, 'IN_PROGRESS', [:])
+			rtn.data.backupResult.status = BackupResult.Status.IN_PROGRESS
+			//create snapshot
+			def node = provisionProvider.pickScvmmController(cloud)
+			def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, node)
+			scvmmOpts.snapshotId = snapshotName
+			def vmId = server.externalId
+			def snapshotResults = apiService.snapshotServer(scvmmOpts, vmId)
+			log.info("backup complete: {}", snapshotResults)
+			if(snapshotResults.success) {
+				/*def statusMap = [backupResultId:rtn.backupResultId, executorIP:rtn.ipAddress, destinationPath:outputPath,
+								 providerType:'scvmm', providerBasePath:'scvmm', targetBucket:snapshotResults.snapshotId, targetDirectory:snapshotResults.snapshotId,
+								 targetArchive:snapshotResults.snapshotId, backupSizeInMb:0, success:true]
+				statusMap.config = [snapshotId: snapshotResults.snapshotId, vmId:vmId]
+				updateBackupStatus(backupResult.id, statusMap)*/
+				rtn.data.backupResult.backupSetId = opts.backupSetId
+				rtn.data.backupResult.executorIpAddress = executionConfig.ipAddress
+				rtn.data.backupResult.resultBase = 'scvmm'
+				rtn.data.backupResult.resultBucket = snapshotResults.snapshotId
+//				rtn.data.backupResult.resultPath = snapshotResults.snapshotId
+				rtn.data.backupResult.resultPath = outputPath
+				rtn.data.backupResult.resultArchive = snapshotResults.snapshotId
+				rtn.data.backupResult.sizeInMb = 0l
+				rtn.data.backupResult.snapshotId = snapshotResults.snapshotId
+				rtn.data.backupResult.setConfigProperty("snapshotId", snapshotResults.snapshotId)
+				rtn.data.backupResult.setConfigProperty("vmId", vmId)
+				rtn.data.updates = true
+				rtn.data.backupResult.status = BackupResult.Status.SUCCEEDED
+				if (!backupResult.endDate) {
+					rtn.data.backupResult.endDate = new Date()
+					def startDate = backupResult.startDate
+					if (startDate) {
+						def start = DateUtility.parseDate(startDate)
+						def end = rtn.data.backupResult.endDate
+						rtn.data.backupResult.durationMillis = end.time - start.time
+					}
+				}
+			} else {
+				//error
+				/*def statusMap = [backupResultId:rtn.backupResultId, executorIP:rtn.ipAddress, destinationPath:outputPath,
+								 backupSizeInMb:0, success:false, errorOutput:snapshotResults.error?.toString()?.encodeAsBase64()]
+				updateBackupStatus(backupResult.id, statusMap)*/
+				//error
+				rtn.data.backupResult.backupSetId = opts.backupSetId
+				rtn.data.backupResult.executorIpAddress = executionConfig.ipAddress
+				rtn.data.backupResult.resultPath = outputPath
+				rtn.data.backupResult.sizeInMb = 0l
+				rtn.data.backupResult.status = BackupResult.Status.FAILED
+				rtn.data.backupResult.errorOutput = snapshotResults.error?.toString().encodeAsBase64()
+				rtn.data.updates = true
+			}
+			rtn.success = true
+		} catch(e) {
+			log.error("executeBackup: ${e}", e)
+			rtn.msg = e.getMessage()
+			def error = "Failed to execute backup"
+			rtn.data.backupResult.backupSetId = executionConfig.backupResultId ?: BackupResultUtility.generateBackupResultSetId()
+			rtn.data.backupResult.executorIpAddress = executionConfig.ipAddress
+			rtn.data.backupResult.sizeInMb = 0l
+			rtn.data.backupResult.status = BackupResult.Status.FAILED
+			rtn.data.backupResult.errorOutput = error.encodeAsBase64()
+			rtn.data.updates = true
+		}
+		return rtn
 	}
 
 	/**
