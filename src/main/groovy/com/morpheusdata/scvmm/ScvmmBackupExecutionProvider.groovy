@@ -1,4 +1,4 @@
-package com.morpheus.scvmm
+package com.morpheusdata.scvmm
 
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
@@ -103,7 +103,44 @@ class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 	 */
 	@Override
 	ServiceResponse deleteBackupResult(BackupResult backupResult, Map opts) {
-		return ServiceResponse.success()
+		log.debug("Delete backup result {}", backupResult.id)
+
+		def rtn = [success: true]
+		try {
+			def config = backupResult.getConfigMap()
+			def cloudId = config.cloudId
+			def cloud
+			if (cloudId) {
+				cloud = morpheusContext.services.cloud.get(cloudId)
+			}
+			def serverId = backupResult.serverId
+			def server
+			if (serverId) {
+				server = morpheusContext.services.computeServer.get(serverId)
+			} else {
+				def container = morpheusContext.services.workload.get(backupResult.containerId)
+				server = container ? morpheusContext.services.computeServer.get(container.serverId) : null
+			}
+			def snapshotId = config.snapshotId
+			if (!cloud) {
+				cloud = server ? morpheusContext.services.cloud.get(server.cloud.id) : null
+			}
+			if (snapshotId && server && cloud) {
+				def node = provisionProvider.pickScvmmController(cloud)
+				opts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, node)
+				def result = apiService.deleteSnapshot(opts, server.externalId, snapshotId)
+				if (!result.success) {
+					log.debug "An error occurred removing the snapshot, server may already be deleted?... ${result}"
+					rtn.success = false
+				} else {
+					result = [success: true]
+				}
+			}
+		} catch (e) {
+			log.error("error in deleteBackupResult: {}", e, e)
+			rtn.success = false
+		}
+		return ServiceResponse.create(rtn)
 	}
 
 	/**

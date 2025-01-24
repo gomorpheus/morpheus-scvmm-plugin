@@ -1,4 +1,4 @@
-package com.morpheus.scvmm
+package com.morpheusdata.scvmm
 
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.data.DataQuery
@@ -59,8 +59,8 @@ class ScvmmApiService {
         if (!out.success) {
             throw new Exception("Error in getting Get-SCVirtualHardDisk")
         }
-        def vhdBlocks = out.data
-        if (vhdBlocks.size() == 0) {
+        def vhdBlocks = out.data ?: []
+        if (vhdBlocks?.size() == 0) {
             // Upload it (if needed)
             def match = findImage(opts, imageName)
             log.info("findImage: ${match}")
@@ -114,145 +114,130 @@ class ScvmmApiService {
 
             //these classes are not supposed to know our domain model or touch gorm - this needs to be out in the calling service
             ComputeServer server
-            ComputeServer.withNewSession {
-                opts.network = Network.get(opts.networkId)
-                opts.zone = ComputeZone.get(opts.zoneId)
-                loadControllerServer(opts)
+            opts.network = morpheusContext.services.network.get(opts.networkId)
+            opts.zone = morpheusContext.services.cloud.get(opts.zoneId)
+            loadControllerServer(opts)
 
-                def diskRoot = opts.diskRoot
-                def imageFolderName = opts.serverFolder
-                def diskFolder = "${diskRoot}\\${imageFolderName}"
-                if (opts.isSysprep) {
-                    loadControllerServer(opts)
-                    opts.unattendPath = importScript(opts.cloudConfigUser, diskFolder, imageFolderName, [fileName: 'Unattend.xml'] + opts)
-                }
+            def diskRoot = opts.diskRoot
+            def imageFolderName = opts.serverFolder
+            def diskFolder = "${diskRoot}\\${imageFolderName}"
+            if (opts.isSysprep) {
+                opts.unattendPath = importScript(opts.cloudConfigUser, diskFolder, imageFolderName, [fileName: 'Unattend.xml'] + opts)
+            }
+            createCommands = buildCreateServerCommands(opts)
 
-                createCommands = buildCreateServerCommands(opts)
-
-                if (createCommands.hardwareProfileName) {
-                    removeTemplateCommands << "\$HWProfile = Get-SCHardwareProfile -VMMServer localhost | where { \$_.Name -eq \"${createCommands.hardwareProfileName}\"} ; \$ignore = Remove-SCHardwareProfile -HardwareProfile \$HWProfile;"
-                }
-                if (createCommands.templateName) {
-                    removeTemplateCommands << "\$template = Get-SCVMTemplate -VMMServer localhost -Name \"${createCommands.templateName}\";  \$ignore = Remove-SCVMTemplate -VMTemplate \$template -RunAsynchronously;"
-                }
-
-                launchCommand = createCommands.launchCommand
-                log.info("launchCommand: ${launchCommand}")
-                // throw new Exception('blah')
-                createData = wrapExecuteCommand(generateCommandString(launchCommand), opts)
-                log.debug "run server: ${createData}"
-
-                if (removeTemplateCommands) {
-                    def command = removeTemplateCommands.join(';')
-                    command += "@()"
-                    wrapExecuteCommand(generateCommandString(command), opts)
-                }
-
-                if (createData.success != true) {
-                    if (createData.errorData?.contains('which includes generation 2')) {
-                        rtn.errorMsg = 'The virtual hard disk selected is not compatible with the template which include generation 2 virtual machine functionality.'
-                    } else if (createData.errorData?.contains('which includes generation 1')) {
-                        rtn.errorMsg = 'The virtual hard disk selected is not compatible with the template which include generation 1 virtual machine functionality.'
-                    }
-                    throw new Exception("Error in launching VM: ${createData}")
-                }
+            if (createCommands.hardwareProfileName) {
+                removeTemplateCommands << "\$HWProfile = Get-SCHardwareProfile -VMMServer localhost | where { \$_.Name -eq \"${createCommands.hardwareProfileName}\"} ; \$ignore = Remove-SCHardwareProfile -HardwareProfile \$HWProfile;"
+            }
+            if (createCommands.templateName) {
+                removeTemplateCommands << "\$template = Get-SCVMTemplate -VMMServer localhost -Name \"${createCommands.templateName}\";  \$ignore = Remove-SCVMTemplate -VMTemplate \$template -RunAsynchronously;"
             }
 
-            ComputeServer.withNewSession {
-                opts.network = Network.get(opts.networkId)
-                opts.zone = ComputeZone.get(opts.zoneId)
-                server = ComputeServer.get(opts.serverId)
-                log.info "Create results: ${createData}"
+            launchCommand = createCommands.launchCommand
+            log.info("launchCommand: ${launchCommand}")
+            createData = wrapExecuteCommand(generateCommandString(launchCommand), opts)
+            log.debug "run server: ${createData}"
 
-                def newServerExternalId = createData.data && createData.data.size() == 1 && createData.data[0].ObjectType?.toString() == '1' ? createData.data[0].ID : null
-                if (!newServerExternalId) {
-                    throw new Exception("Failed to create VM with command: ${launchCommand}: ${createData.errorData}")
-                }
-                opts.externalId = newServerExternalId
-                // Make sure we save the externalId ASAP
-                server.externalId = newServerExternalId
-                server.save(flush: true)
+            if (removeTemplateCommands) {
+                def command = removeTemplateCommands.join(';')
+                command += "@()"
+                wrapExecuteCommand(generateCommandString(command), opts)
             }
+
+            if (createData.success != true) {
+                if (createData.error?.contains('which includes generation 2')) {
+                    rtn.errorMsg = 'The virtual hard disk selected is not compatible with the template which include generation 2 virtual machine functionality.'
+                } else if (createData.error?.contains('which includes generation 1')) {
+                    rtn.errorMsg = 'The virtual hard disk selected is not compatible with the template which include generation 1 virtual machine functionality.'
+                }
+                throw new Exception("Error in launching VM: ${createData}")
+            }
+
+            server = morpheusContext.services.computeServer.get(opts.serverId)
+            log.info "Create results: ${createData}"
+
+            def newServerExternalId = createData.data && createData.data.size() == 1 && createData.data[0].ObjectType?.toString() == '1' ? createData.data[0].ID : null
+            if (!newServerExternalId) {
+                throw new Exception("Failed to create VM with command: ${launchCommand}: ${createData.error}")
+            }
+            opts.externalId = newServerExternalId
+            // Make sure we save the externalId ASAP
+            server.externalId = newServerExternalId
+            server = morpheusContext.services.computeServer.save(server)
+
             // Find the newly assigned VM information
             def serverCreated = checkServerCreated(opts, opts.externalId)
             log.debug "Servercreated: ${serverCreated}"
 
             if (serverCreated.success == true) {
-                ComputeServer.withNewSession {
-                    opts.network = Network.get(opts.networkId)
-                    opts.zone = ComputeZone.get(opts.zoneId)
-                    server = ComputeServer.get(opts.serverId)
-                    loadControllerServer(opts)
+                log.debug "opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}"
+                opts.additionalTemplateDisks?.each { diskConfig ->
+                    // Create the additional disks the user requests on the template
+                    createAndAttachDisk(opts, diskConfig.diskCounter, diskConfig.diskSize, '0', null, false)
+                }
+                log.debug "finished with adding additionalDisks: ${opts.additionalTemplateDisks}"
 
-                    log.debug "opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}"
-                    opts.additionalTemplateDisks?.each { diskConfig ->
-                        // Create the additional disks the user requests on the template
-                        createAndAttachDisk(opts, diskConfig.diskCounter, diskConfig.diskSize, '0', null, false)
+                // Special stuff for cloned VMs
+                if (opts.cloneVMId) {
+                    // Update the VolumeType for the root disk (SCVMM doesn't preserve the VolumeType :( )
+                    changeVolumeTypeForClonedBootDisk(opts, opts.cloneVMId, opts.externalId)
+                    // Need to re-create the ISO for the original cloned box and mount the ISO
+                    if (opts.cloneBaseOpts && opts.cloneBaseOpts.cloudInitIsoNeeded) {
+                        rtn.cloneBaseResults = [cloudInitIsoPath: importAndMountIso(opts.cloneBaseOpts.cloudConfigBytes, opts.cloneBaseOpts.diskFolder, opts.cloneBaseOpts.imageFolderName, opts.cloneBaseOpts.clonedScvmmOpts)]
                     }
-                    log.debug "finished with adding additionalDisks: ${opts.additionalTemplateDisks}"
-
-                    // Special stuff for cloned VMs
-                    if (opts.cloneVMId) {
-                        // Update the VolumeType for the root disk (SCVMM doesn't preserve the VolumeType :( )
-                        changeVolumeTypeForClonedBootDisk(opts, opts.cloneVMId, opts.externalId)
-                        // Need to re-create the ISO for the original cloned box and mount the ISO
-                        if (opts.cloneBaseOpts && opts.cloneBaseOpts.cloudInitIsoNeeded) {
-                            rtn.cloneBaseResults = [cloudInitIsoPath: importAndMountIso(opts.cloneBaseOpts.cloudConfigBytes, opts.cloneBaseOpts.diskFolder, opts.cloneBaseOpts.imageFolderName, opts.cloneBaseOpts.clonedScvmmOpts)]
-                        }
-                    }
-                    // Fetch the disks to create a mapping
-                    def disks = [osDisk: [externalId: ''], dataDisks: opts.dataDisks?.collect { [id: it.id] }, diskMetaData: [:]]
-                    def diskDrives = listVirtualDiskDrives(opts, opts.externalId)
-                    def bookDiskIndex = findBootDiskIndex(diskDrives)
-                    diskDrives.disks?.eachWithIndex { disk, diskIndex ->
-                        if (diskIndex == bookDiskIndex) {
-                            disks.osDisk.externalId = disk.ID
-                            disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
-                        } else {
-                            disks.dataDisks[diskIndex - 1].externalId = disk.ID
-
-                            disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, dataDisk: true, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
-                        }
-                    }
-                    //resize disk
-                    log.debug ".. about to resize disk ${opts.osDiskSize}"
-                    def diskRoot = opts.diskRoot
-                    def imageFolderName = opts.serverFolder
-                    def diskFolder = "${diskRoot}\\${imageFolderName}"
-                    if (opts.osDiskSize) {
-                        def osDiskVhdID = disks.diskMetaData[disks.osDisk?.externalId]?.VhdID
-                        resizeDisk(opts, osDiskVhdID, opts.osDiskSize)
-                    }
-
-                    // Resize the data disks if template
-                    if (opts.isTemplate && opts.templateId && opts.dataDisks) {
-                        disks.diskMetaData?.each { externalId, map ->
-                            def storageVolume = opts.dataDisks.find { it.externalId == externalId }
-                            if (storageVolume) {
-                                def diskVhdID = disks.diskMetaData[externalId]?.VhdID
-                                resizeDisk(opts, diskVhdID, storageVolume.maxStorage)
-                            }
-                        }
-                    }
-
-                    //cloud init
-                    if (opts.cloudConfigBytes && !opts.isSysprep) {
-                        createDVD(opts)
-                        cloudInitIsoPath = importAndMountIso(opts.cloudConfigBytes, diskFolder, imageFolderName, opts)
-                    }
-
-                    //start it
-                    log.info("Starting Server  ${opts.name}")
-                    startServer(opts, opts.externalId)
-                    //get details
-                    log.info("SCVMM Check for Server Ready ${opts.name}")
-                    def serverDetail = checkServerReady(opts, opts.externalId)
-                    if (serverDetail.success == true) {
-                        rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
-                        rtn.success = true
+                }
+                // Fetch the disks to create a mapping
+                def disks = [osDisk: [externalId: ''], dataDisks: opts.dataDisks?.collect { [id: it.id] }, diskMetaData: [:]]
+                def diskDrives = listVirtualDiskDrives(opts, opts.externalId)
+                def bookDiskIndex = findBootDiskIndex(diskDrives)
+                diskDrives.disks?.eachWithIndex { disk, diskIndex ->
+                    if (diskIndex == bookDiskIndex) {
+                        disks.osDisk.externalId = disk.ID
+                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
                     } else {
-                        rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
+                        disks.dataDisks[diskIndex - 1].externalId = disk.ID
+
+                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, dataDisk: true, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
                     }
+                }
+                //resize disk
+                log.debug ".. about to resize disk ${opts.osDiskSize}"
+                diskRoot = opts.diskRoot
+                imageFolderName = opts.serverFolder
+                diskFolder = "${diskRoot}\\${imageFolderName}"
+                if (opts.osDiskSize) {
+                    def osDiskVhdID = disks.diskMetaData[disks.osDisk?.externalId]?.VhdID
+                    resizeDisk(opts, osDiskVhdID, opts.osDiskSize)
+                }
+
+                // Resize the data disks if template
+                if (opts.isTemplate && opts.templateId && opts.dataDisks) {
+                    disks.diskMetaData?.each { externalId, map ->
+                        def storageVolume = opts.dataDisks.find { it.externalId == externalId }
+                        if (storageVolume) {
+                            def diskVhdID = disks.diskMetaData[externalId]?.VhdID
+                            resizeDisk(opts, diskVhdID, storageVolume.maxStorage)
+                        }
+                    }
+                }
+
+                //cloud init
+                if (opts.cloudConfigBytes && !opts.isSysprep) {
+                    createDVD(opts)
+                    cloudInitIsoPath = importAndMountIso(opts.cloudConfigBytes, diskFolder, imageFolderName, opts)
+                }
+
+                //start it
+                log.info("Starting Server  ${opts.name}")
+                startServer(opts, opts.externalId)
+                //get details
+                log.info("SCVMM Check for Server Ready ${opts.name}")
+                def serverDetail = checkServerReady(opts, opts.externalId)
+                if (serverDetail.success == true) {
+                    rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
+                    rtn.success = true
+                } else {
+                    rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
                 }
             }
 
@@ -1380,9 +1365,14 @@ For (\$i=0; \$i -le 63; \$i++) {
                     // There isn't a state on the VM to tell us it is created.. but, if the disk size matches
                     // the expected count.. we are good
                     log.debug "serverStatus: ${serverDetail.server?.Status}, opts.dataDisks: ${opts.dataDisks?.size()}, additionalTemplateDisks: ${opts.additionalTemplateDisks?.size()}"
-                    if (serverDetail.server?.Status != 'UnderCreation' &&
-                            serverDetail.server?.VirtualDiskDrives?.size() == 1 + ((opts.dataDisks?.size() ?: 0) - (opts.additionalTemplateDisks?.size() ?: 0))) {
+
+                    if (serverDetail.server?.Status == 'CreationFailed') {
                         // additionalTemplateDisks are created after VM creation
+                        rtn.success = false
+                        pending = false
+
+                    } else if (serverDetail.server?.Status != 'UnderCreation' &&
+                            serverDetail.server?.VirtualDiskDrives?.size() == 1 + ((opts.dataDisks?.size() ?: 0) - (opts.additionalTemplateDisks?.size() ?: 0))) {
                         rtn.success = true
                         rtn.server = serverDetail.server
                         pending = false
@@ -1391,9 +1381,6 @@ For (\$i=0; \$i -le 63; \$i++) {
                             // Discard saved state... can't modify it if so
                             discardSavedState(opts, vmId)
                         }
-                    } else if (serverDetail.server?.Status == 'CreationFailed') {
-                        rtn.success = false
-                        pending = false
                     }
                 }
                 attempts++
@@ -1474,51 +1461,47 @@ Status=\$job.Status.toString()
             def waitForIp = opts.waitForIp
             while (pending) {
                 sleep(1000l * 5l)
-                ComputeServer.withNewSession {
-                    log.debug "checkServerReady: ${vmId}"
-                    ComputeServer server = ComputeServer.get(serverId)
-                    opts.server = server
-                    // Refresh the VM in SCVMM (seems to be needed for it to get the IP for windows)
-                    refreshVM(opts, vmId)
-                    def serverDetail = getServerDetails(opts, vmId)
-                    if (serverDetail.success == true && serverDetail.server) {
-                        server.refresh()
-                        def ipAddress = serverDetail.server?.internalIp ?: server?.externalIp
-                        log.debug "ipAddress found: ${ipAddress}"
-                        if (ipAddress) {
-                            server.internalIp = ipAddress
-                        }
+                log.debug "checkServerReady: ${vmId}"
+                ComputeServer server = morpheusContext.services.computeServer.get(serverId)
+                opts.server = server
+                // Refresh the VM in SCVMM (seems to be needed for it to get the IP for windows)
+                refreshVM(opts, vmId)
+                def serverDetail = getServerDetails(opts, vmId)
+                if (serverDetail.success == true && serverDetail.server) {
+                    def ipAddress = serverDetail.server?.internalIp ?: server?.externalIp
+                    log.debug "ipAddress found: ${ipAddress}"
+                    if (ipAddress) {
+                        server.internalIp = ipAddress
+                    }
 
-                        if (waitForIp && !ipAddress) {
-                            // Keep waiting
+                    if (waitForIp && !ipAddress) {
+                        // Keep waiting
+                    } else {
+                        // Most likely, server gets its IP from cloud-init calling back to cloudconfigcontroller/ipaddress... wait for that to happen
+                        // Or... if the desire is to NOT install the agent, then we are not expecting an IP address
+                        if (serverDetail.server?.VirtualMachineState == 'Running') {
+                            rtn.success = true
+                            rtn.server = serverDetail.server
+                            rtn.server.ipAddress = ipAddress ?: server?.internalIp
+                            pending = false
+                        } else if (serverDetail.server?.Status == 'CreationFailed') {
+                            rtn.success = false
+                            rtn.server = serverDetail.server
+                            rtn.server.ipAddress = ipAddress ?: server?.internalIp
+                            pending = false
                         } else {
-                            // Most likely, server gets its IP from cloud-init calling back to cloudconfigcontroller/ipaddress... wait for that to happen
-                            // Or... if the desire is to NOT install the agent, then we are not expecting an IP address
-                            if (serverDetail.server?.VirtualMachineState == 'Running') {
+                            log.debug("check server loading server: ip: ${server.internalIp}")
+                            if (server.internalIp) {
                                 rtn.success = true
                                 rtn.server = serverDetail.server
-                                rtn.server.ipAddress = ipAddress ?: server?.internalIp
+                                rtn.server.ipAddress = ipAddress ?: server.internalIp
                                 pending = false
-                            } else if (serverDetail.server?.Status == 'CreationFailed') {
-                                rtn.success = false
-                                rtn.server = serverDetail.server
-                                rtn.server.ipAddress = ipAddress ?: server?.internalIp
-                                pending = false
-                            } else {
-                                server.refresh()
-                                log.debug("check server loading server: ip: ${server.internalIp}")
-                                if (server.internalIp) {
-                                    rtn.success = true
-                                    rtn.server = serverDetail.server
-                                    rtn.server.ipAddress = ipAddress ?: server.internalIp
-                                    pending = false
-                                }
                             }
                         }
-                    } else {
-                        if (serverDetail.error == 'VM_NOT_FOUND') {
-                            notFoundAttempts++
-                        }
+                    }
+                } else {
+                    if (serverDetail.error == 'VM_NOT_FOUND') {
+                        notFoundAttempts++
                     }
                 }
                 attempts++
@@ -1679,13 +1662,13 @@ foreach(\$share in \$shares) {
     def importScript(content, diskFolder, imageFolderName, opts) {
         log.debug "importScript: ${diskFolder}, ${imageFolderName}, ${opts}"
         def scriptPath
-        def importAction = [inline: true, action: 'rawfile', content: content.encodeAsBase64(), targetPath: "${diskFolder}\\${opts.fileName}".toString(), opts: [:]]
-        def importPromise = opts.scvmmProvisionService.commandService.sendAction(opts.hypervisor, importAction)
-        def importResult = importPromise.get(1000l * 60l * 3l)
-        if (!importResult.success) {
+        InputStream inputStream = new ByteArrayInputStream(opts.cloudConfigBytes)
+        def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "${opts.fileName}", "${diskFolder}\\${opts.fileName}", inputStream, opts.cloudConfigBytes?.size(), null, true)
+        log.debug ("importScript: fileResults.success: ${fileResults.success}")
+        if (!fileResults.success) {
             throw new Exception("Script Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
         }
-        def importResults = importPhysicalResource(opts, importAction.targetPath, imageFolderName, opts.fileName)
+        def importResults = importPhysicalResource(opts, "${diskFolder}\\${opts.fileName}".toString(), imageFolderName, opts.fileName)
         scriptPath = importResults.sharePath
         return scriptPath
     }
@@ -1734,9 +1717,14 @@ For (\$i=0; \$i -le 10; \$i++) {
         log.debug "importAndMountIso: ${diskFolder}, ${imageFolderName}, ${opts}"
         def cloudInitIsoPath
         def isoAction = [inline: true, action: 'rawfile', content: cloudConfigBytes.encodeAsBase64(), targetPath: "${diskFolder}\\config.iso".toString(), opts: [:]]
-        def isoPromise = opts.scvmmProvisionService.commandService.sendAction(opts.hypervisor, isoAction)
-        def isoUploadResult = isoPromise.get(1000l * 60l * 3l)
-        if (!isoUploadResult.success) {
+
+        InputStream inputStream = new ByteArrayInputStream(cloudConfigBytes)
+        def command = "\$ignore = mkdir \"${diskFolder}\""
+        def dirResults = wrapExecuteCommand(generateCommandString(command), opts)
+
+        def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "config.iso", "${diskFolder}\\config.iso", inputStream, cloudConfigBytes?.size())
+        log.debug ("importAndMountIso: fileResults?.success: ${fileResults?.success}")
+        if (!fileResults.success) {
             throw new Exception("ISO Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
         }
         def importResults = importPhysicalResource(opts, isoAction.targetPath, imageFolderName, 'config.iso')
@@ -1998,12 +1986,12 @@ For (\$i=0; \$i -le 10; \$i++) {
 
     def transferImage(opts, cloudFiles, imageName) {
         def rtn = [success: false, results: []]
-        CloudFile metadataFile = (CloudFile) cloudFiles?.findAll { cloudFile -> cloudFile.name == 'metadata.json' }
-        def vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf('.vhd') > -1 }
+        CloudFile metadataFile = (CloudFile) cloudFiles?.find { cloudFile -> cloudFile.name == 'metadata.json' }
+        List<CloudFile> vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf(".morpkg") == -1 && (cloudFile.name.indexOf('.vhd') > -1 || cloudFile.name.indexOf('.vhdx')) && cloudFile.name.endsWith("/") == false }
         log.debug("vhdFiles: ${vhdFiles}")
         def zoneRoot = opts.zoneRoot ?: defaultRoot
         def imageFolderName = formatImageFolder(imageName)
-        def fileList = []
+        List<Map> fileList = []
         def tgtFolder = "${zoneRoot}\\images\\${imageFolderName}"
         opts.targetImageFolder = tgtFolder
         def cachePath = opts.cachePath
@@ -2499,6 +2487,7 @@ For (\$i=0; \$i -le 10; \$i++) {
 
     def wrapExecuteCommand(String command, Map opts = [:]) {
         def out = executeCommand(command, opts)
+
         if (out.data) {
             def payload = out.data
             if (!out.data.startsWith('[')) {
@@ -2516,8 +2505,11 @@ For (\$i=0; \$i -le 10; \$i++) {
     }
 
     def loadControllerServer(opts) {
-        if (opts.controllerServerId && opts.scvmmProvisionService) {
+        /*if (opts.controllerServerId && opts.scvmmProvisionService) {
             opts.controllerServer = opts.scvmmProvisionService.loadControllerServer(opts.controllerServerId)
+        }*/
+        if (opts.controllerServerId) {
+            opts.controllerServer = morpheusContext.services.computeServer.get(opts.controllerServerId)
         }
     }
 
