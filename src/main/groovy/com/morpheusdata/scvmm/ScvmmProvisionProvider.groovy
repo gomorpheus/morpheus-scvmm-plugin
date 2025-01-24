@@ -11,8 +11,10 @@ import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.core.providers.ProvisionProvider
 import com.morpheusdata.core.providers.WorkloadProvisionProvider
 import com.morpheusdata.core.util.ComputeUtility
+import com.morpheusdata.core.util.MorpheusUtils
 import com.morpheusdata.model.*
 import com.morpheusdata.model.provisioning.WorkloadRequest
+import com.morpheusdata.request.ResizeRequest
 import com.morpheusdata.response.InitializeHypervisorResponse
 import com.morpheusdata.response.PrepareWorkloadResponse
 import com.morpheusdata.response.ProvisionResponse
@@ -20,9 +22,10 @@ import com.morpheusdata.response.ServiceResponse
 import groovy.util.logging.Slf4j
 
 @Slf4j
-class ScvmmProvisionProvider extends AbstractProvisionProvider implements WorkloadProvisionProvider, ProvisionProvider.HypervisorProvisionFacet {
+class ScvmmProvisionProvider extends AbstractProvisionProvider implements WorkloadProvisionProvider, ProvisionProvider.HypervisorProvisionFacet, WorkloadProvisionProvider.ResizeFacet, ProvisionProvider.BlockDeviceNameFacet {
 	public static final String PROVIDER_CODE = 'scvmm.provision'
 	public static final String PROVISION_TYPE_CODE = 'scvmm'
+	public static final diskNames = ['sda', 'sdb', 'sdc', 'sdd', 'sde', 'sdf', 'sdg', 'sdh', 'sdi', 'sdj', 'sdk', 'sdl']
 
 	protected MorpheusContext context
 	protected ScvmmPlugin plugin
@@ -1600,5 +1603,336 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		}
 		saveAndGetMorpheusServer(server, true)
 		return netInterface
+	}
+
+	/**
+	 * Request to scale the size of the Workload. Most likely, the implementation will follow that of resizeServer
+	 * as the Workload usually references a ComputeServer. It is up to implementations to create the volumes, set the memory, etc
+	 * on the underlying ComputeServer in the cloud environment. In addition, implementations of this method should
+	 * add, remove, and update the StorageVolumes, StorageControllers, ComputeServerInterface in the cloud environment with the requested attributes
+	 * and then save these attributes on the models in Morpheus. This requires adding, removing, and saving the various
+	 * models to the ComputeServer using the appropriate contexts. The ServicePlan, memory, cores, coresPerSocket, maxStorage values
+	 * defined on ResizeRequest will be set on the Workload and ComputeServer upon return of a successful ServiceResponse
+	 * @param instance to resize
+	 * @param workload to resize
+	 * @param resizeRequest the resize requested parameters
+	 * @param opts additional options
+	 * @return Response from API
+	 */
+	@Override
+	ServiceResponse resizeWorkload(Instance instance, Workload workload, ResizeRequest resizeRequest, Map opts) {
+		log.info("resizeWorkload calling resizeWorkloadAndServer")
+		log.info ("Ray :: resizeWorkload: instance: ${instance}")
+		log.info ("Ray :: resizeWorkload: workload?.id: ${workload?.id}")
+		log.info ("Ray :: resizeWorkload: resizeRequest: ${resizeRequest}")
+		log.info ("Ray :: resizeWorkload: opts: ${opts}")
+		return resizeWorkloadAndServer(workload, resizeRequest, opts)
+	}
+
+	private ServiceResponse resizeWorkloadAndServer(Workload workload, ResizeRequest resizeRequest, Map opts) {
+		log.debug("resizeWorkloadAndServer workload.id: ${workload?.id} - opts: ${opts}")
+
+		log.info ("Ray :: resizeWorkloadAndServer: opts: ${opts}")
+		ServiceResponse rtn = ServiceResponse.success()
+		ComputeServer computeServer = workload.server
+		log.info ("Ray :: resizeWorkloadAndServer: computeServer?.id: ${computeServer?.id}")
+		try {
+			log.info ("Ray :: resizeWorkloadAndServer: computeServer?.status: ${computeServer?.status}")
+			computeServer.status = 'resizing'
+			computeServer = saveAndGet(computeServer)
+			def vmId = computeServer.externalId
+			log.info ("Ray :: resizeWorkloadAndServer: vmId: ${vmId}")
+			def scvmmOpts = getAllScvmmOpts(workload)
+			log.info ("Ray :: resizeWorkloadAndServer: scvmmOpts: ${scvmmOpts}")
+
+			// Memory and core changes
+			def servicePlanOptions = opts.servicePlanOptions ?: [:]
+			log.info ("Ray :: resizeWorkloadAndServer: servicePlanOptions: ${servicePlanOptions}")
+			//def resizeConfig = getResizeConfig(workload, null, plan, opts, resizeRequest) // check: for plan
+			def resizeConfig = getResizeConfig(workload, null, workload.instance.plan, opts, resizeRequest)
+			log.info ("Ray :: resizeWorkloadAndServer: resizeConfig: ${resizeConfig}")
+			def requestedMemory = resizeConfig.requestedMemory
+			def requestedCores = resizeConfig.requestedCores
+			def neededMemory = resizeConfig.neededMemory
+			def neededCores = resizeConfig.neededCores
+			def minDynamicMemory = resizeConfig.minDynamicMemory
+			def maxDynamicMemory = resizeConfig.maxDynamicMemory
+
+			def stopRequired = !resizeConfig.hotResize
+			log.info ("Ray :: resizeWorkloadAndServer: stopRequired: ${stopRequired}")
+
+			def volumeSyncLists = resizeConfig.volumeSyncLists
+
+			// Only stop if needed
+			def stopResults
+			if (stopRequired) {
+				stopResults = stopWorkload(workload)//stopContainer(container)
+				log.info ("Ray :: resizeWorkloadAndServer: stopResults: ${stopResults}")
+			}
+			log.info ("Ray :: resizeWorkloadAndServer: stopResults?.success: ${stopResults?.success}")
+			if (!stopRequired || stopResults?.success == true) {
+				if (neededMemory != 0 || neededCores != 0 || minDynamicMemory || maxDynamicMemory) {
+					def resizeResults = apiService.updateServer(scvmmOpts, vmId, [maxMemory: requestedMemory, maxCores: requestedCores, minDynamicMemory: minDynamicMemory, maxDynamicMemory: maxDynamicMemory])
+					log.debug("resize results: ${resizeResults}")
+					log.info ("Ray :: resizeWorkloadAndServer: resizeResults: ${resizeResults}")
+					log.info ("Ray :: resizeWorkloadAndServer: resizeResults.success: ${resizeResults.success}")
+					if (resizeResults.success == true) {
+						workload.setConfigProperty('maxMemory', requestedMemory)
+						workload.maxMemory = requestedMemory.toLong()
+						workload.setConfigProperty('maxCores', (requestedCores ?: 1))
+						workload.maxCores = (requestedCores ?: 1).toLong()
+						//workload.plan = plan
+						//container.server.plan = plan
+						computeServer.maxCores = (requestedCores ?: 1).toLong()
+						computeServer.maxMemory = requestedMemory.toLong()
+						computeServer = saveAndGet(computeServer)
+						workload = context.services.workload.save(workload)
+						log.info ("Ray :: resizeWorkloadAndServer: saved!!!!")
+						//container.save(flush:true)
+						//container.server.save(flush:true)
+					} else {
+						rtn.error = resizeResults.error ?: 'Failed to resize container'
+						log.info ("Ray :: resizeWorkloadAndServer: rtn.error: ${rtn.error}")
+					}
+				}
+
+				// Handle all the volumes
+				def maxStorage = 0
+				log.info ("Ray :: resizeWorkloadAndServer: rtn.error1: ${rtn.error}")
+				log.info ("Ray :: resizeWorkloadAndServer: opts.volumes: ${opts.volumes}")
+				if (opts.volumes && !rtn.error) {
+					//maxStorage = volumeSyncLists.totalStorage // check:
+					def diskCounter = computeServer.volumes?.size()
+					log.info ("Ray :: resizeWorkloadAndServer: diskCounter: ${diskCounter}")
+					log.info ("Ray :: resizeWorkloadAndServer: resizeRequest.volumesUpdate?.size(): ${resizeRequest.volumesUpdate?.size()}")
+					resizeRequest.volumesUpdate?.each { volumeUpdate ->
+						log.info("resizing vm storage: count: ${diskCounter} ${volumeUpdate}")
+						StorageVolume existing = volumeUpdate.existingModel
+						log.info ("Ray :: resizeWorkloadAndServer: existing: ${existing}")
+						Map updateProps = volumeUpdate.updateProps
+						log.info ("Ray :: resizeWorkloadAndServer: updateProps: ${updateProps}")
+						if (existing) {
+							//existing disk - resize it
+							log.info ("Ray :: resizeWorkloadAndServer: updateProps.maxStorage: ${updateProps.maxStorage}")
+							log.info ("Ray :: resizeWorkloadAndServer: existing.maxStorage: ${existing.maxStorage}")
+							if (updateProps.maxStorage > existing.maxStorage) {
+								def volumeId = existing.externalId
+								log.info ("Ray :: resizeWorkloadAndServer: volumeId: ${volumeId}")
+								log.info ("Ray :: resizeWorkloadAndServer: updateProps.volume: ${updateProps.volume}")
+								log.info ("Ray :: resizeWorkloadAndServer: updateProps.volume.size: ${updateProps.volume.size}")
+								def diskSize = ComputeUtility.parseGigabytesToBytes(updateProps.volume.size?.toLong())
+								log.info ("Ray :: resizeWorkloadAndServer: diskSize: ${diskSize}")
+								def resizeResults = apiService.resizeDisk(scvmmOpts, volumeId, diskSize)
+								log.info ("Ray :: resizeWorkloadAndServer: resizeResults.success: ${resizeResults.success}")
+								if (resizeResults.success == true) {
+									def existingVolume = context.services.storageVolume.get(existing.id)
+									log.info ("Ray :: resizeWorkloadAndServer: existingVolume: ${existingVolume}")
+									existingVolume.maxStorage = diskSize
+									context.services.storageVolume.save(existingVolume)
+								} else {
+									log.error "Error in resizing volume: ${resizeResults}"
+									rtn.error = resizeResults.error ?: "Error in resizing volume"
+									log.info ("Ray :: resizeWorkloadAndServer: rtn.error2: ${rtn.error}")
+								}
+							}
+						}
+					}
+					// new disk add it
+					log.info ("Ray :: resizeWorkloadAndServer: resizeRequest.volumesAdd: ${resizeRequest.volumesAdd}")
+					log.info ("Ray :: resizeWorkloadAndServer: resizeRequest.volumesAdd?.size(): ${resizeRequest.volumesAdd?.size()}")
+					resizeRequest.volumesAdd.each { volumeAdd ->
+						log.info ("Ray :: resizeWorkloadAndServer: volumeAdd: ${volumeAdd}")
+						log.info ("Ray :: resizeWorkloadAndServer: volumeAdd.size: ${volumeAdd.size}")
+						def diskSize = ComputeUtility.parseGigabytesToBytes(volumeAdd.size?.toLong())
+						log.info ("Ray :: resizeWorkloadAndServer: diskSize: ${diskSize}")
+						def busNumber = '0'
+						log.info ("Ray :: resizeWorkloadAndServer: volumeAdd?.datastoreId: ${volumeAdd?.datastoreId}")
+						def volumePath = getVolumePathForDatastore(context.services.cloud.datastore.get(volumeAdd?.datastoreId))
+						log.info ("Ray :: resizeWorkloadAndServer: volumePath: ${volumePath}")
+						def diskResults = apiService.createAndAttachDisk(scvmmOpts, diskCounter, diskSize, busNumber, volumePath, true)
+						log.info ("Ray :: resizeWorkloadAndServer: diskResults.success: ${diskResults.success}")
+						log.info("create disk: ${diskResults.success}")
+						if (diskResults.success == true) {
+							def newVolume = buildStorageVolume(computeServer, volumeAdd, diskCounter)
+							log.info ("Ray :: resizeWorkloadAndServer: newVolume: ${newVolume}")
+							//newVolume.save(flush: true)
+							//def newVolumeId = newVolume.id
+							//def serverId = container.server.id
+							//container.server.discard()
+							//ComputeServer.withNewSession {
+							//newVolume = StorageVolume.get(newVolumeId)
+							//def containerServer = ComputeServer.get(serverId)
+							//containerServer.addToVolumes(newVolume)
+							if (volumePath) {
+								newVolume.volumePath = volumePath
+							}
+							newVolume.maxStorage = volumeAdd.size.toInteger() * ComputeUtility.ONE_GIGABYTE
+							newVolume.externalId = diskResults.disk.VhdID
+
+							def updatedDatastore = loadDatastoreForVolume(computeServer.cloud, diskResults.disk.HostVolumeId, diskResults.disk.FileShareId, diskResults.disk.PartitionUniqueId) ?: null
+							if (updatedDatastore && newVolume.datastore != updatedDatastore) {
+								newVolume.datastore = updatedDatastore
+							}
+							//newVolume.save(flush: true)
+							context.async.storageVolume.create([newVolume], computeServer).blockingGet()
+							computeServer = getMorpheusServer(computeServer.id)
+							diskCounter++
+							log.info ("Ray :: resizeWorkloadAndServer: diskCounter: ${diskCounter}")
+							//containerServer.save(flush: true)
+							//}
+						} else {
+							log.error "Error in creating the volume: ${diskResults}"
+							rtn.error = "Error in creating the volume"
+							log.info ("Ray :: resizeWorkloadAndServer: rtn.error4: ${rtn.error}")
+						}
+					}
+
+
+					// Delete any removed volumes
+					log.info ("Ray :: resizeWorkloadAndServer: resizeRequest.volumesDelete: ${resizeRequest.volumesDelete}")
+					log.info ("Ray :: resizeWorkloadAndServer: resizeRequest.volumesDelete?.size(): ${resizeRequest.volumesDelete?.size()}")
+					resizeRequest.volumesDelete.each { volume ->
+						log.info "Deleting volume : ${volume.externalId}"
+						log.info ("Ray :: resizeWorkloadAndServer: volume.externalId: ${volume.externalId}")
+						def detachResults = apiService.removeDisk(scvmmOpts, volume.externalId)
+						log.info ("Ray :: resizeWorkloadAndServer: detachResults.success: ${detachResults.success}")
+						if (detachResults.success == true) {
+							//volume.discard()
+							//container.server.discard()
+							//ComputeServer.withNewSession {
+							//def storageVolume = StorageVolume.get(storageVolumeId)
+							//def containerServer = ComputeServer.get(serverId)
+							//containerServer.removeFromVolumes(storageVolume)
+							//storageVolume.delete(flush: true)
+							//containerServer.save(flush: true)
+							//}
+							context.async.storageVolume.remove([volume], computeServer, true).blockingGet()
+							computeServer = getMorpheusServer(computeServer.id)
+							log.info ("Ray :: resizeWorkloadAndServer: detachResults.success1: ${detachResults.success}")
+						}
+					}
+				}
+
+				//Container.withNewSession {
+				//def c = Container.get(container.id)
+				log.info ("Ray :: resizeWorkloadAndServer: rtn.error5: ${rtn.error}")
+				log.info ("Ray :: resizeWorkloadAndServer: maxStorage: ${maxStorage}")
+				if (!rtn.error && maxStorage)
+					workload.maxStorage = maxStorage
+				//c.server.save(flush: true)
+				computeServer = getMorpheusServer(computeServer.id)
+				log.info ("Ray :: resizeWorkloadAndServer: stopRequired11: ${stopRequired}")
+				/*if (stopRequired) {
+					workload = context.services.workload.get(workload.id)
+					log.info ("Ray :: resizeWorkloadAndServer: workload.server?.cloud?.id: ${workload.server?.cloud?.id}")
+					startWorkload(workload)
+					log.info ("Ray :: resizeWorkloadAndServer: workload.status: ${workload.status}")
+					*//*if (workload.status == Workload.Status.running) {
+						//def tmpInstance = Instance.get(instance.id)
+						//instanceTaskService.runStartupTasks(tmpInstance, opts.userId)
+					}*//*
+				}*/
+				//}
+
+				//rtn.success = !rtn.error
+				rtn.success = true
+			} else {
+				rtn.success = false
+				rtn.error = 'Server never stopped so resize could not be performed'
+			}
+
+			computeServer.status = 'provisioned'
+			computeServer = saveAndGet(computeServer)
+			rtn.success = true
+		} catch (e) {
+			log.error("Unable to resize workload: ${e.message}", e)
+			computeServer.status = 'provisioned'
+
+			computeServer.statusMessage = "Unable to resize container: ${e.message}"
+			computeServer = saveAndGet(server)
+			rtn.success = false
+			rtn.setError("${e}")
+		}
+		log.info ("Ray :: resizeWorkloadAndServer: rtn: ${rtn}")
+		return rtn
+	}
+
+	private getResizeConfig(Workload workload=null, ComputeServer server=null, ServicePlan plan, Map opts = [:], ResizeRequest resizeRequest) {
+		def rtn = [
+				success:true, allowed:true, hotResize:true, volumeSyncLists: null, requestedMemory: null,
+				requestedCores: null, neededMemory: null, neededCores: null, minDynamicMemory: null, maxDynamicMemory: null
+		]
+
+		try {
+			// Memory and core changes
+			def servicePlanOptions = opts.servicePlanOptions ?: [:]
+			log.info ("Ray :: getResizeConfig: servicePlanOptions: ${servicePlanOptions}")
+			rtn.requestedMemory = resizeRequest.maxMemory
+			log.info ("Ray :: getResizeConfig: rtn.requestedMemory: ${rtn.requestedMemory}")
+			rtn.requestedCores = resizeRequest?.maxCores
+			log.info ("Ray :: getResizeConfig: rtn.requestedCores: ${rtn.requestedCores}")
+			def currentMemory = server?.maxMemory ?: workload?.server?.maxMemory ?: workload?.maxMemory ?: workload?.getConfigProperty('maxMemory')?.toLong()
+			log.info ("Ray :: getResizeConfig: currentMemory: ${currentMemory}")
+			def currentCores = server?.maxCores ?: workload?.maxCores ?: 1
+			log.info ("Ray :: getResizeConfig: currentCores: ${currentCores}")
+			rtn.neededMemory = rtn.requestedMemory - currentMemory
+			log.info ("Ray :: getResizeConfig: rtn.neededMemory: ${rtn.neededMemory}")
+			rtn.neededCores = (rtn.requestedCores ?: 1) - (currentCores ?: 1)
+			log.info ("Ray :: getResizeConfig: rtn.neededCores: ${rtn.neededCores}")
+			setDynamicMemory(rtn, plan)
+
+			rtn.hotResize = (server ? server.hotResize != false : workload?.server?.hotResize != false) || (!rtn.neededMemory && !rtn.neededCores)
+
+			log.info ("Ray :: getResizeConfig: rtn.hotResize: ${rtn.hotResize}")
+			// Disk changes.. see if stop is required
+			log.info ("Ray :: getResizeConfig: opts.volumes: ${opts.volumes}")
+			if (opts.volumes) {
+				resizeRequest.volumesUpdate?.each { volumeUpdate ->
+					if (volumeUpdate.existingModel) {
+						//existing disk - resize it
+						log.info ("Ray :: getResizeConfig: volumeUpdate.updateProps.maxStorage: ${volumeUpdate.updateProps.maxStorage}")
+						log.info ("Ray :: getResizeConfig: volumeUpdate.existingModel.maxStorage: ${volumeUpdate.existingModel.maxStorage}")
+						if (volumeUpdate.updateProps.maxStorage > volumeUpdate.existingModel.maxStorage) {
+							if (volumeUpdate.existingModel.rootVolume) {
+								rtn.hotResize = false
+							}
+						}
+					}
+				}
+			}
+		} catch(e) {
+			log.error("getResizeConfig error - ${e}", e)
+		}
+		log.info ("Ray :: getResizeConfig: rtn: ${rtn}")
+		return rtn
+	}
+
+	def buildStorageVolume(computeServer, volumeAdd, newCounter) {
+		def newVolume = new StorageVolume(
+				refType: 'ComputeZone',
+				refId: computeServer.cloud.id,
+				regionCode: computeServer.region?.regionCode,
+				account: computeServer.account,
+				maxStorage: volumeAdd.maxStorage?.toLong(),
+				maxIOPS: volumeAdd.maxIOPS?.toInteger(),
+				//internalId 		: addDiskResults.volume?.uuid,
+				//deviceName		: addDiskResults.volume?.deviceName,
+				name: volumeAdd.name,
+				displayOrder: newCounter,
+				status: 'provisioned',
+				//unitNumber		: addDiskResults.volume?.deviceIndex?.toString(),
+				deviceDisplayName: getDiskDisplayName(newCounter)
+		)
+		return newVolume
+	}
+
+	/**
+	 * Returns a String array of block device names i.e. (['vda','vdb','vdc']) in the order
+	 * of the disk index.
+	 * @return the String array
+	 */
+	@Override
+	String[] getDiskNameList() {
+		return diskNames
 	}
 }
