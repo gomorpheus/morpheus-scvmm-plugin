@@ -42,26 +42,31 @@ class ScvmmApiService {
     }
 
     def insertContainerImage(opts) {
+        log.info("RAZI :: insertContainerImage: opts: ${opts}")
         log.debug "insertContainerImage: ${opts}"
         def rtn = [success: false, imageExists: false]
 //		rtn.success = true
 //		rtn.imageId = '41266f2e-062c-4356-9eb0-b3b0e64c1e15'
 //		return rtn
         def image = opts.image
+        log.info("RAZI :: insertContainerImage: image: ${image}")
         def imageName = image.name
+        log.info("RAZI :: insertContainerImage: imageName: ${imageName}")
         def imageType = image.imageType
+        log.info("RAZI :: insertContainerImage: imageType: ${imageType}")
         def imageFolderName = formatImageFolder(imageName)
-        log.info("RAZI :: insertContainerImage >> imageFolderName: ${imageFolderName}")
+        log.info("RAZI :: insertContainerImage: imageFolderName: ${imageFolderName}")
         // First... see if it is already uploaded to the share
         def rootSharePath = opts.rootSharePath ?: getRootSharePath(opts)
-        log.info("RAZI :: insertContainerImage >> rootSharePath: ${rootSharePath}")
+        log.info("RAZI :: insertContainerImage: rootSharePath: ${rootSharePath}")
         def tgtFolder = "${rootSharePath}\\images\\$imageFolderName"
-        log.info("RAZI :: insertContainerImage >> tgtFolder: ${tgtFolder}")
+        log.info("RAZI :: insertContainerImage: tgtFolder: ${tgtFolder}")
         def tgtFullPath = "${tgtFolder}\\$imageName.$imageType"
+        log.info("RAZI :: insertContainerImage: tgtFullPath: ${tgtFullPath}")
         def out = wrapExecuteCommand(generateCommandString("Get-SCVirtualHardDisk -VMMServer localhost | where {\$_.SharePath -like \"${tgtFolder}\\*\"} | Select ID"), opts)
+
         log.info("RAZI :: insertContainerImage >> out.success1: ${out.success}")
         log.info("RAZI :: insertContainerImage >> out.data: ${out.data}")
-
         if (!out.success) {
             throw new Exception("Error in getting Get-SCVirtualHardDisk")
         }
@@ -71,54 +76,73 @@ class ScvmmApiService {
         if (vhdBlocks.size() == 0) {
             // Upload it (if needed)
             def match = findImage(opts, imageName)
-            log.info("RAZI :: insertContainerImage >> match: ${match}")
-            log.info("RAZI :: insertContainerImage >> match.imageExists: ${match.imageExists}")
-//            log.info("findImage: ${match}")
+            log.info("RAZI :: insertContainerImage: match: ${match}")
+            log.info("findImage: ${match}")
+            log.info("RAZI :: insertContainerImage: match.imageExists: ${match.imageExists}")
             if (match.imageExists == false) {
                 //transfer it to host
+                log.info("RAZI :: insertContainerImage: calling transferImage")
+                log.info("RAZI :: insertContainerImage: opts: ${opts}")
+                log.info("RAZI :: insertContainerImage: image.cloudFiles?.size(): ${image.cloudFiles?.size()}")
+                log.info("RAZI :: insertContainerImage: imageName: ${imageName}")
                 def transferResults = transferImage(opts, image.cloudFiles, imageName)
-                log.info("RAZI :: insertContainerImage >> transferResults.success: ${transferResults.success}")
+                log.info("RAZI :: insertContainerImage: transferResults: ${transferResults}")
+                log.info("RAZI :: insertContainerImage: transferResults.success: ${transferResults.success}")
                 log.debug "transferImage: ${transferResults}"
                 if (transferResults.success == true) {
                     rtn.success = true
                 } else {
                     rtn.msg = 'Error transferring image'
                 }
+                log.info("RAZI :: insertContainerImage: rtn: ${rtn}")
             } else {
                 rtn.success = true
             }
+            log.info("RAZI :: insertContainerImage: rtn1: ${rtn}")
 
             // Import it as a physical resource
-            log.info("RAZI :: insertContainerImage >> rtn.success: ${rtn.success}")
             if (rtn.success) {
+                log.info("RAZI :: insertContainerImage: opts2: ${opts}")
+                log.info("RAZI :: insertContainerImage: imageName3: ${imageName}")
                 def sourcePath = findImage(opts, imageName)?.imageName
-                log.info("RAZI :: insertContainerImage >> sourcePath: ${sourcePath}")
+                log.info("RAZI :: insertContainerImage: sourcePath: ${sourcePath}")
 
                 def commands = []
                 commands << "\$ignore = Import-SCLibraryPhysicalResource -SourcePath \"$sourcePath\" -SharePath \"$tgtFolder\" -OverwriteExistingFiles -VMMServer localhost"
-//                commands << "Import-SCLibraryPhysicalResource -SourcePath \"$sourcePath\" -SharePath \"$tgtFolder\" -OverwriteExistingFiles -VMMServer localhost"
                 commands << "Get-SCVirtualHardDisk | where {\$_.SharePath -like \"${tgtFolder}\\*\"} | Select ID"
                 log.info("RAZI :: insertContainerImage >> commands: ${generateCommandString(commands.join(";"))}")
                 out = wrapExecuteCommand(generateCommandString(commands.join(";")), opts)
                 log.info("RAZI :: insertContainerImage >> out.success2: ${out.success}")
                 log.info("RAZI :: insertContainerImage >> out.data1: ${out.data}")
                 if (!out.success) {
+                    log.info("RAZI :: insertContainerImage: out.data: inside false")
                     throw new Exception("Error in importing physical resource")
                 } else {
+                    log.info("RAZI :: insertContainerImage: out.data: inside true")
                     // Delete it from the temp directory
+                    log.info("RAZI :: insertContainerImage: calling deleteImage")
+                    log.info("RAZI :: insertContainerImage: imageName: ${imageName}")
                     deleteImage(opts, imageName)
                 }
+                log.info("RAZI :: insertContainerImage: out.data[0]: ${out.data[0]}")
+                log.info("RAZI :: insertContainerImage: out.data[0].ID: ${out.data[0].ID}")
                 rtn.imageId = out.data[0].ID
+                log.info("RAZI :: insertContainerImage: rtn.imageId: ${rtn.imageId}")
             }
         } else {
             rtn.success = true
+            log.info("RAZI :: insertContainerImage: vhdBlocks: ${vhdBlocks}")
+            log.info("RAZI :: insertContainerImage: vhdBlocks.first().ID: ${vhdBlocks.first().ID}")
             rtn.imageId = vhdBlocks.first().ID
+            log.info("RAZI :: insertContainerImage: rtn.imageId2: ${rtn.imageId}")
         }
 
+        log.info("RAZI :: insertContainerImage: rtn3: ${rtn}")
         return rtn
     }
 
     def createServer(opts) {
+        log.info("RAZI :: createServer: opts: ${opts}")
         log.debug("createServer: ${opts}")
 
         def rtn = [success: false]
@@ -131,57 +155,58 @@ class ScvmmApiService {
 
             //these classes are not supposed to know our domain model or touch gorm - this needs to be out in the calling service
             ComputeServer server
-//            ComputeServer.withNewSession {
-//                opts.network = Network.get(opts.networkId)
-//                opts.zone = ComputeZone.get(opts.zoneId)
-            log.info("RAZI :: createServer >> opts: ${opts}")
-            log.info("RAZI :: createServer >> opts.networkId: ${opts.networkId}")
-            log.info("RAZI :: createServer >> opts.zoneId: ${opts.zoneId}")
-            opts.network = morpheusContext.services.cloud.network.get(opts.networkId)
-            opts.cloud = morpheusContext.services.cloud.get(opts.zoneId)
-            log.info("RAZI :: createServer >> opts.controllerServerId: ${opts.controllerServerId}")
+
+            //ComputeServer.withNewSession {
+            opts.network = morpheusContext.services.network.get(opts.networkId)
+            log.info("RAZI :: createServer: opts.network: ${opts.network}")
+            opts.zone = morpheusContext.services.cloud.get(opts.zoneId)
+            log.info("RAZI :: createServer: opts.zone: ${opts.zone}")
             loadControllerServer(opts)
+            log.info("RAZI :: createServer: opts1: ${opts}")
 
             def diskRoot = opts.diskRoot
-            log.info("RAZI :: createServer >> diskRoot: ${diskRoot}")
+            log.info("RAZI :: createServer: diskRoot: ${diskRoot}")
             def imageFolderName = opts.serverFolder
-            log.info("RAZI :: createServer >> imageFolderName: ${imageFolderName}")
+            log.info("RAZI :: createServer: imageFolderName: ${imageFolderName}")
             def diskFolder = "${diskRoot}\\${imageFolderName}"
-            log.info("RAZI :: createServer >> diskFolder: ${diskFolder}")
-            log.info("RAZI :: createServer >> opts.isSysprep1: ${opts.isSysprep}")
+            log.info("RAZI :: createServer: diskFolder: ${diskFolder}")
+            log.info("RAZI :: createServer: opts.isSysprep: ${opts.isSysprep}")
             if (opts.isSysprep) {
-                loadControllerServer(opts)
+                //loadControllerServer(opts)
                 opts.unattendPath = importScript(opts.cloudConfigUser, diskFolder, imageFolderName, [fileName: 'Unattend.xml'] + opts)
+                log.info("RAZI :: createServer: opts.unattendPath: ${opts.unattendPath}")
             }
 
             createCommands = buildCreateServerCommands(opts)
-            log.info("RAZI :: createServer >> createCommands.hardwareProfileName: ${createCommands.hardwareProfileName}")
+            log.info("RAZI :: createServer: createCommands: ${createCommands}")
 
+            log.info("RAZI :: createServer: createCommands.hardwareProfileName: ${createCommands.hardwareProfileName}")
             if (createCommands.hardwareProfileName) {
                 removeTemplateCommands << "\$HWProfile = Get-SCHardwareProfile -VMMServer localhost | where { \$_.Name -eq \"${createCommands.hardwareProfileName}\"} ; \$ignore = Remove-SCHardwareProfile -HardwareProfile \$HWProfile;"
             }
-            log.info("RAZI :: createServer >> createCommands.templateName: ${createCommands.templateName}")
+            log.info("RAZI :: createServer: createCommands.templateName: ${createCommands.templateName}")
             if (createCommands.templateName) {
                 removeTemplateCommands << "\$template = Get-SCVMTemplate -VMMServer localhost -Name \"${createCommands.templateName}\";  \$ignore = Remove-SCVMTemplate -VMTemplate \$template -RunAsynchronously;"
             }
 
             launchCommand = createCommands.launchCommand
+            log.info("RAZI :: createServer: launchCommand: ${launchCommand}")
 //                log.info("launchCommand: ${launchCommand}")
-            log.info("RAZI :: createServer >> launchCommand: ${launchCommand}")
             // throw new Exception('blah')
             createData = wrapExecuteCommand(generateCommandString(launchCommand), opts)
-//            log.debug "run server: ${createData}"
+            log.info("RAZI :: createServer: createData: ${createData}")
+            log.debug "run server: ${createData}"
 
-            log.info("RAZI :: createServer >> removeTemplateCommands: ${removeTemplateCommands}")
+            log.info("RAZI :: createServer: removeTemplateCommands: ${removeTemplateCommands}")
             if (removeTemplateCommands) {
                 def command = removeTemplateCommands.join(';')
                 command += "@()"
                 wrapExecuteCommand(generateCommandString(command), opts)
             }
 
-            log.info("RAZI :: createServer >> createData.success: ${createData.success}")
-            log.info("RAZI :: createServer >> createData.data: ${createData.data}")
+            log.info("RAZI :: createServer: createData.success: ${createData.success}")
             if (createData.success != true) {
+                log.info("RAZI :: createServer: createData.error: ${createData.error}")
                 if (createData.error?.contains('which includes generation 2')) {
                     rtn.errorMsg = 'The virtual hard disk selected is not compatible with the template which include generation 2 virtual machine functionality.'
                 } else if (createData.error?.contains('which includes generation 1')) {
@@ -189,49 +214,64 @@ class ScvmmApiService {
                 }
                 throw new Exception("Error in launching VM: ${createData}")
             }
+            //}
 
-//                opts.network = Network.get(opts.networkId)
-//                opts.zone = ComputeZone.get(opts.zoneId)
-//                server = ComputeServer.get(opts.serverId)
-            log.info("RAZI :: createServer >> opts.serverId: ${opts.serverId}")
-            server = morpheusContext.services.computeServer.get(opts.serverId)
-//                log.info "Create results: ${createData}"
+            //ComputeServer.withNewSession {
+            //opts.network = Network.get(opts.networkId)
+            //opts.zone = ComputeZone.get(opts.zoneId)
+            log.info("RAZI :: createServer: opts.serverId: ${opts.serverId}")
+            server = morpheusContext.services.computeServer.get(opts.serverId)//ComputeServer.get(opts.serverId)
+            log.info("RAZI :: createServer: server?.id: ${server?.id}")
+            log.info "Create results: ${createData}"
+
+            log.info("RAZI :: createServer: createData.data: ${createData.data}")
+            log.info("RAZI :: createServer: createData.data.size(): ${createData.data?.size()}")
+            if (createData.data.size() == 1) {
+                log.info("RAZI :: createServer: createData.data[0]: ${createData.data[0]}")
+                log.info("RAZI :: createServer: createData.data[0].ObjectType: ${createData.data[0].ObjectType}")
+                log.info("RAZI :: createServer: createData.data[0].ID: ${createData.data[0].ID}")
+            }
+
 
             def newServerExternalId = createData.data && createData.data.size() == 1 && createData.data[0].ObjectType?.toString() == '1' ? createData.data[0].ID : null
-            log.info("RAZI :: createServer >> newServerExternalId: ${newServerExternalId}")
+            log.info("RAZI :: createServer: newServerExternalId: ${newServerExternalId}")
             if (!newServerExternalId) {
                 throw new Exception("Failed to create VM with command: ${launchCommand}: ${createData.error}")
             }
             opts.externalId = newServerExternalId
             // Make sure we save the externalId ASAP
             server.externalId = newServerExternalId
-//                server.save(flush: true)
-            morpheusContext.services.computeServer.save(server)
-//            }
+            server = morpheusContext.services.computeServer.save(server)
+            //server.save(flush: true)
+            //}
             // Find the newly assigned VM information
+            log.info("RAZI :: createServer: opts222: ${opts}")
             def serverCreated = checkServerCreated(opts, opts.externalId)
-            log.info("RAZI :: createServer >> serverCreated: ${serverCreated}")
             log.debug "Servercreated: ${serverCreated}"
+            log.info("RAZI :: createServer: serverCreated: ${serverCreated}")
+            log.info("RAZI :: createServer: serverCreated.success: ${serverCreated.success}")
 
             if (serverCreated.success == true) {
-//                ComputeServer.withNewSession {
-//                    opts.network = Network.get(opts.networkId)
-//                    opts.zone = ComputeZone.get(opts.zoneId)
-//                    server = ComputeServer.get(opts.serverId)
-                loadControllerServer(opts)
+                //ComputeServer.withNewSession {
+                //opts.network = Network.get(opts.networkId)
+                //opts.zone = ComputeZone.get(opts.zoneId)
+                //server = ComputeServer.get(opts.serverId)
+                //loadControllerServer(opts)
 
                 log.debug "opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}"
-                log.info("RAZI :: createServer >> opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}")
+                log.info("RAZI :: createServer: opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}")
                 opts.additionalTemplateDisks?.each { diskConfig ->
+                    log.info("RAZI :: createServer: diskConfig: ${diskConfig}")
                     // Create the additional disks the user requests on the template
-                    log.info("RAZI :: createServer >> diskConfig.diskCounter: ${diskConfig.diskCounter}")
-                    log.info("RAZI :: createServer >> diskConfig.diskSize: ${diskConfig.diskSize}")
+                    log.info("RAZI :: createServer: opts1111: ${opts}")
+                    log.info("RAZI :: createServer: diskConfig.diskCounter: ${diskConfig.diskCounter}")
+                    log.info("RAZI :: createServer: diskConfig.diskSize: ${diskConfig.diskSize}")
                     createAndAttachDisk(opts, diskConfig.diskCounter, diskConfig.diskSize, '0', null, false)
                 }
                 log.debug "finished with adding additionalDisks: ${opts.additionalTemplateDisks}"
 
                 // Special stuff for cloned VMs
-                log.info("RAZI :: createServer >> opts.cloneVMId: ${opts.cloneVMId}")
+                log.info("RAZI :: createServer: opts.cloneVMId: ${opts.cloneVMId}")
                 if (opts.cloneVMId) {
                     // Update the VolumeType for the root disk (SCVMM doesn't preserve the VolumeType :( )
                     changeVolumeTypeForClonedBootDisk(opts, opts.cloneVMId, opts.externalId)
@@ -242,9 +282,14 @@ class ScvmmApiService {
                 }
                 // Fetch the disks to create a mapping
                 def disks = [osDisk: [externalId: ''], dataDisks: opts.dataDisks?.collect { [id: it.id] }, diskMetaData: [:]]
+                log.info("RAZI :: createServer: disks: ${disks}")
                 def diskDrives = listVirtualDiskDrives(opts, opts.externalId)
+                log.info("RAZI :: createServer: diskDrives: ${diskDrives}")
                 def bookDiskIndex = findBootDiskIndex(diskDrives)
+                log.info("RAZI :: createServer: bookDiskIndex: ${bookDiskIndex}")
+                log.info("RAZI :: createServer: diskDrives.disks: ${diskDrives.disks}")
                 diskDrives.disks?.eachWithIndex { disk, diskIndex ->
+                    log.info("RAZI :: createServer: disk: ${disk}")
                     if (diskIndex == bookDiskIndex) {
                         disks.osDisk.externalId = disk.ID
                         disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
@@ -253,66 +298,95 @@ class ScvmmApiService {
 
                         disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, dataDisk: true, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
                     }
-                }
-                //resize disk
-                log.debug ".. about to resize disk ${opts.osDiskSize}"
-//                    def diskRoot = opts.diskRoot
-//                    def imageFolderName = opts.serverFolder
-//                    def diskFolder = "${diskRoot}\\${imageFolderName}"
-                log.info("RAZI :: createServer >> opts.osDiskSize: ${opts.osDiskSize}")
-                if (opts.osDiskSize) {
-                    def osDiskVhdID = disks.diskMetaData[disks.osDisk?.externalId]?.VhdID
-                    resizeDisk(opts, osDiskVhdID, opts.osDiskSize)
-                }
 
-                // Resize the data disks if template
-                log.info("RAZI :: createServer >> opts.isTemplate: ${opts.isTemplate}")
-                log.info("RAZI :: createServer >> opts.templateId: ${opts.templateId}")
-                log.info("RAZI :: createServer >> opts.dataDisks: ${opts.dataDisks}")
-                if (opts.isTemplate && opts.templateId && opts.dataDisks) {
-                    log.info("RAZI :: createServer >> disks.diskMetaData: ${disks.diskMetaData}")
-                    disks.diskMetaData?.each { externalId, map ->
-                        def storageVolume = opts.dataDisks.find { it.externalId == externalId }
-                        if (storageVolume) {
-                            def diskVhdID = disks.diskMetaData[externalId]?.VhdID
-                            resizeDisk(opts, diskVhdID, storageVolume.maxStorage)
+                    //resize disk
+                    log.debug ".. about to resize disk ${opts.osDiskSize}"
+                    diskRoot = opts.diskRoot
+                    imageFolderName = opts.serverFolder
+                    diskFolder = "${diskRoot}\\${imageFolderName}"
+                    log.info("RAZI :: createServer: opts.osDiskSize: ${opts.osDiskSize}")
+                    if (opts.osDiskSize) {
+                        def osDiskVhdID = disks.diskMetaData[disks.osDisk?.externalId]?.VhdID
+                        log.info("RAZI :: createServer: osDiskVhdID: ${osDiskVhdID}")
+                        log.info("RAZI :: createServer: before calling resizeDisk....")
+                        resizeDisk(opts, osDiskVhdID, opts.osDiskSize)
+                        log.info("RAZI :: createServer: after calling resizeDisk....")
+                    }
+
+                    // Resize the data disks if template
+                    log.info("RAZI :: createServer: opts.isTemplate: ${opts.isTemplate}")
+                    log.info("RAZI :: createServer: opts.templateId: ${opts.templateId}")
+                    log.info("RAZI :: createServer: opts.dataDisks: ${opts.dataDisks}")
+                    if (opts.isTemplate && opts.templateId && opts.dataDisks) {
+                        log.info("RAZI :: createServer: disks.diskMetaData: ${disks.diskMetaData}")
+                        disks.diskMetaData?.each { externalId, map ->
+                            log.info("RAZI :: createServer: externalId: ${externalId}")
+                            log.info("RAZI :: createServer: map: ${map}")
+                            def storageVolume = opts.dataDisks.find { it.externalId == externalId }
+                            log.info("RAZI :: createServer: storageVolume: ${storageVolume}")
+                            if (storageVolume) {
+                                def diskVhdID = disks.diskMetaData[externalId]?.VhdID
+                                log.info("RAZI :: createServer: diskVhdID: ${diskVhdID}")
+                                log.info("RAZI :: createServer: storageVolume.maxStorage: ${storageVolume.maxStorage}")
+                                log.info("RAZI :: createServer: before calling resizeDisk1....")
+                                resizeDisk(opts, diskVhdID, storageVolume.maxStorage)
+                                log.info("RAZI :: createServer: after calling resizeDisk1....")
+                            }
                         }
                     }
                 }
 
                 //cloud init
-                log.info("RAZI :: createServer >> opts.cloudConfigBytes: ${opts.cloudConfigBytes}")
-                log.info("RAZI :: createServer >> opts.isSysprep2: ${opts.isSysprep}")
+                log.info("RAZI :: createServer: opts.isSysprep: ${opts.isSysprep}")
                 if (opts.cloudConfigBytes && !opts.isSysprep) {
+                    log.info("RAZI :: createServer: before calling createDVD.........")
                     createDVD(opts)
+                    log.info("RAZI :: createServer: after calling createDVD.........")
+                    log.info("RAZI :: createServer: before calling importAndMountIso.........")
                     cloudInitIsoPath = importAndMountIso(opts.cloudConfigBytes, diskFolder, imageFolderName, opts)
+                    log.info("RAZI :: createServer: after calling cloudInitIsoPath.........")
+                    log.info("RAZI :: createServer: cloudInitIsoPath: ${cloudInitIsoPath}")
                 }
 
                 //start it
                 log.info("Starting Server  ${opts.name}")
+                log.info("RAZI :: createServer: opts.name: Starting Server: ${opts.name}")
+                log.info("RAZI :: createServer: opts.externalId: ${opts.externalId}")
+                log.info("RAZI :: createServer: sleep started ------")
+                sleep(10000) // just a test
+                log.info("RAZI :: createServer: sleep ended ------")
+                log.info("RAZI :: createServer: before calling startServer.....")
                 startServer(opts, opts.externalId)
+                log.info("RAZI :: createServer: after calling startServer.....")
                 //get details
                 log.info("SCVMM Check for Server Ready ${opts.name}")
+                log.info("RAZI :: createServer: opts.name: ${opts.name}")
                 def serverDetail = checkServerReady(opts, opts.externalId)
-                log.info("RAZI :: createServer >> serverDetail: ${serverDetail}")
+                log.info("RAZI :: createServer: serverDetail: ${serverDetail}")
+                log.info("RAZI :: createServer: serverDetail.success: ${serverDetail.success}")
                 if (serverDetail.success == true) {
                     rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
                     rtn.success = true
                 } else {
                     rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
                 }
-//                }
+                log.info("RAZI :: createServer: rtn.server: ${rtn.server}")
+                //}
             }
 
+            log.info("RAZI :: createServer: cloudInitIsoPath: ${cloudInitIsoPath}")
             if (cloudInitIsoPath) {
                 // Unset the DVD
                 rtn.deleteDvdOnComplete = [removeIsoFromDvd: true, deleteIso: cloudInitIsoPath]
             }
+            log.info("RAZI :: createServer: rtn.deleteDvdOnComplete: ${rtn.deleteDvdOnComplete}")
+            log.info("RAZI :: createServer: opts.unattendPath: ${opts.unattendPath}")
             if (opts.unattendPath) {
                 deleteUnattend(opts, opts.unattendPath)
             }
 
             // Perform the remove again... in case they were locked above
+            log.info("RAZI :: createServer: removeTemplateCommands: ${removeTemplateCommands}")
             if (removeTemplateCommands) {
                 def command = removeTemplateCommands.join(';')
                 command += "@()"
@@ -321,10 +395,13 @@ class ScvmmApiService {
         } catch (e) {
             log.error("createServer error: ${e}", e)
         }
+        log.info("RAZI :: createServer: rtn: ${rtn}")
         return rtn
     }
 
     def getServerDetails(opts, externalId) {
+        log.info("RAZI :: getServerDetails: opts: ${opts}")
+        log.info("RAZI :: getServerDetails: externalId: ${externalId}")
         log.debug "getServerDetails: ${externalId}"
         def rtn = [success: false, server: null, networkAdapters: [], error: null]
         try {
@@ -360,8 +437,12 @@ if(\$vm) {
 	\$report += \$data
 }
 \$report """), opts)
+            log.info("RAZI :: getServerDetails: out.success: ${out.success}")
+            log.info("RAZI :: getServerDetails: out.data: ${out.data}")
             if (out.success) {
                 def serverData = out.data?.size() > 0 ? out.data.first() : null
+                log.info("RAZI :: getServerDetails: serverData: ${serverData}")
+                log.info("RAZI :: getServerDetails: serverData?.Error: ${serverData?.Error}")
                 if (!serverData?.Error) {
                     rtn.server = serverData
                     rtn.success = out.success
@@ -372,6 +453,7 @@ if(\$vm) {
         } catch (e) {
             log.error("getServerDetails error: ${e}", e)
         }
+        log.info("RAZI :: getServerDetails: rtn: ${rtn}")
         return rtn
     }
 
@@ -1332,6 +1414,9 @@ foreach (\$disk in \$disks) {
     }
 
     def resizeDisk(opts, diskId, diskSizeBytes) {
+        log.info("RAZI :: resizeDisk: opts: ${opts}")
+        log.info("RAZI :: resizeDisk: diskId: ${diskId}")
+        log.info("RAZI :: resizeDisk: diskSizeBytes: ${diskSizeBytes}")
         log.debug "resizeDisk: ${diskId} ${diskSizeBytes}"
         def commands = []
         commands << "\$VM = Get-SCVirtualMachine -VMMServer localhost -ID \"${opts.externalId}\""
@@ -1339,15 +1424,22 @@ foreach (\$disk in \$disks) {
         commands << "\$ignore = Expand-SCVirtualDiskDrive -RunAsynchronously -JobVariable \"expandHD\" -VirtualDiskDrive \$VirtualDiskDrive -VirtualHardDiskSizeGB ${(int) (diskSizeBytes.toLong()).div(ComputeUtility.ONE_GIGABYTE)}"
         commands << "\$expandHD.ID"
         def cmd = commands.join(';')
+        log.info("RAZI :: resizeDisk: cmd: ${cmd}")
 
         log.debug "resizeDisk: ${cmd}"
         def resizeResults = wrapExecuteCommand(generateCommandString(cmd), opts)
+        log.info("RAZI :: resizeDisk: resizeResults: ${resizeResults}")
+        log.info("RAZI :: resizeDisk: resizeResults?.success: ${resizeResults?.success}")
+        log.info("RAZI :: resizeDisk: resizeResults?.data: ${resizeResults?.data}")
         def jobGuid = resizeResults.data?.getAt(0)?.value
+        log.info("RAZI :: resizeDisk: jobGuid: ${jobGuid}")
         if (!jobGuid) {
             throw new Exception("Did not receive a job guid for resize disk: ${resizeResults}")
         }
         // Wait for the job to complete.. might take awhile!
+        log.info("RAZI :: resizeDisk: before waitForJobToComplete......")
         def waitResults = waitForJobToComplete(opts, jobGuid)
+        log.info("RAZI :: resizeDisk: after waitForJobToComplete......waitResults: ${waitResults}")
         return waitResults
     }
 
@@ -1416,21 +1508,38 @@ For (\$i=0; \$i -le 63; \$i++) {
     }
 
     def checkServerCreated(opts, vmId) {
+        log.info("RAZI :: checkServerCreated: opts: ${opts}")
+        log.info("RAZI :: checkServerCreated: vmId: ${vmId}")
         log.debug "checkServerCreated: ${vmId}"
         def rtn = [success: false]
         try {
             def pending = true
             def attempts = 0
+            log.info("RAZI :: checkServerCreated: pending: ${pending}")
             while (pending) {
+                log.info("RAZI :: checkServerCreated: attempts: ${attempts}")
                 sleep(1000l * 5l)
                 def serverDetail = getServerDetails(opts, vmId)
+                log.info("RAZI :: checkServerCreated: serverDetail: ${serverDetail}")
+                log.info("RAZI :: checkServerCreated: serverDetail.success: ${serverDetail.success}")
                 if (serverDetail.success == true) {
                     // There isn't a state on the VM to tell us it is created.. but, if the disk size matches
                     // the expected count.. we are good
                     log.debug "serverStatus: ${serverDetail.server?.Status}, opts.dataDisks: ${opts.dataDisks?.size()}, additionalTemplateDisks: ${opts.additionalTemplateDisks?.size()}"
-                    if (serverDetail.server?.Status != 'UnderCreation' &&
-                            serverDetail.server?.VirtualDiskDrives?.size() == 1 + ((opts.dataDisks?.size() ?: 0) - (opts.additionalTemplateDisks?.size() ?: 0))) {
+                    log.info("RAZI :: checkServerCreated: serverDetail.server?.Status: ${serverDetail.server?.Status}")
+                    log.info("RAZI :: checkServerCreated: serverDetail.server?.VirtualDiskDrives?.size(): ${serverDetail.server?.VirtualDiskDrives?.size()}")
+                    log.info("RAZI :: checkServerCreated: opts.dataDisks?.size(): ${opts.dataDisks?.size()}")
+                    log.info("RAZI :: checkServerCreated: opts.additionalTemplateDisks?.size(): ${opts.additionalTemplateDisks?.size()}")
+
+                    if (serverDetail.server?.Status == 'CreationFailed') {
+                        log.info("RAZI :: checkServerCreated: inside if condition ")
                         // additionalTemplateDisks are created after VM creation
+                        rtn.success = false
+                        pending = false
+
+                    } else if (serverDetail.server?.Status != 'UnderCreation' &&
+                            serverDetail.server?.VirtualDiskDrives?.size() == 1 + ((opts.dataDisks?.size() ?: 0) - (opts.additionalTemplateDisks?.size() ?: 0))) {
+                        log.info("RAZI :: checkServerCreated: inside elseif condition ")
                         rtn.success = true
                         rtn.server = serverDetail.server
                         pending = false
@@ -1439,9 +1548,6 @@ For (\$i=0; \$i -le 63; \$i++) {
                             // Discard saved state... can't modify it if so
                             discardSavedState(opts, vmId)
                         }
-                    } else if (serverDetail.server?.Status == 'CreationFailed') {
-                        rtn.success = false
-                        pending = false
                     }
                 }
                 attempts++
@@ -1451,29 +1557,39 @@ For (\$i=0; \$i -le 63; \$i++) {
         } catch (e) {
             log.error("An Exception Has Occurred", e)
         }
+        log.info("RAZI :: checkServerCreated: rtn: ${rtn}")
         return rtn
     }
 
     def waitForJobToComplete(opts, jobId) {
+        log.info("RAZI :: waitForJobToComplete: opts: ${opts}")
+        log.info("RAZI :: waitForJobToComplete: jobId: ${jobId}")
         def rtn = [success: false]
         try {
             log.debug "waitForJobToComplete: ${opts} ${jobId}"
             def pending = true
             def attempts = 0
             while (pending) {
+                log.info("RAZI :: waitForJobToComplete: pending: ${pending}")
                 sleep(1000l * 5l)
                 log.debug "waitForJobToComplete: ${jobId}"
                 def getJobResults = getJob(opts, jobId)
+                log.info("RAZI :: waitForJobToComplete: getJobResults: ${getJobResults}")
+                log.info("RAZI :: waitForJobToComplete: getJobResults?.success: ${getJobResults?.success}")
+                log.info("RAZI :: waitForJobToComplete: getJobResults?.jobDetail: ${getJobResults?.jobDetail}")
                 if (getJobResults.success == true && getJobResults.jobDetail) {
 
                     def status = getJobResults.jobDetail?.Status?.toLowerCase()
+                    log.info("RAZI :: waitForJobToComplete: status: ${status}")
                     if (['completed', 'failed', 'succeedwithinfo'].indexOf(status) > -1) {
                         pending = false
                         if (status == 'completed' || status == 'succeedwithinfo') {
                             rtn.success = true
                         }
+                        log.info("RAZI :: waitForJobToComplete: pending1: ${pending}")
                     }
                 }
+                log.info("RAZI :: waitForJobToComplete: pending2: ${pending}")
                 attempts++
                 if (attempts > 350)
                     pending = false
@@ -1481,6 +1597,7 @@ For (\$i=0; \$i -le 63; \$i++) {
         } catch (e) {
             log.error("An Exception Has Occurred", e)
         }
+        log.info("RAZI :: waitForJobToComplete: rtn: ${rtn}")
         return rtn
     }
 
@@ -1512,6 +1629,8 @@ Status=\$job.Status.toString()
     }
 
     def checkServerReady(opts, vmId) {
+        log.info("RAZI :: checkServerReady: opts: ${opts}")
+        log.info("RAZI :: checkServerReady: vmId: ${vmId}")
         def rtn = [success: false]
         try {
             log.debug "checkServerReady: ${opts} ${vmId}"
@@ -1520,85 +1639,94 @@ Status=\$job.Status.toString()
             def notFoundAttempts = 0
             def serverId = opts.server.id
             def waitForIp = opts.waitForIp
+            log.info("RAZI :: checkServerReady: serverId: ${serverId}")
+            log.info("RAZI :: checkServerReady: waitForIp: ${waitForIp}")
             while (pending) {
+                log.info("RAZI :: checkServerReady: attempts: ${attempts}")
                 sleep(1000l * 5l)
-//                ComputeServer.withNewSession {
-                    log.debug "checkServerReady: ${vmId}"
-                log.info("RAZI :: checkServerReady >> serverId: ${serverId}")
+                //ComputeServer.withNewSession {
+                log.debug "checkServerReady: ${vmId}"
                 ComputeServer server = morpheusContext.services.computeServer.get(serverId)
-                    opts.server = server
-                    // Refresh the VM in SCVMM (seems to be needed for it to get the IP for windows)
-                    refreshVM(opts, vmId)
-                    def serverDetail = getServerDetails(opts, vmId)
-                log.info("RAZI :: checkServerReady >> serverDetail: ${serverDetail}")
-                    if (serverDetail.success == true && serverDetail.server) {
-//                        server.refresh()
-                        log.info("RAZI :: checkServerReady >> serverDetail.server?.internalIp: ${serverDetail.server?.internalIp}")
-                        log.info("RAZI :: checkServerReady >> server?.externalIp: ${server?.externalIp}")
-                        def ipAddress = serverDetail.server?.internalIp ?: server?.externalIp
-                        log.debug "ipAddress found: ${ipAddress}"
-                        if (ipAddress) {
-                            server.internalIp = ipAddress
-                        }
+                log.info("RAZI :: checkServerReady: server?.id: ${server?.id}")
+                opts.server = server
+                // Refresh the VM in SCVMM (seems to be needed for it to get the IP for windows)
+                refreshVM(opts, vmId)
+                def serverDetail = getServerDetails(opts, vmId)
+                log.info("RAZI :: checkServerReady: serverDetail: ${serverDetail}")
+                log.info("RAZI :: checkServerReady: serverDetail.success: ${serverDetail.success}")
+                log.info("RAZI :: checkServerReady: serverDetail.server: ${serverDetail.server}")
+                if (serverDetail.success == true && serverDetail.server) {
+                    //server.refresh()
+                    def ipAddress = serverDetail.server?.internalIp ?: server?.externalIp
+                    log.info("RAZI :: checkServerReady: ipAddress: ${ipAddress}")
+                    log.debug "ipAddress found: ${ipAddress}"
+                    if (ipAddress) {
+                        server.internalIp = ipAddress
+                    }
 
-                        log.info("RAZI :: checkServerReady >> waitForIp: ${waitForIp}")
-                        log.info("RAZI :: checkServerReady >> ipAddress: ${ipAddress}")
-                        if (waitForIp && !ipAddress) {
-                            // Keep waiting
-                            log.info("RAZI :: checkServerReady >> keep waiting")
+                    log.info("RAZI :: checkServerReady: waitForIp: ${waitForIp}")
+                    if (waitForIp && !ipAddress) {
+                        // Keep waiting
+                    } else {
+                        // Most likely, server gets its IP from cloud-init calling back to cloudconfigcontroller/ipaddress... wait for that to happen
+                        // Or... if the desire is to NOT install the agent, then we are not expecting an IP address
+                        log.info("RAZI :: checkServerReady: serverDetail.server?.VirtualMachineState: ${serverDetail.server?.VirtualMachineState}")
+                        log.info("RAZI :: checkServerReady: serverDetail.server?.Status: ${serverDetail.server?.Status}")
+                        log.info("RAZI :: checkServerReady: server?.internalIp: ${server?.internalIp}")
+                        if (serverDetail.server?.VirtualMachineState == 'Running') {
+                            rtn.success = true
+                            rtn.server = serverDetail.server
+                            rtn.server.ipAddress = ipAddress ?: server?.internalIp
+                            pending = false
+                        } else if (serverDetail.server?.Status == 'CreationFailed') {
+                            rtn.success = false
+                            rtn.server = serverDetail.server
+                            rtn.server.ipAddress = ipAddress ?: server?.internalIp
+                            pending = false
                         } else {
-                            // Most likely, server gets its IP from cloud-init calling back to cloudconfigcontroller/ipaddress... wait for that to happen
-                            // Or... if the desire is to NOT install the agent, then we are not expecting an IP address
-                            log.info("RAZI :: checkServerReady >> serverDetail.server?.VirtualMachineState: ${serverDetail.server?.VirtualMachineState}")
-                            log.info("RAZI :: checkServerReady >> serverDetail.server?.Status: ${serverDetail.server?.Status}")
-                            log.info("RAZI :: checkServerReady >> server.internalIp: ${server.internalIp}")
-                            if (serverDetail.server?.VirtualMachineState == 'Running') {
+                            //server.refresh()
+                            log.debug("check server loading server: ip: ${server.internalIp}")
+                            if (server.internalIp) {
                                 rtn.success = true
                                 rtn.server = serverDetail.server
-                                rtn.server.ipAddress = ipAddress ?: server?.internalIp
+                                rtn.server.ipAddress = ipAddress ?: server.internalIp
                                 pending = false
-                            } else if (serverDetail.server?.Status == 'CreationFailed') {
-                                rtn.success = false
-                                rtn.server = serverDetail.server
-                                rtn.server.ipAddress = ipAddress ?: server?.internalIp
-                                pending = false
-                            } else {
-//                                server.refresh()
-                                log.debug("check server loading server: ip: ${server.internalIp}")
-                                if (server.internalIp) {
-                                    rtn.success = true
-                                    rtn.server = serverDetail.server
-                                    rtn.server.ipAddress = ipAddress ?: server.internalIp
-                                    pending = false
-                                }
                             }
                         }
-                    } else {
-                        if (serverDetail.error == 'VM_NOT_FOUND') {
-                            notFoundAttempts++
-                        }
                     }
-//                }
-                log.info("RAZI :: checkServerReady >> pending: ${pending}")
+                } else {
+                    if (serverDetail.error == 'VM_NOT_FOUND') {
+                        notFoundAttempts++
+                    }
+                }
+                //}
                 attempts++
-                log.info("RAZI :: checkServerReady >> attempts: ${attempts}")
-                if (attempts > 300 || notFoundAttempts > 10)
+                if (attempts > 50 || notFoundAttempts > 10) // TODO: 50 to 300
                     pending = false
             }
         } catch (e) {
             log.error("An Exception Has Occurred", e)
         }
+        log.info("RAZI :: checkServerReady: rtn: ${rtn}")
         return rtn
     }
 
     def startServer(opts, vmId) {
+        log.info("RAZI :: startServer: opts: ${opts}")
+        log.info("RAZI :: startServer: vmId: ${vmId}")
         def rtn = [success: false]
         try {
             // Only start if it isn't already running
             def serverDetail = getServerDetails(opts, vmId)
+            log.info("RAZI :: startServer: serverDetail: ${serverDetail}")
+            log.info("RAZI :: startServer: serverDetail.success: ${serverDetail.success}")
             if (serverDetail.success == true) {
+                log.info("RAZI :: startServer: serverDetail.server: ${serverDetail.server}")
+                log.info("RAZI :: startServer: serverDetail.server?.VirtualMachineState: ${serverDetail.server?.VirtualMachineState}")
                 if (serverDetail.server?.VirtualMachineState != 'Running') {
                     def out = wrapExecuteCommand(generateCommandString("\$VM = Get-SCVirtualMachine -VMMServer localhost -ID \"${vmId}\"; \$ignore = Start-SCVirtualMachine -VM \$VM ${opts.async ? '-RunAsynchronously' : ''}"), opts)
+                    log.info("RAZI :: startServer: out: ${out}")
+                    log.info("RAZI :: startServer: out.success: ${out.success}")
                     rtn.success = out.success
                 } else {
                     rtn.msg = 'VM is already powered on'
@@ -1608,23 +1736,24 @@ Status=\$job.Status.toString()
         } catch (e) {
             log.error("startServer error: ${e}", e)
         }
+        log.info("RAZI :: startServer: rtn: ${rtn}")
         return rtn
     }
 
-	def stopServer(opts, vmId) {
-		def rtn = [success: false]
-		try {
-			def command = """\$VM = Get-SCVirtualMachine -VMMServer localhost  -ID \"${vmId}\"
+    def stopServer(opts, vmId) {
+        def rtn = [success: false]
+        try {
+            def command = """\$VM = Get-SCVirtualMachine -VMMServer localhost  -ID \"${vmId}\"
 if(\$VM.Status -ne 'PowerOff') { 
 	\$ignore = Stop-SCVirtualMachine -VM \$VM; 
 } \$true """
-			def out = wrapExecuteCommand(generateCommandString(command), opts)
-			rtn.success = out.success
-		} catch (e) {
-			log.error("stopServer error: ${e}", e)
-		}
-		return rtn
-	}
+            def out = wrapExecuteCommand(generateCommandString(command), opts)
+            rtn.success = out.success
+        } catch (e) {
+            log.error("stopServer error: ${e}", e)
+        }
+        return rtn
+    }
 
     def deleteServer(opts, vmId) {
         def rtn = [success: false]
@@ -1654,15 +1783,22 @@ if(\$VM) {
     }
 
     def importPhysicalResource(opts, sourcePath, imageFolderName, resourceName) {
+        log.info("RAZI :: importPhysicalResource: sourcePath: ${sourcePath}")
+        log.info("RAZI :: importPhysicalResource: imageFolderName: ${imageFolderName}")
+        log.info("RAZI :: importPhysicalResource: resourceName: ${resourceName}")
         log.debug "importPhysicalResource: ${opts}, ${sourcePath}, ${imageFolderName}, ${resourceName}"
         def rtn = [success: false]
         def rootSharePath = opts.rootSharePath ?: getRootSharePath(opts)
+        log.info("RAZI :: importPhysicalResource: rootSharePath: ${rootSharePath}")
 
         def sharePath = "${rootSharePath}\\$imageFolderName"
+        log.info("RAZI :: importPhysicalResource: sharePath: ${sharePath}")
         def command = "New-Item -ItemType directory -Path \"${sharePath}\";Copy-Item -Path \"$sourcePath\" -Destination \"${sharePath}\\${resourceName}\""
 
+        log.info("RAZI :: importPhysicalResource: command: ${command}")
         def attempts = 0
         def importOpts = [baseBoxProvisionService: opts.scvmmProvisionService, controllerServer: opts.controllerNode] + opts
+        log.info("RAZI :: importPhysicalResource: importOpts: ${importOpts}")
         while (!rtn.success && attempts < 5) {
             def out = executeCommand(command, importOpts)
             rtn.success = out.success
@@ -1671,6 +1807,7 @@ if(\$VM) {
                 sleep(5000)
             }
         }
+        log.info("RAZI :: importPhysicalResource: rtn.success: ${rtn.success}")
 
         if (!rtn.success) {
             throw new Exception("Error in importing physical resource: ${rtn}")
@@ -1680,6 +1817,7 @@ if(\$VM) {
         rtn.success = true
         rtn.sharePath = "${sharePath}\\${resourceName}"
 
+        log.info("RAZI :: importPhysicalResource: rtn: ${rtn}")
         return rtn
     }
 
@@ -1701,6 +1839,7 @@ foreach(\$share in \$shares) {
         }
 
         def shareBlocks = out.data
+        log.info("RAZI :: getRootSharePath: shareBlocks: ${shareBlocks}")
         if (shareBlocks.size() == 0) {
             throw new Exception("No library share found")
         }
@@ -1737,16 +1876,25 @@ foreach(\$share in \$shares) {
     }
 
     def importScript(content, diskFolder, imageFolderName, opts) {
+        log.info("RAZI :: importScript: diskFolder: ${diskFolder}")
+        log.info("RAZI :: importScript: imageFolderName: ${imageFolderName}")
+        log.info("RAZI :: importScript: opts: ${opts}")
         log.debug "importScript: ${diskFolder}, ${imageFolderName}, ${opts}"
         def scriptPath
-        def importAction = [inline: true, action: 'rawfile', content: content.encodeAsBase64(), targetPath: "${diskFolder}\\${opts.fileName}".toString(), opts: [:]]
-        def importPromise = opts.scvmmProvisionService.commandService.sendAction(opts.hypervisor, importAction)
-        def importResult = importPromise.get(1000l * 60l * 3l)
-        if (!importResult.success) {
+        InputStream inputStream = new ByteArrayInputStream(opts.cloudConfigBytes)
+        def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "${opts.fileName}", "${diskFolder}\\${opts.fileName}", inputStream, opts.cloudConfigBytes?.size(), null, true)
+        //def importAction = [inline: true, action: 'rawfile', content: content.encodeAsBase64(), targetPath: "${diskFolder}\\${opts.fileName}".toString(), opts: [:]]
+        //def importPromise = opts.scvmmProvisionService.commandService.sendAction(opts.hypervisor, importAction)
+        //def importResult = importPromise.get(1000l * 60l * 3l)
+        log.info("RAZI :: importScript: fileResults: ${fileResults}")
+        log.info("RAZI :: importScript: fileResults?.success: ${fileResults?.success}")
+        if (!fileResults.success) {
             throw new Exception("Script Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
         }
-        def importResults = importPhysicalResource(opts, importAction.targetPath, imageFolderName, opts.fileName)
+        def importResults = importPhysicalResource(opts, "${diskFolder}\\${opts.fileName}".toString(), imageFolderName, opts.fileName)
+        log.info("RAZI :: importScript: importResults: ${importResults}")
         scriptPath = importResults.sharePath
+        log.info("RAZI :: importScript: scriptPath: ${scriptPath}")
         return scriptPath
     }
 
@@ -1791,17 +1939,45 @@ For (\$i=0; \$i -le 10; \$i++) {
     }
 
     def importAndMountIso(cloudConfigBytes, diskFolder, imageFolderName, opts) {
+        log.info("RAZI :: importAndMountIso: diskFolder: ${diskFolder}")
+        log.info("RAZI :: importAndMountIso: imageFolderName: ${imageFolderName}")
+        log.info("RAZI :: importAndMountIso: opts: ${opts}")
         log.debug "importAndMountIso: ${diskFolder}, ${imageFolderName}, ${opts}"
         def cloudInitIsoPath
         def isoAction = [inline: true, action: 'rawfile', content: cloudConfigBytes.encodeAsBase64(), targetPath: "${diskFolder}\\config.iso".toString(), opts: [:]]
-        def isoPromise = opts.scvmmProvisionService.commandService.sendAction(opts.hypervisor, isoAction)
-        def isoUploadResult = isoPromise.get(1000l * 60l * 3l)
+        //def isoPromise = opts.scvmmProvisionService.commandService.sendAction(opts.hypervisor, isoAction)
+
+        InputStream inputStream = new ByteArrayInputStream(cloudConfigBytes)
+        /*log.info ("RAZI :: importAndMountIso: inputStream?.bytes?.size(): ${inputStream?.bytes?.size()}")*/
+        log.info("RAZI :: importAndMountIso: opts.hypervisor?.name: ${opts.hypervisor?.name}")
+        log.info("RAZI :: importAndMountIso: cloudConfigBytes?.size(): ${cloudConfigBytes?.size()}")
+        def command = "\$ignore = mkdir \"${diskFolder}\""
+        log.info("RAZI :: importAndMountIso: command: ${command}")
+        def dirResults = wrapExecuteCommand(generateCommandString(command), opts)
+        log.info("RAZI :: importAndMountIso: dirResults: ${dirResults}")
+        log.info("RAZI :: importAndMountIso: dirResults?.success: ${dirResults?.success}")
+        log.info("RAZI :: importAndMountIso: dirResults?.data: ${dirResults?.data}")
+        def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "config.iso", "${diskFolder}\\config.iso", inputStream, cloudConfigBytes?.size())
+
+        log.info("RAZI :: importAndMountIso: fileResults: ${fileResults}")
+        log.info("RAZI :: importAndMountIso: fileResults?.success: ${fileResults?.success}")
+
+        /*def isoUploadResult = isoPromise.get(1000l * 60l * 3l)
         if (!isoUploadResult.success) {
             throw new Exception("ISO Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
+        }*/
+        if (!fileResults.success) {
+            throw new Exception("ISO Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
         }
+        log.info("RAZI :: importAndMountIso: isoAction.targetPath: ${isoAction.targetPath}")
+        log.info("RAZI :: importAndMountIso: imageFolderName: ${imageFolderName}")
         def importResults = importPhysicalResource(opts, isoAction.targetPath, imageFolderName, 'config.iso')
+        log.info("RAZI :: importAndMountIso: importResults: ${importResults}")
         cloudInitIsoPath = importResults.sharePath
+        log.info("RAZI :: importAndMountIso: cloudInitIsoPath: ${cloudInitIsoPath}")
+        log.info("RAZI :: importAndMountIso: before calling setCdrom.......")
         setCdrom(opts, cloudInitIsoPath)
+        log.info("RAZI :: importAndMountIso: after calling setCdrom.......")
         return cloudInitIsoPath
     }
 
@@ -2027,57 +2203,88 @@ For (\$i=0; \$i -le 10; \$i++) {
     }
 
     def findImage(opts, imageName) {
+        log.info("RAZI :: findImage: opts: ${opts}")
+        log.info("RAZI :: findImage: imageName: ${imageName}")
         def rtn = [success: false, imageExists: false]
         def zoneRoot = opts.zoneRoot ?: defaultRoot
+        log.info("RAZI :: findImage: zoneRoot: ${zoneRoot}")
         def imageFolder = formatImageFolder(imageName)
+        log.info("RAZI :: findImage: imageFolder: ${imageFolder}")
         def imageFolderPath = "${zoneRoot}\\images\\${imageFolder}"
+        log.info("RAZI :: findImage: imageFolderPath: ${imageFolderPath}")
         def command = "(Get-ChildItem -File \"${imageFolderPath}\").FullName"
+        log.info("RAZI :: findImage: command: ${command}")
         log.debug("findImage command: ${command}")
         def out = executeCommand(command, opts)
+        log.info("RAZI :: findImage: out: ${out}")
         log.debug("findImage: ${out.data}")
+        log.info("RAZI :: findImage: out.success: ${out.success}")
         rtn.success = out.success
+        log.info("RAZI :: findImage: out.data: ${out.data}")
+        log.info("RAZI :: findImage: out.data?.length(): ${out.data?.length()}")
         if (out.data?.length() > 0) {
             rtn.imageExists = true
             rtn.imageName = out.data.trim()
         }
+        log.info("RAZI :: findImage: rtn: ${rtn}")
         return rtn
     }
 
     def deleteImage(opts, imageName) {
+        log.info("RAZI :: deleteImage: opts: ${opts}")
+        log.info("RAZI :: deleteImage: imageName: ${imageName}")
         def rtn = [success: false, imageExists: false]
         def zoneRoot = opts.zoneRoot ?: defaultRoot
+        log.info("RAZI :: deleteImage: zoneRoot: ${zoneRoot}")
         def imageFolder = formatImageFolder(imageName)
+        log.info("RAZI :: deleteImage: imageFolder: ${imageFolder}")
         def imageFolderPath = "${zoneRoot}\\images\\${imageFolder}"
+        log.info("RAZI :: deleteImage: imageFolderPath: ${imageFolderPath}")
         def command = "Remove-Item -LiteralPath \"${imageFolderPath}\" -Recurse -Force"
+        log.info("RAZI :: deleteImage: command: ${command}")
         log.debug("deleteImage command: ${command}")
         def out = wrapExecuteCommand(generateCommandString(command), opts)
+        log.info("RAZI :: deleteImage: out: ${out}")
+        log.info("RAZI :: deleteImage: out.success: ${out.success}")
+        log.info("RAZI :: deleteImage: out.data: ${out.data}")
         log.debug("deleteImage: ${out.data}")
         rtn.success = out.success
+        log.info("RAZI :: deleteImage: rtn: ${rtn}")
         return rtn
     }
 
     def transferImage(opts, cloudFiles, imageName) {
+        log.info("RAZI :: transferImage: opts: ${opts}")
+        log.info("RAZI :: transferImage: cloudFiles: ${cloudFiles}")
+        log.info("RAZI :: transferImage: imageName: ${imageName}")
         def rtn = [success: false, results: []]
-//        CloudFile metadataFile = (CloudFile) cloudFiles?.findAll { cloudFile -> cloudFile.name == 'metadata.json' }
-//        def vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf('.vhd') > -1 }
+        /*CloudFile metadataFile = (CloudFile) cloudFiles?.findAll { cloudFile -> cloudFile.name == 'metadata.json' }
+        def vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf('.vhd') > -1 }*/
         CloudFile metadataFile = (CloudFile) cloudFiles?.find { cloudFile -> cloudFile.name == 'metadata.json' }
+        log.info("RAZI :: transferImage: metadataFile: ${metadataFile}")
+        log.info("RAZI :: transferImage: metadataFile?.name: ${metadataFile?.name}")
         List<CloudFile> vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf(".morpkg") == -1 && (cloudFile.name.indexOf('.vhd') > -1 || cloudFile.name.indexOf('.vhdx')) && cloudFile.name.endsWith("/") == false }
+        log.info("RAZI :: transferImage: vhdFiles: ${vhdFiles}")
+        log.info("RAZI :: transferImage: vhdFiles?.size(): ${vhdFiles?.size()}")
         log.debug("vhdFiles: ${vhdFiles}")
         def zoneRoot = opts.zoneRoot ?: defaultRoot
+        log.info("RAZI :: transferImage: zoneRoot: ${zoneRoot}")
         def imageFolderName = formatImageFolder(imageName)
+        log.info("RAZI :: transferImage: imageFolderName: ${imageFolderName}")
         List<Map> fileList = []
         def tgtFolder = "${zoneRoot}\\images\\${imageFolderName}"
+        log.info("RAZI :: transferImage: tgtFolder: ${tgtFolder}")
         opts.targetImageFolder = tgtFolder
+        log.info("RAZI :: transferImage: opts.targetImageFolder: ${opts.targetImageFolder}")
         def cachePath = opts.cachePath
-//        def command = "\$ignore = mkdir \"${tgtFolder}\""
-        def command = "mkdir \"${tgtFolder}\""
+        log.info("RAZI :: transferImage: cachePath: ${cachePath}")
+        def command = "\$ignore = mkdir \"${tgtFolder}\""
+        log.info("RAZI :: transferImage: command: ${command}")
         log.debug("command: ${command}")
-//        def dirResults = wrapExecuteCommand(generateCommandString(command), opts)
-        def dirResults = executeCommand(command, opts)
-        log.info("RAZI :: transferImage >> dirResults.success: ${dirResults.success}")
-        log.info("RAZI :: transferImage >> dirResults.data: ${dirResults.data}")
+        def dirResults = wrapExecuteCommand(generateCommandString(command), opts)
+        log.info("RAZI :: transferImage: dirResults: ${dirResults}")
 
-        log.info("RAZI :: transferImage >> metadataFile: ${metadataFile}")
+        log.info("RAZI :: transferImage: metadataFile1: ${metadataFile}")
         if (metadataFile) {
             fileList << [inputStream: metadataFile.inputStream, contentLength: metadataFile.contentLength, targetPath: "${tgtFolder}\\metadata.json".toString(), copyRequestFileName: "metadata.json"]
         }
@@ -2098,9 +2305,12 @@ For (\$i=0; \$i -le 10; \$i++) {
             Long contentLength = (Long) fileItem.contentLength
             def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, fileItem.copyRequestFileName, fileItem.targetPath, fileItem.inputStream, contentLength, null, true)
             log.info("RAZI :: transferImage >> fileResults.success: ${fileResults.success}")
+            log.info("RAZI :: transferImage: fileResults: ${fileResults}")
             rtn.success = fileResults.success
+            log.info("RAZI :: transferImage: rtn.success: ${rtn.success}")
         }
 
+        log.info("RAZI :: transferImage: rtn: ${rtn}")
         return rtn
     }
 
@@ -2177,26 +2387,42 @@ For (\$i=0; \$i -le 10; \$i++) {
 
 
     def buildCreateServerCommands(opts) {
+        log.info("RAZI :: buildCreateServerCommands: opts: ${opts}")
         log.debug "buildCreateServerCommands: ${opts}"
         def rtn = [launchCommand: null, hardwareProfileName: '', templateName: '']
         def commands = []
 
         def hardwareGuid = UUID.randomUUID().toString()
+        log.info("RAZI :: buildCreateServerCommands: hardwareGuid: ${hardwareGuid}")
         def networkConfig = opts.networkConfig
+        log.info("RAZI :: buildCreateServerCommands: networkConfig: ${networkConfig}")
         def scvmmCapabilityProfile = opts.scvmmCapabilityProfile
+        log.info("RAZI :: buildCreateServerCommands: scvmmCapabilityProfile: ${scvmmCapabilityProfile}")
         def scvmmGeneration = opts.scvmmGeneration ?: 'generation1'
+        log.info("RAZI :: buildCreateServerCommands: scvmmGeneration: ${scvmmGeneration}")
         def hardwareProfileName = "Profile${UUID.randomUUID().toString()}"
+        log.info("RAZI :: buildCreateServerCommands: hardwareProfileName: ${hardwareProfileName}")
         def maxCores = opts.maxCores
+        log.info("RAZI :: buildCreateServerCommands: maxCores: ${maxCores}")
         def memoryMB = (int) opts.memory.div(ComputeUtility.ONE_MEGABYTE)
+        log.info("RAZI :: buildCreateServerCommands: memoryMB: ${memoryMB}")
         def minDynamicMemoryMB = opts.minDynamicMemory ? (int) opts.minDynamicMemory.div(ComputeUtility.ONE_MEGABYTE) : null
+        log.info("RAZI :: buildCreateServerCommands: minDynamicMemoryMB: ${minDynamicMemoryMB}")
         def maxDynamicMemoryMB = opts.maxDynamicMemory ? (int) opts.maxDynamicMemory.div(ComputeUtility.ONE_MEGABYTE) : null
+        log.info("RAZI :: buildCreateServerCommands: maxDynamicMemoryMB: ${maxDynamicMemoryMB}")
         def zone = opts.zone
         def cloneVMId = opts.cloneVMId
+        log.info("RAZI :: buildCreateServerCommands: cloneVMId: ${cloneVMId}")
         def vmId = opts.vmId
+        log.info("RAZI :: buildCreateServerCommands: vmId: ${vmId}")
         def imageId = opts.imageId
+        log.info("RAZI :: buildCreateServerCommands: imageId: ${imageId}")
         def templateName = "Temporary Morpheus Template ${UUID.randomUUID().toString()}"
+        log.info("RAZI :: buildCreateServerCommands: templateName: ${templateName}")
         def dataDisks = opts.dataDisks
+        log.info("RAZI :: buildCreateServerCommands: dataDisks: ${dataDisks}")
         def hostExternalId = opts.hostExternalId
+        log.info("RAZI :: buildCreateServerCommands: hostExternalId: ${hostExternalId}")
         def volumePath = opts.volumePath
         def highlyAvailable = opts.highlyAvailable
         def isSyncdImage = opts.isSyncdImage
@@ -2208,9 +2434,12 @@ For (\$i=0; \$i -le 10; \$i++) {
         def templateId = opts.templateId
         def deployingToCloud = opts.zone.regionCode ? true : false
         def volumePaths = (opts.volumePaths && opts.volumePaths?.size() == 1 + dataDisks?.size()) ? opts.volumePaths : null
+        log.info("RAZI :: buildCreateServerCommands: volumePaths: ${volumePaths}")
 
         // Static v DHCP
+        log.info("RAZI :: buildCreateServerCommands: networkConfig: ${networkConfig}")
         def doStatic = networkConfig?.doStatic
+        log.info("RAZI :: buildCreateServerCommands: doStatic: ${doStatic}")
         def doPool = doStatic && networkConfig?.primaryInterface?.poolType == 'scvmm'
         def ipAddress = networkConfig?.primaryInterface?.ipAddress
         def poolId = networkConfig?.primaryInterface?.networkPool?.externalId
@@ -2219,12 +2448,18 @@ For (\$i=0; \$i -le 10; \$i++) {
         // network may be a vlan network... therefore, the externalId includes the VLAN id.. need to remove it
         def networkExternalId = networkConfig.primaryInterface.network.externalId?.take(36)
         def subnetExternalId = networkConfig.primaryInterface.subnet?.externalId?.take(36)
+        log.info("RAZI :: buildCreateServerCommands: networkExternalId: ${networkExternalId}")
+        log.info("RAZI :: buildCreateServerCommands: subnetExternalId: ${subnetExternalId}")
 
+        log.info("RAZI :: buildCreateServerCommands: isTemplate: ${isTemplate}")
+        log.info("RAZI :: buildCreateServerCommands: templateId: ${templateId}")
         if (isTemplate && templateId) {
             commands << "\$template = Get-SCVMTemplate -VMMServer localhost | where {\$_.ID -eq \"$templateId\"}"
         }
         // mac settings
         def hasMACAddress = false
+        log.info("RAZI :: buildCreateServerCommands: doStatic: ${doStatic}")
+        log.info("RAZI :: buildCreateServerCommands: doPool: ${doPool}")
         if (doStatic && doPool) {  // This seems weird.. why does the static networking affect the MAC setting?
             hasMACAddress = true
             commands << "\$MACAddress = \"00:00:00:00:00:00\""
@@ -2252,12 +2487,16 @@ For (\$i=0; \$i -le 10; \$i++) {
         commands << "\$ignore = New-SCVirtualNetworkAdapter -VMMServer localhost -JobGroup $hardwareGuid -MACAddressType \$MACAddressType -VLanEnabled ${vlanEnabled ? "\$true" : "\$false"} ${vlanEnabled ? "-VLanID ${vlanId}" : ''} -Synthetic -EnableVMNetworkOptimization \$false -EnableMACAddressSpoofing \$false -EnableGuestIPNetworkVirtualizationUpdates \$false -IPv4AddressType ${doStatic && doPool ? 'Static' : 'Dynamic'} -IPv6AddressType Dynamic ${subnetExternalId ? '-VMSubnet \$VMSubnet' : ''} -VMNetwork \$VMNetwork"
         commands << "}"
 
+        log.info("RAZI :: buildCreateServerCommands: scvmmCapabilityProfile: ${scvmmCapabilityProfile}")
         if (scvmmCapabilityProfile) {
             commands << "\$CapabilityProfile = Get-SCCapabilityProfile -VMMServer localhost | where {\$_.Name -eq \"${scvmmCapabilityProfile?.trim()}\"}"
         }
 
         // Generation
+        log.info("RAZI :: buildCreateServerCommands: isTemplate11: ${isTemplate}")
+        log.info("RAZI :: buildCreateServerCommands: templateId11: ${templateId}")
         def generationNumber = !scvmmGeneration || scvmmGeneration == 'generation1' ? '1' : '2'
+        log.info("RAZI :: buildCreateServerCommands: generationNumber: ${generationNumber}")
         if (isTemplate && templateId) {
             // Copying all of the hardware profiles from the existing template over
             commands << "\$CPUExpectedUtilizationPercent = If (-not ([string]::IsNullOrEmpty(\$template.CPUExpectedUtilizationPercent))) {\$template.CPUExpectedUtilizationPercent} Else { 20 }"
@@ -2452,6 +2691,7 @@ For (\$i=0; \$i -le 10; \$i++) {
         rtn.launchCommand = commands.join('\n')
         rtn.hardwareProfileName = hardwareProfileName
         rtn.templateName = templateName
+        log.info("RAZI :: buildCreateServerCommands: rtn: ${rtn}")
         rtn
     }
 
@@ -2528,32 +2768,32 @@ For (\$i=0; \$i -le 10; \$i++) {
         def cloudConfig = cloud.getConfigMap()
         def keyPair = context.services.keyPair.find(new DataQuery().withFilter("accountId", cloud?.account?.id))
         return [
-            account                : cloud.account,
-            zoneConfig             : cloudConfig,
-            zone                   : cloud,
-            zoneId                 : cloud?.id,
-            publicKey              : keyPair?.publicKey,
-            privateKey             : keyPair?.privateKey,
-            //controllerServer       : controllerServer,
-            rootSharePath          : cloudConfig['libraryShare'],
-            regionCode             : cloud.regionCode
+                account      : cloud.account,
+                zoneConfig   : cloudConfig,
+                zone         : cloud,
+                zoneId       : cloud?.id,
+                publicKey    : keyPair?.publicKey,
+                privateKey   : keyPair?.privateKey,
+                //controllerServer       : controllerServer,
+                rootSharePath: cloudConfig['libraryShare'],
+                regionCode   : cloud.regionCode
         ]
-                //baseBoxProvisionService: scvmmProvisionService]
+        //baseBoxProvisionService: scvmmProvisionService]
     }
 
     def getScvmmCloudOpts(MorpheusContext context, Cloud cloud, controllerServer) {
         def cloudConfig = cloud.getConfigMap()
         def keyPair = context.services.keyPair.find(new DataQuery().withFilter("accountId", cloud?.account?.id))
         return [
-                account                : cloud.account,
-                zoneConfig             : cloudConfig,
-                zone                   : cloud,
-                zoneId                 : cloud?.id,
-                publicKey              : keyPair?.publicKey,
-                privateKey             : keyPair?.privateKey,
-                controllerServer       : controllerServer,
-                rootSharePath          : cloudConfig['libraryShare'],
-                regionCode             : cloud.regionCode
+                account         : cloud.account,
+                zoneConfig      : cloudConfig,
+                zone            : cloud,
+                zoneId          : cloud?.id,
+                publicKey       : keyPair?.publicKey,
+                privateKey      : keyPair?.privateKey,
+                controllerServer: controllerServer,
+                rootSharePath   : cloudConfig['libraryShare'],
+                regionCode      : cloud.regionCode
         ]
     }
 
@@ -2566,7 +2806,7 @@ For (\$i=0; \$i -le 10; \$i++) {
         def configuredWorkingPath = zoneConfig.workingPath?.length() > 0 ? zoneConfig.workingPath : serverConfig.workingPath?.length() > 0 ? serverConfig.workingPath : null
         def zoneRoot = configuredWorkingPath ? configuredWorkingPath : defaultRoot
         return [hypervisorConfig: serverConfig, hypervisor: hypervisor, sshHost: hypervisor.sshHost, sshUsername: hypervisor.sshUsername,
-                sshPassword: hypervisor.sshPassword, zoneRoot: zoneRoot, diskRoot: diskRoot]
+                sshPassword     : hypervisor.sshPassword, zoneRoot: zoneRoot, diskRoot: diskRoot]
     }
 
     def getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, hypervisor) {
@@ -2575,6 +2815,7 @@ For (\$i=0; \$i -le 10; \$i++) {
 
     def wrapExecuteCommand(String command, Map opts = [:]) {
         def out = executeCommand(command, opts)
+
         if (out.data) {
             def payload = out.data
             if (!out.data.startsWith('[')) {
@@ -2591,14 +2832,13 @@ For (\$i=0; \$i -le 10; \$i++) {
         out
     }
 
-    /*def loadControllerServer(opts) {
-        if (opts.controllerServerId && opts.scvmmProvisionService) {
-            opts.controllerServer = opts.scvmmProvisionService.loadControllerServer(opts.controllerServerId)
-        }
-    }*/
     def loadControllerServer(opts) {
-//        return ComputeServer.get(controllerServerId)
-        return morpheusContext.services.computeServer.get(opts.controllerServerId)
+        /*if (opts.controllerServerId && opts.scvmmProvisionService) {
+            opts.controllerServer = opts.scvmmProvisionService.loadControllerServer(opts.controllerServerId)
+        }*/
+        if (opts.controllerServerId) {
+            opts.controllerServer = morpheusContext.services.computeServer.get(opts.controllerServerId)
+        }
     }
 
     def isHostInHostGroup(String currentHostPath, String testHostPath) {
@@ -2632,8 +2872,8 @@ For (\$i=0; \$i -le 10; \$i++) {
         def cloudConfig = cloud.getConfigMap()
         def diskRoot = cloudConfig.diskPath?.length() > 0 ? cloudConfig.diskPath : defaultRoot + '\\Disks'
         def cloudRoot = cloudConfig.workingPath?.length() > 0 ? cloudConfig.workingPath : defaultRoot
-        return [sshHost:cloudConfig.host, sshUsername:getUsername(cloud), sshPassword:getPassword(cloud), zoneRoot:cloudRoot,
-                diskRoot:diskRoot]
+        return [sshHost : cloudConfig.host, sshUsername: getUsername(cloud), sshPassword: getPassword(cloud), zoneRoot: cloudRoot,
+                diskRoot: diskRoot]
     }
 
     private getUsername(cloud) {
