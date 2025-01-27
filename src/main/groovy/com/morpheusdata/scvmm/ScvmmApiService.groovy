@@ -155,7 +155,6 @@ class ScvmmApiService {
 
             //these classes are not supposed to know our domain model or touch gorm - this needs to be out in the calling service
             ComputeServer server
-
             //ComputeServer.withNewSession {
             opts.network = morpheusContext.services.network.get(opts.networkId)
             log.info("RAZI :: createServer: opts.network: ${opts.network}")
@@ -214,11 +213,7 @@ class ScvmmApiService {
                 }
                 throw new Exception("Error in launching VM: ${createData}")
             }
-            //}
 
-            //ComputeServer.withNewSession {
-            //opts.network = Network.get(opts.networkId)
-            //opts.zone = ComputeZone.get(opts.zoneId)
             log.info("RAZI :: createServer: opts.serverId: ${opts.serverId}")
             server = morpheusContext.services.computeServer.get(opts.serverId)//ComputeServer.get(opts.serverId)
             log.info("RAZI :: createServer: server?.id: ${server?.id}")
@@ -242,8 +237,7 @@ class ScvmmApiService {
             // Make sure we save the externalId ASAP
             server.externalId = newServerExternalId
             server = morpheusContext.services.computeServer.save(server)
-            //server.save(flush: true)
-            //}
+
             // Find the newly assigned VM information
             log.info("RAZI :: createServer: opts222: ${opts}")
             def serverCreated = checkServerCreated(opts, opts.externalId)
@@ -252,12 +246,6 @@ class ScvmmApiService {
             log.info("RAZI :: createServer: serverCreated.success: ${serverCreated.success}")
 
             if (serverCreated.success == true) {
-                //ComputeServer.withNewSession {
-                //opts.network = Network.get(opts.networkId)
-                //opts.zone = ComputeZone.get(opts.zoneId)
-                //server = ComputeServer.get(opts.serverId)
-                //loadControllerServer(opts)
-
                 log.debug "opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}"
                 log.info("RAZI :: createServer: opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}")
                 opts.additionalTemplateDisks?.each { diskConfig ->
@@ -352,9 +340,6 @@ class ScvmmApiService {
                 log.info("Starting Server  ${opts.name}")
                 log.info("RAZI :: createServer: opts.name: Starting Server: ${opts.name}")
                 log.info("RAZI :: createServer: opts.externalId: ${opts.externalId}")
-                log.info("RAZI :: createServer: sleep started ------")
-                sleep(10000) // just a test
-                log.info("RAZI :: createServer: sleep ended ------")
                 log.info("RAZI :: createServer: before calling startServer.....")
                 startServer(opts, opts.externalId)
                 log.info("RAZI :: createServer: after calling startServer.....")
@@ -371,7 +356,6 @@ class ScvmmApiService {
                     rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
                 }
                 log.info("RAZI :: createServer: rtn.server: ${rtn.server}")
-                //}
             }
 
             log.info("RAZI :: createServer: cloudInitIsoPath: ${cloudInitIsoPath}")
@@ -1684,7 +1668,6 @@ Status=\$job.Status.toString()
                             rtn.server.ipAddress = ipAddress ?: server?.internalIp
                             pending = false
                         } else {
-                            //server.refresh()
                             log.debug("check server loading server: ip: ${server.internalIp}")
                             if (server.internalIp) {
                                 rtn.success = true
@@ -1883,11 +1866,9 @@ foreach(\$share in \$shares) {
         def scriptPath
         InputStream inputStream = new ByteArrayInputStream(opts.cloudConfigBytes)
         def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "${opts.fileName}", "${diskFolder}\\${opts.fileName}", inputStream, opts.cloudConfigBytes?.size(), null, true)
-        //def importAction = [inline: true, action: 'rawfile', content: content.encodeAsBase64(), targetPath: "${diskFolder}\\${opts.fileName}".toString(), opts: [:]]
-        //def importPromise = opts.scvmmProvisionService.commandService.sendAction(opts.hypervisor, importAction)
-        //def importResult = importPromise.get(1000l * 60l * 3l)
         log.info("RAZI :: importScript: fileResults: ${fileResults}")
         log.info("RAZI :: importScript: fileResults?.success: ${fileResults?.success}")
+//        log.debug ("importScript: fileResults.success: ${fileResults.success}")
         if (!fileResults.success) {
             throw new Exception("Script Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
         }
@@ -1945,10 +1926,8 @@ For (\$i=0; \$i -le 10; \$i++) {
         log.debug "importAndMountIso: ${diskFolder}, ${imageFolderName}, ${opts}"
         def cloudInitIsoPath
         def isoAction = [inline: true, action: 'rawfile', content: cloudConfigBytes.encodeAsBase64(), targetPath: "${diskFolder}\\config.iso".toString(), opts: [:]]
-        //def isoPromise = opts.scvmmProvisionService.commandService.sendAction(opts.hypervisor, isoAction)
 
         InputStream inputStream = new ByteArrayInputStream(cloudConfigBytes)
-        /*log.info ("RAZI :: importAndMountIso: inputStream?.bytes?.size(): ${inputStream?.bytes?.size()}")*/
         log.info("RAZI :: importAndMountIso: opts.hypervisor?.name: ${opts.hypervisor?.name}")
         log.info("RAZI :: importAndMountIso: cloudConfigBytes?.size(): ${cloudConfigBytes?.size()}")
         def command = "\$ignore = mkdir \"${diskFolder}\""
@@ -1961,11 +1940,7 @@ For (\$i=0; \$i -le 10; \$i++) {
 
         log.info("RAZI :: importAndMountIso: fileResults: ${fileResults}")
         log.info("RAZI :: importAndMountIso: fileResults?.success: ${fileResults?.success}")
-
-        /*def isoUploadResult = isoPromise.get(1000l * 60l * 3l)
-        if (!isoUploadResult.success) {
-            throw new Exception("ISO Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
-        }*/
+        log.debug ("importAndMountIso: fileResults?.success: ${fileResults?.success}")
         if (!fileResults.success) {
             throw new Exception("ISO Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
         }
@@ -2258,8 +2233,6 @@ For (\$i=0; \$i -le 10; \$i++) {
         log.info("RAZI :: transferImage: cloudFiles: ${cloudFiles}")
         log.info("RAZI :: transferImage: imageName: ${imageName}")
         def rtn = [success: false, results: []]
-        /*CloudFile metadataFile = (CloudFile) cloudFiles?.findAll { cloudFile -> cloudFile.name == 'metadata.json' }
-        def vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf('.vhd') > -1 }*/
         CloudFile metadataFile = (CloudFile) cloudFiles?.find { cloudFile -> cloudFile.name == 'metadata.json' }
         log.info("RAZI :: transferImage: metadataFile: ${metadataFile}")
         log.info("RAZI :: transferImage: metadataFile?.name: ${metadataFile?.name}")

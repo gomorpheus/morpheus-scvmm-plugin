@@ -40,7 +40,7 @@ resource "compute-type-set" "docker-scvmm-ubuntu-16_04-set" {
 
 resource "compute-type-layout" "docker-scvmm-ubuntu-16_04-single" {
   code                = "docker-scvmm-ubuntu-16.04-single"
-  name                = "SCVMM Docker Host"
+  name                = "SCVMM Docker Host Ubuntu 16"
   sortOrder          = 5
   computeVersion     = "16.04"
   description         = "This will provision a single docker host vm in scvmm"
