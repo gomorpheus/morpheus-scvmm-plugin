@@ -189,12 +189,15 @@ class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 			//config
 //			def backupResult = backupConfig.backupResult
 //			def container = Container.read(rtn.containerId)
+			log.info("RAZI :: executionConfig.containerId: ${executionConfig.containerId}")
 			def container = morpheusContext.services.workload.get(executionConfig.containerId)
 //			def server = ComputeServer.read(container.serverId)
 //			def zone = ComputeZone.read(server.zoneId)
 			def snapshotName = "${server.externalId}.${System.currentTimeMillis()}".toString()
+			log.info("RAZI :: snapshotName: ${snapshotName}")
 			def outputPath = executionConfig.workingPath
-			log.debug("outputPath: ${outputPath}")
+			log.info("RAZI :: outputPath: ${outputPath}")
+//			log.debug("outputPath: ${outputPath}")
 			//set process id
 //			setBackupProcessId(backupResult, '1000', 'executeSnapshot')
 			//update status
@@ -203,19 +206,26 @@ class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 			//create snapshot
 			def node = provisionProvider.pickScvmmController(cloud)
 			def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, node)
+			log.info("RAZI :: scvmmOpts: ${scvmmOpts}")
 			scvmmOpts.snapshotId = snapshotName
 			def vmId = server.externalId
+			log.info("RAZI :: vmId: ${vmId}")
 			def snapshotResults = apiService.snapshotServer(scvmmOpts, vmId)
-			log.info("backup complete: {}", snapshotResults)
+			log.info("RAZI :: snapshotResults: ${snapshotResults}")
+			log.info("RAZI :: snapshotResults.success: ${snapshotResults.success}")
+//			log.info("backup complete: {}", snapshotResults)
 			if(snapshotResults.success) {
 				/*def statusMap = [backupResultId:rtn.backupResultId, executorIP:rtn.ipAddress, destinationPath:outputPath,
 								 providerType:'scvmm', providerBasePath:'scvmm', targetBucket:snapshotResults.snapshotId, targetDirectory:snapshotResults.snapshotId,
 								 targetArchive:snapshotResults.snapshotId, backupSizeInMb:0, success:true]
 				statusMap.config = [snapshotId: snapshotResults.snapshotId, vmId:vmId]
 				updateBackupStatus(backupResult.id, statusMap)*/
+				log.info("RAZI :: opts.backupSetId: ${opts.backupSetId}")
 				rtn.data.backupResult.backupSetId = opts.backupSetId
+				log.info("RAZI :: executionConfig.ipAddress: ${executionConfig.ipAddress}")
 				rtn.data.backupResult.executorIpAddress = executionConfig.ipAddress
 				rtn.data.backupResult.resultBase = 'scvmm'
+				log.info("RAZI :: snapshotResults.snapshotId: ${snapshotResults.snapshotId}")
 				rtn.data.backupResult.resultBucket = snapshotResults.snapshotId
 //				rtn.data.backupResult.resultPath = snapshotResults.snapshotId
 				rtn.data.backupResult.resultPath = outputPath
@@ -261,6 +271,7 @@ class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 			rtn.data.backupResult.errorOutput = error.encodeAsBase64()
 			rtn.data.updates = true
 		}
+		log.info("RAZI :: backup executed successfully")
 		return rtn
 	}
 
