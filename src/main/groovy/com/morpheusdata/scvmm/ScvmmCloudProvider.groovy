@@ -140,11 +140,10 @@ class ScvmmCloudProvider implements CloudProvider {
 				displayOrder: displayOrder += 10,
 				fieldCode: 'gomorpheus.optiontype.Cloud',
 				fieldLabel:'Cloud',
-				editable: false,
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmCloud',
-				fieldContext:'zone',
-				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
+				fieldContext:'domain',
+				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password',
 		)
 		options << new OptionType(
 				name: 'Host Group',
@@ -155,11 +154,10 @@ class ScvmmCloudProvider implements CloudProvider {
 				displayOrder: displayOrder += 10,
 				fieldCode: 'gomorpheus.optiontype.HostGroup',
 				fieldLabel:'Host Group',
-				editable:false,
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmHostGroup',
 				fieldContext:'config',
-				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
+				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password',
 		)
 		options << new OptionType(
 				name: 'Cluster',
@@ -170,11 +168,10 @@ class ScvmmCloudProvider implements CloudProvider {
 				displayOrder: displayOrder += 10,
 				fieldCode: 'gomorpheus.optiontype.Cluster',
 				fieldLabel:'Cluster',
-				editable:false,
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmCluster',
 				fieldContext:'config',
-				dependsOn: 'config.scvmmHost, config.username, config.password, config.hostGroup, credential.type, credential.username, credential.password'
+				dependsOn: 'config.scvmmHost, config.username, config.password, config.hostGroup, credential.type, credential.username, credential.password',
 		)
 		options << new OptionType(
 				name: 'Library Share',
@@ -185,11 +182,10 @@ class ScvmmCloudProvider implements CloudProvider {
 				displayOrder: displayOrder += 10,
 				fieldCode: 'gomorpheus.optiontype.LibraryShare',
 				fieldLabel:'Library Share',
-				editable:false,
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmLibraryShares',
 				fieldContext:'config',
-				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
+				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password',
 		)
 		options << new OptionType(
 				name: 'Shared Controller',
@@ -200,7 +196,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				displayOrder: displayOrder += 10,
 				fieldCode: 'gomorpheus.optiontype.SharedController',
 				fieldLabel:'Shared Controller',
-				editable:false,
+				required: true,
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmSharedControllers',
 				fieldContext:'config',

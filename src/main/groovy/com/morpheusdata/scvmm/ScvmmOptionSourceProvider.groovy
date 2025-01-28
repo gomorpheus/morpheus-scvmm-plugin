@@ -82,30 +82,48 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 
 	def scvmmCloud(params) {
 		params = params instanceof Object[] ? params.getAt(0) : params
-		log.debug "scvmmCloud: ${params}"
+//		log.debug "scvmmCloud: ${params}"
+		log.info("RAZI :: scvmmCloud >> params: ${params}")
 		def config = [
 				host:params.config?.host ?: params["config[host]"],
 				username:params.config?.username ?: params["config[username]"]
 		]
+		log.info("RAZI :: scvmmCloud >> config1: ${config}")
 		def password = params.config?.password ?: params["config[password]"]
+		log.info("RAZI :: scvmmCloud >> password: ${password}")
+		log.info("RAZI :: scvmmCloud >> params.zoneId: ${params.zoneId}")
 		if(password == '*' * 12 && params.zoneId) {
 			config.password = morpheusContext.services.cloud.get(params.zoneId.toLong()).configMap.password
+			log.info("RAZI :: scvmmCloud if >> config.password: ${config.password}")
 		} else {
 			config.password = password
+			log.info("RAZI :: scvmmCloud if-else >> config.password: ${config.password}")
 		}
 		def cloud = new Cloud()
+		log.info("RAZI :: scvmmCloud >> config2: ${config}")
 		cloud.setConfigMap(config)
 		cloud.cloudType = morpheusContext.services.cloud.type.find(new DataQuery().withFilter('code', 'scvmm'))
+		log.info("RAZI :: scvmmCloud >> cloud.cloudType: ${cloud.cloudType}")
+		log.info("RAZI :: scvmmCloud >> params.credential: ${params.credential}")
 		if(params.credential) {
 			def accountCredential = morpheusContext.services.accountCredential.loadCredentialConfig(params.credential, config)
+			log.info("RAZI :: scvmmCloud >> accountCredential: ${accountCredential}")
 			cloud.accountCredentialLoaded = true
 			cloud.accountCredentialData = accountCredential?.data
+			log.info("RAZI :: scvmmCloud >> cloud.accountCredentialData: ${cloud.accountCredentialData}")
 		}
+		log.info("RAZI :: scvmmCloud >> params.config?.apiProxy: ${params.config?.apiProxy}")
+		log.info("RAZI :: scvmmCloud >> params.config.long('apiProxy'): ${params.config.long('apiProxy')}")
+		def proxy1 = morpheusContext.services.network.networkProxy.get(params.config.long('apiProxy'))
+		log.info("RAZI :: scvmmCloud >> proxy1: ${proxy1}")
 		def proxy = params.config?.apiProxy ? morpheusContext.services.network.networkProxy.get(params.config.long('apiProxy')) : null
 		cloud.apiProxy = proxy
-		log.debug("listing clouds {}", config)
+		log.info("RAZI :: scvmmCloud >> cloud.apiProxy: ${cloud.apiProxy}")
+//		log.debug("listing clouds {}", config)
 		def results = listClouds(cloud)
-		log.debug("cloud results {}", results)
+		log.info("RAZI :: scvmmCloud >> results: ${results}")
+//		log.debug("cloud results {}", results)
+		log.info("RAZI :: scvmmCloud >> results.clouds?.collect: ${results.clouds?.collect{[name: it.Name, value: it.ID]}}")
 		return results.clouds?.collect{[name: it.Name, value: it.ID]}
 	}
 
