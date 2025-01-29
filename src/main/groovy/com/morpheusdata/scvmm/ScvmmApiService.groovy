@@ -389,7 +389,7 @@ class ScvmmApiService {
         log.debug "getServerDetails: ${externalId}"
         def rtn = [success: false, server: null, networkAdapters: [], error: null]
         try {
-            def out = wrapExecuteCommand(generateCommandString("""\$vm = Get-SCVirtualMachine -VMMServer localhost -ID \"${externalId}\";
+            def serverDetailsCommand = generateCommandString("""\$vm = Get-SCVirtualMachine -VMMServer localhost -ID \"${externalId}\";
 \$report = @()
 if(\$vm) { 
 	\$networkAdapters = Get-SCVirtualNetworkAdapter -VMMServer localhost -VM \$vm | where { \$_.Enabled -eq \$true }; 
@@ -420,7 +420,9 @@ if(\$vm) {
 	}
 	\$report += \$data
 }
-\$report """), opts)
+\$report """)
+            log.info("RAZI :: getServerDetails: serverDetailsCommand: ${serverDetailsCommand}")
+            def out = wrapExecuteCommand(serverDetailsCommand, opts)
             log.info("RAZI :: getServerDetails: out.success: ${out.success}")
             log.info("RAZI :: getServerDetails: out.data: ${out.data}")
             if (out.success) {

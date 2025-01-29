@@ -505,6 +505,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 
             scvmmOpts.controllerServerId = controllerNode.id
             def externalPoolId
+            log.info("RAZI :: runWorkload >> containerConfig.resourcePool: ${containerConfig.resourcePool}")
             if (containerConfig.resourcePool) {
                 try {
                     def resourcePool = server.resourcePool
@@ -735,7 +736,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 }
                 // check: for inprogress status
                 //rtn.inProgress = true
-                log.debug("create server: ${scvmmOpts}")
+//                log.debug("create server: ${scvmmOpts}")
+                log.info("RAZI :: runWorkload >> scvmmOpts5: ${scvmmOpts}")
                 def createResults = apiService.createServer(scvmmOpts)
                 scvmmOpts.deleteDvdOnComplete = createResults.deleteDvdOnComplete
                 if (createResults.success == true) {
@@ -1658,6 +1660,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
         ProvisionResponse provisionResponse = new ProvisionResponse()
         try {
             def config = server.getConfigMap()
+            config.resourcePoolId = ""
+            config.resourcePoolId = ""
             log.info("RAZI :: runHost >> config: ${config}")
             Cloud cloud = server.cloud
             def account = server.account
@@ -1814,7 +1818,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 //save the server
                 server = saveAndGetMorpheusServer(server, true)
                 scvmmOpts.newServer = server
-                log.debug("create server:${scvmmOpts}")
+//                log.debug("create server:${scvmmOpts}")
+                log.info("RAZI :: runHost >> scvmmOpts5: ${scvmmOpts}")
 
                 //create it in scvmm
                 def createResults = apiService.createServer(scvmmOpts)
