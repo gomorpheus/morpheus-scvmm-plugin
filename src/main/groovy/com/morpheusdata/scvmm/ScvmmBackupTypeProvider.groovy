@@ -1,7 +1,6 @@
 package com.morpheusdata.scvmm
 
 import com.morpheusdata.core.MorpheusContext
-import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.backup.AbstractBackupTypeProvider
 import com.morpheusdata.core.backup.BackupExecutionProvider
 import com.morpheusdata.core.backup.BackupRestoreProvider
@@ -21,9 +20,14 @@ class ScvmmBackupTypeProvider extends AbstractBackupTypeProvider {
 
 	BackupExecutionProvider executionProvider;
 	BackupRestoreProvider restoreProvider;
+	MorpheusContext morpheusContext
+	ScvmmPlugin plugin
 
-	ScvmmBackupTypeProvider(Plugin plugin, MorpheusContext morpheusContext) {
+	ScvmmBackupTypeProvider(ScvmmPlugin plugin, MorpheusContext morpheusContext) {
 		super(plugin, morpheusContext)
+		this.plugin = plugin
+		this.morpheusContext = morpheusContext
+
 	}
 
 	/**
@@ -33,7 +37,7 @@ class ScvmmBackupTypeProvider extends AbstractBackupTypeProvider {
 	 */
 	@Override
 	String getCode() {
-		return "morpheus-scvmm-pluginBackupTypeProvider"
+		return "scvmmSnapshot"
 	}
 
 	/**
@@ -44,7 +48,7 @@ class ScvmmBackupTypeProvider extends AbstractBackupTypeProvider {
 	 */
 	@Override
 	String getName() {
-		return "SCVMMBackupTypeProvider"
+		return "SCVMM VM Snapshot"
 	}
 	
 	/**
@@ -89,7 +93,7 @@ class ScvmmBackupTypeProvider extends AbstractBackupTypeProvider {
 	 */
 	@Override
 	Boolean getRestoreNewEnabled() {
-		return true
+		return false
 	}
 
 	/**
@@ -98,7 +102,7 @@ class ScvmmBackupTypeProvider extends AbstractBackupTypeProvider {
 	 */
 	@Override
 	String getRestoreType() {
-		return "online"
+		return "offline"
 	}
 
 	/**
@@ -124,7 +128,7 @@ class ScvmmBackupTypeProvider extends AbstractBackupTypeProvider {
 	 */
 	@Override
 	String getRestoreNewMode() {
-		return "VM_RESTORE"
+		return null
 	}
 	
 	/**
@@ -152,7 +156,7 @@ class ScvmmBackupTypeProvider extends AbstractBackupTypeProvider {
 	@Override
 	ScvmmBackupExecutionProvider getExecutionProvider() {
 		if(!this.executionProvider) {
-			this.executionProvider = new ScvmmBackupExecutionProvider(getPlugin())
+			this.executionProvider = new ScvmmBackupExecutionProvider(plugin, morpheusContext)
 		}
 		return this.executionProvider
 	}
@@ -164,7 +168,7 @@ class ScvmmBackupTypeProvider extends AbstractBackupTypeProvider {
 	@Override
 	ScvmmBackupRestoreProvider getRestoreProvider() {
 		if(!this.restoreProvider) {
-		this.restoreProvider = new ScvmmBackupRestoreProvider(getPlugin())
+		this.restoreProvider = new ScvmmBackupRestoreProvider(plugin, morpheusContext)
 		}
 		return this.restoreProvider
 	}

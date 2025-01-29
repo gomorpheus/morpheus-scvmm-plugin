@@ -1,9 +1,10 @@
 package com.morpheusdata.scvmm
 
 import com.morpheusdata.core.MorpheusContext
-import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.backup.BackupExecutionProvider
 import com.morpheusdata.core.backup.response.BackupExecutionResponse
+import com.morpheusdata.core.backup.util.BackupResultUtility
+import com.morpheusdata.core.util.DateUtility
 import com.morpheusdata.model.Backup
 import com.morpheusdata.model.BackupResult
 import com.morpheusdata.model.Cloud
@@ -178,8 +179,70 @@ class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 	 * of 'false' will halt the execution process.
 	 */
 	@Override
-	ServiceResponse<BackupExecutionResponse> executeBackup(Backup backup, BackupResult backupResult, Map executionConfig, Cloud cloud, ComputeServer computeServer, Map opts) {
-		return ServiceResponse.success(new BackupExecutionResponse(backupResult))
+	ServiceResponse<BackupExecutionResponse> executeBackup(Backup backup, BackupResult backupResult, Map executionConfig, Cloud cloud, ComputeServer server, Map opts) {
+		log.debug("executeBackup: executionConfig: {}, opts: {}", executionConfig, opts)
+		ServiceResponse<BackupExecutionResponse> rtn = ServiceResponse.prepare(new BackupExecutionResponse(backupResult))
+		try {
+			log.info("backupConfig container: ${rtn}")
+			def container = morpheusContext.services.workload.get(executionConfig.containerId)
+			def snapshotName = "${server.externalId}.${System.currentTimeMillis()}".toString()
+			def outputPath = executionConfig.workingPath
+
+			//update status
+			rtn.data.backupResult.status = BackupResult.Status.IN_PROGRESS
+
+			//create snapshot
+			def node = provisionProvider.pickScvmmController(cloud)
+			def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, node)
+			scvmmOpts.snapshotId = snapshotName
+			def vmId = server.externalId
+			def snapshotResults = apiService.snapshotServer(scvmmOpts, vmId)
+			log.info("backup complete: {}", snapshotResults)
+			if(snapshotResults.success) {
+				rtn.data.backupResult.backupSetId = opts.backupSetId
+				rtn.data.backupResult.executorIpAddress = executionConfig.ipAddress
+				rtn.data.backupResult.resultBase = 'scvmm'
+				rtn.data.backupResult.resultBucket = snapshotResults.snapshotId
+				rtn.data.backupResult.resultPath = outputPath
+				rtn.data.backupResult.resultArchive = snapshotResults.snapshotId
+				rtn.data.backupResult.sizeInMb = 0l
+				rtn.data.backupResult.snapshotId = snapshotResults.snapshotId
+				rtn.data.backupResult.setConfigProperty("snapshotId", snapshotResults.snapshotId)
+				rtn.data.backupResult.setConfigProperty("vmId", vmId)
+				rtn.data.updates = true
+				rtn.data.backupResult.status = BackupResult.Status.SUCCEEDED
+				if (!backupResult.endDate) {
+					rtn.data.backupResult.endDate = new Date()
+					def startDate = backupResult.startDate
+					if (startDate) {
+						def start = DateUtility.parseDate(startDate)
+						def end = rtn.data.backupResult.endDate
+						rtn.data.backupResult.durationMillis = end.time - start.time
+					}
+				}
+			} else {
+				//error
+				rtn.data.backupResult.backupSetId = opts.backupSetId
+				rtn.data.backupResult.executorIpAddress = executionConfig.ipAddress
+				rtn.data.backupResult.resultPath = outputPath
+				rtn.data.backupResult.sizeInMb = 0l
+				rtn.data.backupResult.status = BackupResult.Status.FAILED
+				rtn.data.backupResult.errorOutput = snapshotResults.error?.toString().encodeAsBase64()
+				rtn.data.updates = true
+			}
+			rtn.success = true
+		} catch(e) {
+			log.error("executeBackup: ${e}", e)
+			rtn.msg = e.getMessage()
+			def error = "Failed to execute backup"
+			rtn.data.backupResult.backupSetId = executionConfig.backupResultId ?: BackupResultUtility.generateBackupResultSetId()
+			rtn.data.backupResult.executorIpAddress = executionConfig.ipAddress
+			rtn.data.backupResult.sizeInMb = 0l
+			rtn.data.backupResult.status = BackupResult.Status.FAILED
+			rtn.data.backupResult.errorOutput = error.encodeAsBase64()
+			rtn.data.updates = true
+		}
+		return rtn
 	}
 
 	/**
