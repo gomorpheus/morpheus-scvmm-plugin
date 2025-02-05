@@ -3,6 +3,7 @@ package com.morpheusdata.scvmm
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.backup.BackupRestoreProvider
+import com.morpheusdata.core.backup.response.BackupRestoreResponse
 import com.morpheusdata.response.ServiceResponse;
 import com.morpheusdata.model.BackupRestore;
 import com.morpheusdata.model.BackupResult;
@@ -15,10 +16,12 @@ class ScvmmBackupRestoreProvider implements BackupRestoreProvider {
 
 	Plugin plugin
 	MorpheusContext morpheusContext
+	ScvmmApiService apiService
 
 	ScvmmBackupRestoreProvider(Plugin plugin, MorpheusContext morpheusContext) {
 		this.plugin = plugin
 		this.morpheusContext = morpheusContext
+		this.apiService = new ScvmmApiService(morpheusContext)
 	}
 	
 	/**
@@ -112,7 +115,38 @@ class ScvmmBackupRestoreProvider implements BackupRestoreProvider {
 	 */
 	@Override
 	ServiceResponse restoreBackup(BackupRestore backupRestore, BackupResult backupResult, Backup backup, Map opts) {
-		return ServiceResponse.success()
+		log.info("restoreBackup {}", backupResult)
+		ServiceResponse rtn = ServiceResponse.prepare(new BackupRestoreResponse(backupRestore))
+		try {
+			ScvmmProvisionProvider provisionProvider = new ScvmmProvisionProvider(plugin, morpheusContext)
+			def config = backupResult.getConfigMap()
+			def snapshotId = config.snapshotId
+			def vmId = config.vmId
+			if (snapshotId) {
+				def workload = morpheusContext.services.workload.get(backupResult.containerId)
+				def computServer = morpheusContext.services.computeServer.get(workload.serverId)
+				def cloud = computServer?.cloud
+				def node = provisionProvider.pickScvmmController(cloud)
+				def restoreOpts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, node)
+				//execute restore
+				def restoreResults = apiService.restoreServer(restoreOpts, vmId, snapshotId)
+				log.debug("restoreResults: ${restoreResults}")
+				sleep(30000)
+				// argh.. why!?  need to restart the server in order for the agent to call back home for some reason
+				provisionProvider.stopWorkload(workload)
+				sleep(30000)
+				provisionProvider.startWorkload(workload)
+				rtn.data.backupRestore.status = BackupResult.Status.SUCCEEDED
+				rtn.data.updates = true
+				rtn.success = true
+				log.info("restore results: {}", restoreResults)
+			}
+		} catch (e) {
+			log.error("restoreBackup: ${e}", e)
+			rtn.success = false
+			rtn.msg = e.getMessage()
+		}
+		return rtn
 	}
 
 	/**
