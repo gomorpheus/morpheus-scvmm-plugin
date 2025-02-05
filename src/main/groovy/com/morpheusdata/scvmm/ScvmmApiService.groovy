@@ -44,9 +44,6 @@ class ScvmmApiService {
     def insertContainerImage(opts) {
         log.debug "insertContainerImage: ${opts}"
         def rtn = [success: false, imageExists: false]
-//		rtn.success = true
-//		rtn.imageId = '41266f2e-062c-4356-9eb0-b3b0e64c1e15'
-//		return rtn
         def image = opts.image
         def imageName = image.name
         def imageType = image.imageType
@@ -56,6 +53,7 @@ class ScvmmApiService {
         def tgtFolder = "${rootSharePath}\\images\\$imageFolderName"
         def tgtFullPath = "${tgtFolder}\\$imageName.$imageType"
         def out = wrapExecuteCommand(generateCommandString("Get-SCVirtualHardDisk -VMMServer localhost | where {\$_.SharePath -like \"${tgtFolder}\\*\"} | Select ID"), opts)
+
         if (!out.success) {
             throw new Exception("Error in getting Get-SCVirtualHardDisk")
         }
@@ -122,8 +120,10 @@ class ScvmmApiService {
             def imageFolderName = opts.serverFolder
             def diskFolder = "${diskRoot}\\${imageFolderName}"
             if (opts.isSysprep) {
+                //loadControllerServer(opts)
                 opts.unattendPath = importScript(opts.cloudConfigUser, diskFolder, imageFolderName, [fileName: 'Unattend.xml'] + opts)
             }
+
             createCommands = buildCreateServerCommands(opts)
 
             if (createCommands.hardwareProfileName) {
@@ -135,6 +135,7 @@ class ScvmmApiService {
 
             launchCommand = createCommands.launchCommand
             log.info("launchCommand: ${launchCommand}")
+            // throw new Exception('blah')
             createData = wrapExecuteCommand(generateCommandString(launchCommand), opts)
             log.debug "run server: ${createData}"
 
@@ -153,7 +154,7 @@ class ScvmmApiService {
                 throw new Exception("Error in launching VM: ${createData}")
             }
 
-            server = morpheusContext.services.computeServer.get(opts.serverId)
+            server = morpheusContext.services.computeServer.get(opts.serverId)//ComputeServer.get(opts.serverId)
             log.info "Create results: ${createData}"
 
             def newServerExternalId = createData.data && createData.data.size() == 1 && createData.data[0].ObjectType?.toString() == '1' ? createData.data[0].ID : null
@@ -196,27 +197,27 @@ class ScvmmApiService {
                         disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
                     } else {
                         disks.dataDisks[diskIndex - 1].externalId = disk.ID
-
                         disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, dataDisk: true, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
                     }
-                }
-                //resize disk
-                log.debug ".. about to resize disk ${opts.osDiskSize}"
-                diskRoot = opts.diskRoot
-                imageFolderName = opts.serverFolder
-                diskFolder = "${diskRoot}\\${imageFolderName}"
-                if (opts.osDiskSize) {
-                    def osDiskVhdID = disks.diskMetaData[disks.osDisk?.externalId]?.VhdID
-                    resizeDisk(opts, osDiskVhdID, opts.osDiskSize)
-                }
 
-                // Resize the data disks if template
-                if (opts.isTemplate && opts.templateId && opts.dataDisks) {
-                    disks.diskMetaData?.each { externalId, map ->
-                        def storageVolume = opts.dataDisks.find { it.externalId == externalId }
-                        if (storageVolume) {
-                            def diskVhdID = disks.diskMetaData[externalId]?.VhdID
-                            resizeDisk(opts, diskVhdID, storageVolume.maxStorage)
+                    //resize disk
+                    log.debug ".. about to resize disk ${opts.osDiskSize}"
+                    diskRoot = opts.diskRoot
+                    imageFolderName = opts.serverFolder
+                    diskFolder = "${diskRoot}\\${imageFolderName}"
+                    if (opts.osDiskSize) {
+                        def osDiskVhdID = disks.diskMetaData[disks.osDisk?.externalId]?.VhdID
+                        resizeDisk(opts, osDiskVhdID, opts.osDiskSize)
+                    }
+
+                    // Resize the data disks if template
+                    if (opts.isTemplate && opts.templateId && opts.dataDisks) {
+                        disks.diskMetaData?.each { externalId, map ->
+                            def storageVolume = opts.dataDisks.find { it.externalId == externalId }
+                            if (storageVolume) {
+                                def diskVhdID = disks.diskMetaData[externalId]?.VhdID
+                                resizeDisk(opts, diskVhdID, storageVolume.maxStorage)
+                            }
                         }
                     }
                 }
@@ -1504,6 +1505,7 @@ Status=\$job.Status.toString()
                         notFoundAttempts++
                     }
                 }
+
                 attempts++
                 if (attempts > 300 || notFoundAttempts > 10)
                     pending = false
@@ -1534,20 +1536,20 @@ Status=\$job.Status.toString()
         return rtn
     }
 
-	def stopServer(opts, vmId) {
-		def rtn = [success: false]
-		try {
-			def command = """\$VM = Get-SCVirtualMachine -VMMServer localhost  -ID \"${vmId}\"
+    def stopServer(opts, vmId) {
+        def rtn = [success: false]
+        try {
+            def command = """\$VM = Get-SCVirtualMachine -VMMServer localhost  -ID \"${vmId}\"
 if(\$VM.Status -ne 'PowerOff') { 
 	\$ignore = Stop-SCVirtualMachine -VM \$VM; 
 } \$true """
-			def out = wrapExecuteCommand(generateCommandString(command), opts)
-			rtn.success = out.success
-		} catch (e) {
-			log.error("stopServer error: ${e}", e)
-		}
-		return rtn
-	}
+            def out = wrapExecuteCommand(generateCommandString(command), opts)
+            rtn.success = out.success
+        } catch (e) {
+            log.error("stopServer error: ${e}", e)
+        }
+        return rtn
+    }
 
     def deleteServer(opts, vmId) {
         def rtn = [success: false]
@@ -1721,7 +1723,6 @@ For (\$i=0; \$i -le 10; \$i++) {
         InputStream inputStream = new ByteArrayInputStream(cloudConfigBytes)
         def command = "\$ignore = mkdir \"${diskFolder}\""
         def dirResults = wrapExecuteCommand(generateCommandString(command), opts)
-
         def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "config.iso", "${diskFolder}\\config.iso", inputStream, cloudConfigBytes?.size())
         log.debug ("importAndMountIso: fileResults?.success: ${fileResults?.success}")
         if (!fileResults.success) {
@@ -2440,32 +2441,32 @@ For (\$i=0; \$i -le 10; \$i++) {
         def cloudConfig = cloud.getConfigMap()
         def keyPair = context.services.keyPair.find(new DataQuery().withFilter("accountId", cloud?.account?.id))
         return [
-            account                : cloud.account,
-            zoneConfig             : cloudConfig,
-            zone                   : cloud,
-            zoneId                 : cloud?.id,
-            publicKey              : keyPair?.publicKey,
-            privateKey             : keyPair?.privateKey,
-            //controllerServer       : controllerServer,
-            rootSharePath          : cloudConfig['libraryShare'],
-            regionCode             : cloud.regionCode
+                account      : cloud.account,
+                zoneConfig   : cloudConfig,
+                zone         : cloud,
+                zoneId       : cloud?.id,
+                publicKey    : keyPair?.publicKey,
+                privateKey   : keyPair?.privateKey,
+                //controllerServer       : controllerServer,
+                rootSharePath: cloudConfig['libraryShare'],
+                regionCode   : cloud.regionCode
         ]
-                //baseBoxProvisionService: scvmmProvisionService]
+        //baseBoxProvisionService: scvmmProvisionService]
     }
 
     def getScvmmCloudOpts(MorpheusContext context, Cloud cloud, controllerServer) {
         def cloudConfig = cloud.getConfigMap()
         def keyPair = context.services.keyPair.find(new DataQuery().withFilter("accountId", cloud?.account?.id))
         return [
-                account                : cloud.account,
-                zoneConfig             : cloudConfig,
-                zone                   : cloud,
-                zoneId                 : cloud?.id,
-                publicKey              : keyPair?.publicKey,
-                privateKey             : keyPair?.privateKey,
-                controllerServer       : controllerServer,
-                rootSharePath          : cloudConfig['libraryShare'],
-                regionCode             : cloud.regionCode
+                account         : cloud.account,
+                zoneConfig      : cloudConfig,
+                zone            : cloud,
+                zoneId          : cloud?.id,
+                publicKey       : keyPair?.publicKey,
+                privateKey      : keyPair?.privateKey,
+                controllerServer: controllerServer,
+                rootSharePath   : cloudConfig['libraryShare'],
+                regionCode      : cloud.regionCode
         ]
     }
 
@@ -2478,7 +2479,7 @@ For (\$i=0; \$i -le 10; \$i++) {
         def configuredWorkingPath = zoneConfig.workingPath?.length() > 0 ? zoneConfig.workingPath : serverConfig.workingPath?.length() > 0 ? serverConfig.workingPath : null
         def zoneRoot = configuredWorkingPath ? configuredWorkingPath : defaultRoot
         return [hypervisorConfig: serverConfig, hypervisor: hypervisor, sshHost: hypervisor.sshHost, sshUsername: hypervisor.sshUsername,
-                sshPassword: hypervisor.sshPassword, zoneRoot: zoneRoot, diskRoot: diskRoot]
+                sshPassword     : hypervisor.sshPassword, zoneRoot: zoneRoot, diskRoot: diskRoot]
     }
 
     def getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, hypervisor) {
@@ -2544,8 +2545,8 @@ For (\$i=0; \$i -le 10; \$i++) {
         def cloudConfig = cloud.getConfigMap()
         def diskRoot = cloudConfig.diskPath?.length() > 0 ? cloudConfig.diskPath : defaultRoot + '\\Disks'
         def cloudRoot = cloudConfig.workingPath?.length() > 0 ? cloudConfig.workingPath : defaultRoot
-        return [sshHost:cloudConfig.host, sshUsername:getUsername(cloud), sshPassword:getPassword(cloud), zoneRoot:cloudRoot,
-                diskRoot:diskRoot]
+        return [sshHost : cloudConfig.host, sshUsername: getUsername(cloud), sshPassword: getPassword(cloud), zoneRoot: cloudRoot,
+                diskRoot: diskRoot]
     }
 
     private getUsername(cloud) {
