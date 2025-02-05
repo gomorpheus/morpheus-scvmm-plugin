@@ -58,7 +58,7 @@ class ScvmmApiService {
             throw new Exception("Error in getting Get-SCVirtualHardDisk")
         }
         def vhdBlocks = out.data ?: []
-        if (vhdBlocks.size() == 0) {
+        if (vhdBlocks?.size() == 0) {
             // Upload it (if needed)
             def match = findImage(opts, imageName)
             log.info("findImage: ${match}")
@@ -230,7 +230,7 @@ class ScvmmApiService {
 
                 //start it
                 log.info("Starting Server  ${opts.name}")
-                startServer(opts, opts.externalId)   //issue here
+                startServer(opts, opts.externalId)
                 //get details
                 log.info("SCVMM Check for Server Ready ${opts.name}")
                 def serverDetail = checkServerReady(opts, opts.externalId)
@@ -1402,6 +1402,7 @@ For (\$i=0; \$i -le 63; \$i++) {
             def attempts = 0
             while (pending) {
                 sleep(1000l * 5l)
+                log.debug "waitForJobToComplete: ${jobId}"
                 def getJobResults = getJob(opts, jobId)
                 if (getJobResults.success == true && getJobResults.jobDetail) {
 
@@ -1723,7 +1724,7 @@ For (\$i=0; \$i -le 10; \$i++) {
         def command = "\$ignore = mkdir \"${diskFolder}\""
         def dirResults = wrapExecuteCommand(generateCommandString(command), opts)
         def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "config.iso", "${diskFolder}\\config.iso", inputStream, cloudConfigBytes?.size())
-
+        log.debug ("importAndMountIso: fileResults?.success: ${fileResults?.success}")
         if (!fileResults.success) {
             throw new Exception("ISO Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
         }
