@@ -24,7 +24,7 @@ import com.morpheusdata.response.ServiceResponse
 import groovy.util.logging.Slf4j
 
 @Slf4j
-class ScvmmProvisionProvider extends AbstractProvisionProvider implements WorkloadProvisionProvider, HostProvisionProvider, ProvisionProvider.HypervisorProvisionFacet, WorkloadProvisionProvider.ResizeFacet, ProvisionProvider.BlockDeviceNameFacet {
+class ScvmmProvisionProvider extends AbstractProvisionProvider implements WorkloadProvisionProvider, HostProvisionProvider, ProvisionProvider.HypervisorProvisionFacet, HostProvisionProvider.ResizeFacet, WorkloadProvisionProvider.ResizeFacet, ProvisionProvider.BlockDeviceNameFacet {
     public static final String PROVIDER_CODE = 'scvmm.provision'
     public static final String PROVISION_TYPE_CODE = 'scvmm'
     public static final diskNames = ['sda', 'sdb', 'sdc', 'sdd', 'sde', 'sdf', 'sdg', 'sdh', 'sdi', 'sdj', 'sdk', 'sdl']
@@ -1962,22 +1962,34 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
     @Override
     ServiceResponse resizeWorkload(Instance instance, Workload workload, ResizeRequest resizeRequest, Map opts) {
         log.info("resizeWorkload calling resizeWorkloadAndServer")
-        return resizeWorkloadAndServer(workload, resizeRequest, opts)
+        return resizeWorkloadAndServer(workload, null, resizeRequest, opts, true)
     }
 
-    private ServiceResponse resizeWorkloadAndServer(Workload workload, ResizeRequest resizeRequest, Map opts) {
+    @Override
+    ServiceResponse resizeServer(ComputeServer server, ResizeRequest resizeRequest, Map opts) {
+        log.info("RAZI :: resizeServer calling resizeWorkloadAndServer")
+        return resizeWorkloadAndServer(null, server, resizeRequest, opts, false)
+        log.info("RAZI :: resizeServer >> resizeWorkloadAndServer call completed")
+    }
+
+    private ServiceResponse resizeWorkloadAndServer(Workload workload, ComputeServer server, ResizeRequest resizeRequest, Map opts, Boolean isWorkload) {
         log.debug("resizeWorkloadAndServer workload.id: ${workload?.id} - opts: ${opts}")
 
         ServiceResponse rtn = ServiceResponse.success()
-        ComputeServer computeServer = workload.server
+        log.info("RAZI :: resizeWorkloadAndServer >> isWorkload: ${isWorkload}")
+        ComputeServer computeServer = isWorkload ? getMorpheusServer(workload.server?.id) : getMorpheusServer(server.id)
         try {
             computeServer.status = 'resizing'
             computeServer = saveAndGet(computeServer)
             def vmId = computeServer.externalId
-            def scvmmOpts = getAllScvmmOpts(workload)
+            log.info("RAZI :: resizeWorkloadAndServer >> vmId: ${vmId}")
+            def scvmmOpts = isWorkload ? getAllScvmmOpts(workload) : getAllScvmmServerOpts(computeServer)
 
             // Memory and core changes
-            def resizeConfig = getResizeConfig(workload, null, workload.instance.plan, opts, resizeRequest)
+            def resizeConfig = isWorkload ?
+                    getResizeConfig(workload, null, workload.instance.plan, opts, resizeRequest) :
+                    getResizeConfig(null, computeServer, computeServer.plan, opts, resizeRequest)
+            log.info("RAZI :: resizeWorkloadAndServer >> resizeConfig: ${resizeConfig}")
             log.debug("resizeConfig: ${resizeConfig}")
             def requestedMemory = resizeConfig.requestedMemory
             def requestedCores = resizeConfig.requestedCores
@@ -1989,23 +2001,38 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 
             // Only stop if needed
             def stopResults
+            log.info("RAZI :: resizeWorkloadAndServer >> stopRequired: ${stopRequired}")
             if (stopRequired) {
-                stopResults = stopWorkload(workload)
+                stopResults = isWorkload ? stopWorkload(workload) : stopServer(computeServer)
             }
-            log.debug("stopResults?.success: ${stopResults?.success}")
+            log.info("RAZI :: resizeWorkloadAndServer >> stopResults: ${stopResults}")
+//            log.debug("stopResults?.success: ${stopResults?.success}")
             if (!stopRequired || stopResults?.success == true) {
+                log.info("RAZI :: resizeWorkloadAndServer >> neededMemory: ${neededMemory}")
+                log.info("RAZI :: resizeWorkloadAndServer >> neededCores: ${neededCores}")
+                log.info("RAZI :: resizeWorkloadAndServer >> minDynamicMemory: ${minDynamicMemory}")
+                log.info("RAZI :: resizeWorkloadAndServer >> maxDynamicMemory: ${maxDynamicMemory}")
+                log.info("RAZI :: resizeWorkloadAndServer >> requestedMemory: ${requestedMemory}")
+                log.info("RAZI :: resizeWorkloadAndServer >> requestedCores: ${requestedCores}")
                 if (neededMemory != 0 || neededCores != 0 || minDynamicMemory || maxDynamicMemory) {
                     def resizeResults = apiService.updateServer(scvmmOpts, vmId, [maxMemory: requestedMemory, maxCores: requestedCores, minDynamicMemory: minDynamicMemory, maxDynamicMemory: maxDynamicMemory])
-                    log.debug("resize results: ${resizeResults}")
+//                    log.debug("resize results: ${resizeResults}")
+                    log.info("RAZI :: resizeWorkloadAndServer >> resizeResults: ${resizeResults}")
                     if (resizeResults.success == true) {
-                        workload.setConfigProperty('maxMemory', requestedMemory)
-                        workload.maxMemory = requestedMemory.toLong()
-                        workload.setConfigProperty('maxCores', (requestedCores ?: 1))
-                        workload.maxCores = (requestedCores ?: 1).toLong()
+                        computeServer.setConfigProperty('maxMemory', requestedMemory)
+                        computeServer.setConfigProperty('maxCores', (requestedCores ?: 1))
                         computeServer.maxCores = (requestedCores ?: 1).toLong()
                         computeServer.maxMemory = requestedMemory.toLong()
                         computeServer = saveAndGet(computeServer)
-                        workload = context.services.workload.save(workload)
+                        log.info("RAZI :: resizeWorkloadAndServer >> computeServer1: ${computeServer}")
+                        if(isWorkload) {
+                            workload.setConfigProperty('maxMemory', requestedMemory)
+                            workload.maxMemory = requestedMemory.toLong()
+                            workload.setConfigProperty('maxCores', (requestedCores ?: 1))
+                            workload.maxCores = (requestedCores ?: 1).toLong()
+                            workload = context.services.workload.save(workload)
+                            log.info("RAZI :: resizeWorkloadAndServer >> workload: ${workload}")
+                        }
                     } else {
                         rtn.error = resizeResults.error ?: 'Failed to resize container'
                     }
@@ -2017,15 +2044,26 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                         log.debug("resizing vm storage: count: ${diskCounter} ${volumeUpdate}")
                         StorageVolume existing = volumeUpdate.existingModel
                         Map updateProps = volumeUpdate.updateProps
+                        log.info("RAZI :: resizeWorkloadAndServer >> existing: ${existing}")
+                        log.info("RAZI :: resizeWorkloadAndServer >> updateProps: ${updateProps}")
                         //existing disk - resize it
+                        log.info("RAZI :: resizeWorkloadAndServer >> updateProps.maxStorage: ${updateProps.maxStorage}")
+                        log.info("RAZI :: resizeWorkloadAndServer >> existing.maxStorage: ${existing.maxStorage}")
                         if (updateProps.maxStorage > existing.maxStorage) {
                             def volumeId = existing.externalId
+                            log.info("RAZI :: resizeWorkloadAndServer >> updateProps.volume.size: ${updateProps.volume.size}")
+                            log.info("RAZI :: resizeWorkloadAndServer >> updateProps.size: ${updateProps.size}")
                             def diskSize = ComputeUtility.parseGigabytesToBytes(updateProps.volume.size?.toLong())
+//                            def diskSize = ComputeUtility.parseGigabytesToBytes(updateProps.size?.toLong())
+                            log.info("RAZI :: resizeWorkloadAndServer >> volumeId: ${volumeId}")
+                            log.info("RAZI :: resizeWorkloadAndServer >> diskSize: ${diskSize}")
                             def resizeResults = apiService.resizeDisk(scvmmOpts, volumeId, diskSize)
+                            log.info("RAZI :: resizeWorkloadAndServer >> resizeResults: ${resizeResults}")
                             if (resizeResults.success == true) {
                                 def existingVolume = context.services.storageVolume.get(existing.id)
                                 existingVolume.maxStorage = diskSize
                                 context.services.storageVolume.save(existingVolume)
+                                log.info("RAZI :: resizeWorkloadAndServer >> existingVolume saved")
                             } else {
                                 log.error "Error in resizing volume: ${resizeResults}"
                                 rtn.error = resizeResults.error ?: "Error in resizing volume"
@@ -2035,10 +2073,15 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                     // new disk add it
                     resizeRequest.volumesAdd.each { volumeAdd ->
                         def diskSize = ComputeUtility.parseGigabytesToBytes(volumeAdd.size?.toLong())
+                        log.info("RAZI :: resizeWorkloadAndServer >> diskSize1: ${diskSize}")
                         def busNumber = '0'
-                        def volumePath = getVolumePathForDatastore(context.services.cloud.datastore.get(volumeAdd?.datastoreId))
+                        log.info("RAZI :: resizeWorkloadAndServer >> volumePath1: ${getVolumePathForDatastore(context.services.cloud.datastore.get(volumeAdd?.datastoreId))}")
+//                        def volumePath = getVolumePathForDatastore(context.services.cloud.datastore.get(volumeAdd?.datastoreId))
+                        def volumePath = getVolumePathForDatastore(volumeAdd.datastore)
+                        log.info("RAZI :: resizeWorkloadAndServer >> volumePath2: ${volumePath}")
                         def diskResults = apiService.createAndAttachDisk(scvmmOpts, diskCounter, diskSize, busNumber, volumePath, true)
-                        log.debug("create disk: ${diskResults.success}")
+                        log.info("RAZI :: resizeWorkloadAndServer >> diskResults: ${diskResults}")
+//                        log.debug("create disk: ${diskResults.success}")
                         if (diskResults.success == true) {
                             def newVolume = buildStorageVolume(computeServer, volumeAdd, diskCounter)
                             if (volumePath) {
@@ -2046,14 +2089,20 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                             }
                             newVolume.maxStorage = volumeAdd.size.toInteger() * ComputeUtility.ONE_GIGABYTE
                             newVolume.externalId = diskResults.disk.VhdID
+                            log.info("RAZI :: resizeWorkloadAndServer >> newVolume.externalId: ${newVolume.externalId}")
+                            log.info("RAZI :: resizeWorkloadAndServer >> diskResults.disk.ID: ${diskResults.disk.ID}")
+//                            newVolume.externalId = diskResults.disk.ID
 
                             def updatedDatastore = loadDatastoreForVolume(computeServer.cloud, diskResults.disk.HostVolumeId, diskResults.disk.FileShareId, diskResults.disk.PartitionUniqueId) ?: null
+                            log.info("RAZI :: resizeWorkloadAndServer >> updatedDatastore: ${updatedDatastore}")
                             if (updatedDatastore && newVolume.datastore != updatedDatastore) {
                                 newVolume.datastore = updatedDatastore
+                                log.info("RAZI :: resizeWorkloadAndServer >> newVolume.datastore: ${newVolume.datastore}")
                             }
                             context.async.storageVolume.create([newVolume], computeServer).blockingGet()
                             computeServer = getMorpheusServer(computeServer.id)
                             diskCounter++
+                            log.info("RAZI :: resizeWorkloadAndServer >> diskCounter: ${diskCounter}")
                         } else {
                             log.error "Error in creating the volume: ${diskResults}"
                             rtn.error = "Error in creating the volume"
@@ -2063,15 +2112,26 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                     resizeRequest.volumesDelete.each { volume ->
                         log.debug "Deleting volume : ${volume.externalId}"
                         def detachResults = apiService.removeDisk(scvmmOpts, volume.externalId)
-                        log.debug("detachResults.success: ${detachResults.success}")
+                        log.info("RAZI :: resizeWorkloadAndServer >> detachResults.success: ${detachResults.success}")
+                        log.info("RAZI :: resizeWorkloadAndServer >> detachResults.success: ${detachResults.data}")
+//                        log.debug("detachResults.success: ${detachResults.data}")
                         if (detachResults.success == true) {
                             context.async.storageVolume.remove([volume], computeServer, true).blockingGet()
                             computeServer = getMorpheusServer(computeServer.id)
+                            log.info("RAZI :: resizeWorkloadAndServer >> volume delete completed")
                         }
+                        /*def serverId = server.id
+                        def storageVolumeId = volume.id
+                        def storageVolume = context.services.storageVolume.get(storageVolumeId)
+                        def containerServer = context.services.computeServer.get(serverId)
+                        context.async.storageVolume.remove([volume], containerServer, true).blockingGet()
+                        context.services.storageVolume.remove(storageVolume)
+                        context.services.computeServer.save(containerServer)*/
                     }
                 }
                 computeServer = getMorpheusServer(computeServer.id)
                 rtn.success = true
+                log.info("RAZI :: resizeWorkloadAndServer >> rtn.success1: ${rtn.success}")
             } else {
                 rtn.success = false
                 rtn.error = 'Server never stopped so resize could not be performed'
@@ -2079,14 +2139,17 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             computeServer.status = 'provisioned'
             computeServer = saveAndGet(computeServer)
             rtn.success = true
+            log.info("RAZI :: resizeWorkloadAndServer >> rtn.success2: ${rtn.success}")
         } catch (e) {
-            log.error("Unable to resize workload: ${e.message}", e)
+            def resizeError = isWorkload ? "Unable to resize workload: ${e.message}" : "Unable to resize server: ${e.message}"
+            log.error(resizeError, e)
             computeServer.status = 'provisioned'
-            computeServer.statusMessage = "Unable to resize container: ${e.message}"
+            computeServer.statusMessage = resizeError
             computeServer = saveAndGet(computeServer)
             rtn.success = false
             rtn.setError("${e}")
         }
+        log.info("RAZI :: resizeWorkloadAndServer >> rtn: ${rtn}")
         return rtn
     }
 
@@ -2104,15 +2167,23 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             def currentCores = server?.maxCores ?: workload?.maxCores ?: 1
             rtn.neededMemory = rtn.requestedMemory - currentMemory
             rtn.neededCores = (rtn.requestedCores ?: 1) - (currentCores ?: 1)
+            log.info("RAZI :: getResizeConfig >> rtn1: ${rtn}")
+            log.info("RAZI :: getResizeConfig >> plan: ${plan}")
             setDynamicMemory(rtn, plan)
+            log.info("RAZI :: getResizeConfig >> setDynamicMemory called")
 
             rtn.hotResize = (server ? server.hotResize != false : workload?.server?.hotResize != false) || (!rtn.neededMemory && !rtn.neededCores)
+            log.info("RAZI :: getResizeConfig >> rtn.hotResize: ${rtn.hotResize}")
 
             // Disk changes.. see if stop is required
+            log.info("RAZI :: getResizeConfig >> opts.volumes: ${opts.volumes}")
             if (opts.volumes) {
                 resizeRequest.volumesUpdate?.each { volumeUpdate ->
                     if (volumeUpdate.existingModel) {
                         //existing disk - resize it
+                        log.info("RAZI :: getResizeConfig >> volumeUpdate.updateProps.maxStorage: ${volumeUpdate.updateProps.maxStorage}")
+                        log.info("RAZI :: getResizeConfig >> volumeUpdate.existingModel.maxStorage: ${volumeUpdate.existingModel.maxStorage}")
+                        log.info("RAZI :: getResizeConfig >> volumeUpdate.existingModel.rootVolume: ${volumeUpdate.existingModel.rootVolume}")
                         if (volumeUpdate.updateProps.maxStorage > volumeUpdate.existingModel.maxStorage) {
                             if (volumeUpdate.existingModel.rootVolume) {
                                 rtn.hotResize = false
@@ -2124,6 +2195,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
         } catch (e) {
             log.error("getResizeConfig error - ${e}", e)
         }
+        log.info("RAZI :: getResizeConfig >> rtn2: ${rtn}")
         return rtn
     }
 
