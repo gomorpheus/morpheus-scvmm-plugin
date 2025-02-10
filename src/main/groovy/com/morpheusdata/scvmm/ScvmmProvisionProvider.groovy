@@ -1967,6 +1967,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 
     @Override
     ServiceResponse resizeServer(ComputeServer server, ResizeRequest resizeRequest, Map opts) {
+        log.info("resizeServer calling resizeWorkloadAndServer")
         return resizeWorkloadAndServer(null, server, resizeRequest, opts, false)
     }
 
