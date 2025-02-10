@@ -1993,7 +1993,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             def neededCores = resizeConfig.neededCores
             def minDynamicMemory = resizeConfig.minDynamicMemory
             def maxDynamicMemory = resizeConfig.maxDynamicMemory
-            def stopRequired = !resizeConfig.hostResize
+            def stopRequired = !resizeConfig.hotResize
 
             // Only stop if needed
             def stopResults
@@ -2122,7 +2122,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             rtn.neededCores = (rtn.requestedCores ?: 1) - (currentCores ?: 1)
             setDynamicMemory(rtn, plan)
 
-            rtn.hostResize = (server ? server.hotResize != false : workload?.server?.hotResize != false) || (!rtn.neededMemory && !rtn.neededCores)
+            rtn.hotResize = (server ? server.hotResize != false : workload?.server?.hotResize != false) || (!rtn.neededMemory && !rtn.neededCores)
 
             // Disk changes.. see if stop is required
             if (opts.volumes) {
