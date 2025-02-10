@@ -1294,7 +1294,6 @@ foreach (\$disk in \$disks) {
         log.debug("createAndAttachDisk : opts: ${opts}, ${path}")
         def commands = []
         def sizeMB = (int) (diskSizeBytes.toLong()).div(ComputeUtility.ONE_MEGABYTE)
-        log.info("RAZI :: createAndAttachDisk >> sizeMB: ${sizeMB}")
         def fileName = "data-${UUID.randomUUID().toString()}.vhd"
 
         def command = """
@@ -1338,7 +1337,6 @@ For (\$i=0; \$i -le 63; \$i++) {
         def out = wrapExecuteCommand(generateCommandString(command), opts)
         if (out.success && returnDiskDrives) {
             def listResults = listVirtualDiskDrives(opts, opts.externalId, fileName)
-            log.info("RAZI :: createAndAttachDisk >> listResults: ${listResults}")
             return [success: listResults.success, disk: listResults.disks.first()]
         }
     }
