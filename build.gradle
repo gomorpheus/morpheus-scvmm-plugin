@@ -87,12 +87,12 @@ jar {
 				'Morpheus-Name': 'SCVMM',
 				'Morpheus-Organization': 'morpheus',
 				'Morpheus-Code': 'morpheus-scvmm-plugin',
-				'Morpheus-Description': 'TODO: Fill in the Plugin Description',
+				'Morpheus-Description': 'Plugin for System Center Virtual Machine Manager',
 				'Morpheus-Logo': 'assets/morpheus.svg',
 				'Morpheus-Logo-Dark': 'assets/morpheus.svg',
-				'Morpheus-Labels': 'Plugin',
-				'Morpheus-Repo': 'https://github.com/gomorpheus/example',
-				'Morpheus-Min-Appliance-Version': "6.3.0"
+				'Morpheus-Labels': 'Plugin, Cloud',
+				'Morpheus-Repo': 'https://github.com/gomorpheus/morpheus-scvmm-plugin',
+				'Morpheus-Min-Appliance-Version': "8.0.3"
 		)
 	}
 }
