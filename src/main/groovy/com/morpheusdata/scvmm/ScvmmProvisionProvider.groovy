@@ -241,6 +241,23 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 fieldClass: null
         )
         nodeOptions << new OptionType(
+                name: 'osType',
+                category:'provisionType.scvmm.custom',
+                code: 'provisionType.scvmm.custom.containerType.osTypeId',
+                fieldContext: 'domain',
+                fieldName: 'osType.id',
+                fieldCode: 'gomorpheus.label.osType',
+                fieldLabel: 'OsType',
+                fieldGroup: null,
+                inputType: OptionType.InputType.SELECT,
+                displayOrder:15,
+                fieldClass:null,
+                required: false,
+                editable: true,
+                noSelection: 'Select',
+                optionSource: 'osTypes'
+        )
+        nodeOptions << new OptionType(
                 code: 'provisionType.scvmm.host',
                 inputType: OptionType.InputType.SELECT,
                 name: 'host',
@@ -1448,6 +1465,10 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 
         def prepareResponse = new PrepareHostResponse(computeServer: server, disableCloudInit: false, options: [sendIp: true])
         ServiceResponse<PrepareHostResponse> rtn = ServiceResponse.prepare(prepareResponse)
+        if(server.sourceImage){
+            rtn.success = true
+            return rtn
+        }
 
         try {
             VirtualImage virtualImage

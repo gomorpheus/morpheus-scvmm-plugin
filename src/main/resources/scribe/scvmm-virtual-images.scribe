@@ -12,10 +12,24 @@ resource "virtual-image" "scvmm-image-morpheus-ubuntu-22_04" {
   computeServerImage = false
   isCloudInit        = true
   externalId         = null
-  osType             = "ubuntu.22.04.64"
+  osType = {
+       code = "ubuntu.22.04.64"
+       owner = null
+    }
   active             = true
   delete             = false
   zoneType           = "scvmm"
+}
+
+resource "os-type-image" "scvmm-image-morpheus-ubuntu-22_04" {
+  code               = "scvmm.image.morpheus.ubuntu.22.04.20230918.amd64"
+  provisionType      = "scvmm"
+  virtualImage       = virtual-image.scvmm-image-morpheus-ubuntu-22_04
+  account            = null
+  osType = {
+     code = "ubuntu.22.04.64"
+     owner = null
+  }
 }
 
 resource "virtual-image" "scvmm-image-morpheus-ubuntu-20_04" {
@@ -32,10 +46,24 @@ resource "virtual-image" "scvmm-image-morpheus-ubuntu-20_04" {
   computeServerImage = false
   isCloudInit        = true
   externalId         = null
-  osType             = "ubuntu.20.04.64"
+  osType = {
+         code = "ubuntu.20.04.64"
+         owner = null
+      }
   active             = true
   delete             = false
   zoneType           = "scvmm"
+}
+
+resource "os-type-image" "scvmm-image-morpheus-ubuntu-20_04" {
+  code               = "scvmm.image.morpheus.ubuntu.20.04.1-v1.ubuntu.20.04.1.amd64"
+  provisionType      = "scvmm"
+  virtualImage       = virtual-image.scvmm-image-morpheus-ubuntu-20_04
+  account            = null
+  osType = {
+     code = "ubuntu.20.04.64"
+     owner = null
+  }
 }
 
 resource "virtual-image" "scvmm-image-morpheus-ubuntu-16_04" {
@@ -52,10 +80,24 @@ resource "virtual-image" "scvmm-image-morpheus-ubuntu-16_04" {
   computeServerImage = false
   isCloudInit        = true
   externalId         = null
-  osType             = "ubuntu.16.04.64"
+  osType = {
+           code = "ubuntu.16.04.64"
+           owner = null
+        }
   active             = true
   delete             = false
   zoneType           = "scvmm"
+}
+
+resource "os-type-image" "scvmm-image-morpheus-ubuntu-16_04" {
+  code               = "scvmm.image.morpheus.ubuntu.16.04.3-v1.ubuntu.16.04.3.amd64"
+  provisionType      = "scvmm"
+  virtualImage       = virtual-image.scvmm-image-morpheus-ubuntu-16_04
+  account            = null
+  osType = {
+     code = "ubuntu.16.04.64"
+     owner = null
+  }
 }
 
 resource "virtual-image" "scvmm-image-morpheus-windows-2012-r2" {
@@ -72,8 +114,22 @@ resource "virtual-image" "scvmm-image-morpheus-windows-2012-r2" {
   trialVersion       = true
   isCloudInit        = false
   externalId         = null
-  osType             = "windows.server.2012"
+  osType = {
+             code = "windows.server.2012"
+             owner = null
+          }
   active             = true
   delete             = false
   zoneType           = "scvmm"
+}
+
+resource "os-type-image" "scvmm-image-morpheus-windows-2012-r2" {
+  code               = "scvmm.image.morpheus.windows.2012.r2"
+  provisionType      = "scvmm"
+  virtualImage       = virtual-image.scvmm-image-morpheus-windows-2012-r2
+  account            = null
+  osType = {
+     code = "windows.server.2012"
+     owner = null
+  }
 }
