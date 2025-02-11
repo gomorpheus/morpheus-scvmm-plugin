@@ -24,7 +24,7 @@ import com.morpheusdata.response.ServiceResponse
 import groovy.util.logging.Slf4j
 
 @Slf4j
-class ScvmmProvisionProvider extends AbstractProvisionProvider implements WorkloadProvisionProvider, HostProvisionProvider, ProvisionProvider.HypervisorProvisionFacet, WorkloadProvisionProvider.ResizeFacet, ProvisionProvider.BlockDeviceNameFacet {
+class ScvmmProvisionProvider extends AbstractProvisionProvider implements WorkloadProvisionProvider, HostProvisionProvider, ProvisionProvider.HypervisorProvisionFacet, HostProvisionProvider.ResizeFacet, WorkloadProvisionProvider.ResizeFacet, ProvisionProvider.BlockDeviceNameFacet {
     public static final String PROVIDER_CODE = 'scvmm.provision'
     public static final String PROVISION_TYPE_CODE = 'scvmm'
     public static final diskNames = ['sda', 'sdb', 'sdc', 'sdd', 'sde', 'sdf', 'sdg', 'sdh', 'sdi', 'sdj', 'sdk', 'sdl']
@@ -1983,22 +1983,30 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
     @Override
     ServiceResponse resizeWorkload(Instance instance, Workload workload, ResizeRequest resizeRequest, Map opts) {
         log.info("resizeWorkload calling resizeWorkloadAndServer")
-        return resizeWorkloadAndServer(workload, resizeRequest, opts)
+        return resizeWorkloadAndServer(workload, null, resizeRequest, opts, true)
     }
 
-    private ServiceResponse resizeWorkloadAndServer(Workload workload, ResizeRequest resizeRequest, Map opts) {
+    @Override
+    ServiceResponse resizeServer(ComputeServer server, ResizeRequest resizeRequest, Map opts) {
+        log.info("resizeServer calling resizeWorkloadAndServer")
+        return resizeWorkloadAndServer(null, server, resizeRequest, opts, false)
+    }
+
+    private ServiceResponse resizeWorkloadAndServer(Workload workload, ComputeServer server, ResizeRequest resizeRequest, Map opts, Boolean isWorkload) {
         log.debug("resizeWorkloadAndServer workload.id: ${workload?.id} - opts: ${opts}")
 
         ServiceResponse rtn = ServiceResponse.success()
-        ComputeServer computeServer = workload.server
+        ComputeServer computeServer = isWorkload ? getMorpheusServer(workload.server?.id) : getMorpheusServer(server.id)
         try {
             computeServer.status = 'resizing'
             computeServer = saveAndGet(computeServer)
             def vmId = computeServer.externalId
-            def scvmmOpts = getAllScvmmOpts(workload)
+            def scvmmOpts = isWorkload ? getAllScvmmOpts(workload) : getAllScvmmServerOpts(computeServer)
 
             // Memory and core changes
-            def resizeConfig = getResizeConfig(workload, null, workload.instance.plan, opts, resizeRequest)
+            def resizeConfig = isWorkload ?
+                    getResizeConfig(workload, null, workload.instance.plan, opts, resizeRequest) :
+                    getResizeConfig(null, computeServer, computeServer.plan, opts, resizeRequest)
             log.debug("resizeConfig: ${resizeConfig}")
             def requestedMemory = resizeConfig.requestedMemory
             def requestedCores = resizeConfig.requestedCores
@@ -2011,7 +2019,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             // Only stop if needed
             def stopResults
             if (stopRequired) {
-                stopResults = stopWorkload(workload)
+                stopResults = isWorkload ? stopWorkload(workload) : stopServer(computeServer)
             }
             log.debug("stopResults?.success: ${stopResults?.success}")
             if (!stopRequired || stopResults?.success == true) {
@@ -2019,14 +2027,18 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                     def resizeResults = apiService.updateServer(scvmmOpts, vmId, [maxMemory: requestedMemory, maxCores: requestedCores, minDynamicMemory: minDynamicMemory, maxDynamicMemory: maxDynamicMemory])
                     log.debug("resize results: ${resizeResults}")
                     if (resizeResults.success == true) {
-                        workload.setConfigProperty('maxMemory', requestedMemory)
-                        workload.maxMemory = requestedMemory.toLong()
-                        workload.setConfigProperty('maxCores', (requestedCores ?: 1))
-                        workload.maxCores = (requestedCores ?: 1).toLong()
+                        computeServer.setConfigProperty('maxMemory', requestedMemory)
+                        computeServer.setConfigProperty('maxCores', (requestedCores ?: 1))
                         computeServer.maxCores = (requestedCores ?: 1).toLong()
                         computeServer.maxMemory = requestedMemory.toLong()
                         computeServer = saveAndGet(computeServer)
-                        workload = context.services.workload.save(workload)
+                        if(isWorkload) {
+                            workload.setConfigProperty('maxMemory', requestedMemory)
+                            workload.maxMemory = requestedMemory.toLong()
+                            workload.setConfigProperty('maxCores', (requestedCores ?: 1))
+                            workload.maxCores = (requestedCores ?: 1).toLong()
+                            workload = context.services.workload.save(workload)
+                        }
                     } else {
                         rtn.error = resizeResults.error ?: 'Failed to resize container'
                     }
@@ -2057,7 +2069,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                     resizeRequest.volumesAdd.each { volumeAdd ->
                         def diskSize = ComputeUtility.parseGigabytesToBytes(volumeAdd.size?.toLong())
                         def busNumber = '0'
-                        def volumePath = getVolumePathForDatastore(context.services.cloud.datastore.get(volumeAdd?.datastoreId))
+                        def volumePath = getVolumePathForDatastore(volumeAdd.datastore)
                         def diskResults = apiService.createAndAttachDisk(scvmmOpts, diskCounter, diskSize, busNumber, volumePath, true)
                         log.debug("create disk: ${diskResults.success}")
                         if (diskResults.success == true) {
@@ -2084,7 +2096,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                     resizeRequest.volumesDelete.each { volume ->
                         log.debug "Deleting volume : ${volume.externalId}"
                         def detachResults = apiService.removeDisk(scvmmOpts, volume.externalId)
-                        log.debug("detachResults.success: ${detachResults.success}")
+                        log.debug("detachResults.success: ${detachResults.data}")
                         if (detachResults.success == true) {
                             context.async.storageVolume.remove([volume], computeServer, true).blockingGet()
                             computeServer = getMorpheusServer(computeServer.id)
@@ -2099,11 +2111,15 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             }
             computeServer.status = 'provisioned'
             computeServer = saveAndGet(computeServer)
+            if (stopRequired) {
+                def startResults = isWorkload ? startWorkload(workload) : startServer(computeServer)
+            }
             rtn.success = true
         } catch (e) {
-            log.error("Unable to resize workload: ${e.message}", e)
+            def resizeError = isWorkload ? "Unable to resize workload: ${e.message}" : "Unable to resize server: ${e.message}"
+            log.error(resizeError, e)
             computeServer.status = 'provisioned'
-            computeServer.statusMessage = "Unable to resize container: ${e.message}"
+            computeServer.statusMessage = resizeError
             computeServer = saveAndGet(computeServer)
             rtn.success = false
             rtn.setError("${e}")
