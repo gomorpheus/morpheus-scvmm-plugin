@@ -611,14 +611,14 @@ class ScvmmCloudProvider implements CloudProvider {
 						response.success = true
 					} else {
 						updateHypervisorStatus(scvmmController, 'error', 'unknown', 'error connecting to controller')
-						context.async.cloud.updateCloudStatus(cloudInfo, 'error', 'error connecting', syncDate)
+						context.async.cloud.updateCloudStatus(cloudInfo, cloudInfo.status, 'error connecting', syncDate)
 					}
 				} else {
 					updateHypervisorStatus(scvmmController, 'error', 'unknown', 'error connecting to controller')
-					context.async.cloud.updateCloudStatus(cloudInfo, 'error', 'error connecting', syncDate)
+					context.async.cloud.updateCloudStatus(cloudInfo, cloudInfo.status, 'error connecting', syncDate)
 				}
 			} else {
-				context.async.cloud.updateCloudStatus(cloudInfo, 'error', 'controller not found', syncDate)
+				context.async.cloud.updateCloudStatus(cloudInfo, cloudInfo.status, 'controller not found', syncDate)
 			}
 		} catch (e) {
 			log.error("refresh zone error:${e}", e)
