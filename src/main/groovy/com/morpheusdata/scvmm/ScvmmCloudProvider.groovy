@@ -81,10 +81,12 @@ class ScvmmCloudProvider implements CloudProvider {
 		options << new OptionType(
 				name: 'SCVMM Host',
 				category:'zoneType.scvmm',
-				code: 'zoneType.scvmm.scvmmHost',
+//				code: 'zoneType.scvmm.scvmmHost',
+				code: 'zoneType.scvmm.host',
 				fieldName: 'host',
 				displayOrder: displayOrder,
-				fieldCode: 'gomorpheus.optiontype.scvmmHost',
+//				fieldCode: 'gomorpheus.optiontype.scvmmHost',
+				fieldCode: 'gomorpheus.optiontype.Host',
 				fieldLabel:'SCVMM Host',
 				required: true,
 				inputType: OptionType.InputType.TEXT,
@@ -143,7 +145,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmCloud',
 				fieldContext:'domain',
-				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password',
+				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
 		)
 		options << new OptionType(
 				name: 'Host Group',

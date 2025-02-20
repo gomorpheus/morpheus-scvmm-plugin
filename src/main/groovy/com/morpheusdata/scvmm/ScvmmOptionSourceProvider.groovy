@@ -81,9 +81,10 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	}
 
 	def scvmmCloud(params) {
+		log.info("RAZI :: scvmmCloud >> params1: ${params}")
 		params = params instanceof Object[] ? params.getAt(0) : params
 //		log.debug "scvmmCloud: ${params}"
-		log.info("RAZI :: scvmmCloud >> params: ${params}")
+		log.info("RAZI :: scvmmCloud >> params2: ${params}")
 		def config = [
 				host:params.config?.host ?: params["config[host]"],
 				username:params.config?.username ?: params["config[username]"]
@@ -113,10 +114,10 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 			log.info("RAZI :: scvmmCloud >> cloud.accountCredentialData: ${cloud.accountCredentialData}")
 		}
 		log.info("RAZI :: scvmmCloud >> params.config?.apiProxy: ${params.config?.apiProxy}")
-		log.info("RAZI :: scvmmCloud >> params.config.long('apiProxy'): ${params.config.long('apiProxy')}")
-		def proxy1 = morpheusContext.services.network.networkProxy.get(params.config.long('apiProxy'))
+		log.info("RAZI :: scvmmCloud >> params.config.long('apiProxy'): ${params.config?.long('apiProxy')}")
+		def proxy1 = morpheusContext.services.network.networkProxy.get(params.config?.long('apiProxy'))
 		log.info("RAZI :: scvmmCloud >> proxy1: ${proxy1}")
-		def proxy = params.config?.apiProxy ? morpheusContext.services.network.networkProxy.get(params.config.long('apiProxy')) : null
+		def proxy = params.config?.apiProxy ? morpheusContext.services.network.networkProxy.get(params.config?.long('apiProxy')) : null
 		cloud.apiProxy = proxy
 		log.info("RAZI :: scvmmCloud >> cloud.apiProxy: ${cloud.apiProxy}")
 //		log.debug("listing clouds {}", config)
