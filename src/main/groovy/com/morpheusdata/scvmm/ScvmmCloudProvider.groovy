@@ -143,7 +143,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmCloud',
 				fieldContext:'domain',
-				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password'
+				dependsOn: 'config.host, config.username, config.password, credential.type, credential.username, credential.password'
 		)
 		options << new OptionType(
 				name: 'Host Group',
@@ -157,7 +157,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmHostGroup',
 				fieldContext:'config',
-				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password',
+				dependsOn: 'config.host, config.username, config.password, credential.type, credential.username, credential.password',
 		)
 		options << new OptionType(
 				name: 'Cluster',
@@ -171,7 +171,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmCluster',
 				fieldContext:'config',
-				dependsOn: 'config.scvmmHost, config.username, config.password, config.hostGroup, credential.type, credential.username, credential.password',
+				dependsOn: 'config.host, config.username, config.password, config.hostGroup, credential.type, credential.username, credential.password'
 		)
 		options << new OptionType(
 				name: 'Library Share',
@@ -185,7 +185,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmLibraryShares',
 				fieldContext:'config',
-				dependsOn: 'config.scvmmHost, config.username, config.password, credential.type, credential.username, credential.password',
+				dependsOn: 'config.host, config.username, config.password, credential.type, credential.username, credential.password'
 		)
 		options << new OptionType(
 				name: 'Shared Controller',
