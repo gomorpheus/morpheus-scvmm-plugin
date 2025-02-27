@@ -1,12 +1,12 @@
-resource "workload-type" "docker-scvmm-ubuntu-22_04" {
-  code             = "docker-scvmm-ubuntu-22.04"
-  name             = "Docker Ubuntu 22.04"
+resource "workload-type" "docker-scvmm-ubuntu-16_04" {
+  code              = "docker-scvmm-ubuntu-16.04"
+  name              = "Docker Ubuntu 16.04"
   shortName        = "ubuntu"
-  ports            = ["22"]
-  containerVersion = "22.04"
+  ports             = ["22"]
+  containerVersion = "16.04"
   containerType    = "docker"
   repositoryImage  = null
-  imageCode        = "morpheus ubuntu 22.04"
+  imageCode        = "morpheus ubuntu 16.04"
   entryPoint       = null
   mountLogs        = "/var/log"
   statTypeCode    = "server"
@@ -18,15 +18,15 @@ resource "workload-type" "docker-scvmm-ubuntu-22_04" {
   serverType       = "vm"
   providerType     = "scvmm"
   checkTypeCode   = "vmCheck"
-  virtualImage     = virtual-image.scvmm-image-morpheus-ubuntu-22_04
+  virtualImage     = virtual-image.scvmm-image-morpheus-ubuntu-16_04
   containerPorts   = ["ubuntu.22"]
   provisionType    = "scvmm"
 }
 
-resource "compute-type-set" "docker-scvmm-ubuntu-22_04-set" {
-  code                      = "docker-scvmm-ubuntu-22.04-set"
+resource "compute-type-set" "docker-scvmm-ubuntu-16_04-set" {
+  code                      = "docker-scvmm-ubuntu-16.04-set"
   name                      = "docker host"
-  containerType            = workload-type.docker-scvmm-ubuntu-22_04
+  containerType            = workload-type.docker-scvmm-ubuntu-16_04
   computeServerType       = "scvmmLinux"
   category                  = "ubuntu"
   priorityOrder            = 0
@@ -38,17 +38,17 @@ resource "compute-type-set" "docker-scvmm-ubuntu-22_04-set" {
   installStorageRuntime   = true
 }
 
-resource "compute-type-layout" "docker-scvmm-ubuntu-22_04-single" {
-  code                = "docker-scvmm-ubuntu-22.04-single"
-  name                = "SCVMM Docker Host Ubuntu 22"
+resource "compute-type-layout" "docker-scvmm-ubuntu-16_04-single" {
+  code                = "docker-scvmm-ubuntu-16.04-single"
+  name                = "SCVMM Docker Host Ubuntu 16"
   sortOrder          = 5
-  computeVersion     = "22.04"
+  computeVersion     = "16.04"
   description         = "This will provision a single docker host vm in scvmm"
   type                = "scvmmLinux"
   serverCount        = 1
   memoryRequirement  = (1024 * 1024 * 1024)
   hasAutoScale      = true
   groupType          = "docker-cluster"
-  computeServers     = [compute-type-set.docker-scvmm-ubuntu-22_04-set]
+  computeServers     = [compute-type-set.docker-scvmm-ubuntu-16_04-set]
   provisionType      = "scvmm"
 }

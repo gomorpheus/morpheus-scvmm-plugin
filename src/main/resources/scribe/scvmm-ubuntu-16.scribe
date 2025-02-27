@@ -1,0 +1,54 @@
+resource "workload-type" "ubuntu-scvmm-16_04" {
+  code             = "ubuntu-scvmm-16.04"
+  shortName        = "ubuntu"
+  name             = "Ubuntu 16.04"
+  ports            = [22]
+  containerVersion = "16.04"
+  repositoryImage  = null
+  entryPoint       = null
+  serverType       = "vm"
+  statTypeCode     = "vm"
+  logTypeCode      = "ubuntu"
+  showServerLogs   = true
+  checkTypeCode    = "containerCheck"
+  mountPoint       = "/morpheus"
+  virtualImage     = virtual-image.scvmm-image-morpheus-ubuntu-16_04
+  containerPorts   = ["ubuntu.22"]
+  actions          = ["ubuntu-remove-node"]
+  provisionType    = "scvmm"
+  backupType       = "scvmmSnapshot"
+}
+
+resource "workload-type-set" "ubuntu-scvmm-16_04-set" {
+  code           = "ubuntu-scvmm-16.04-set"
+  workloadType   = workload-type.ubuntu-scvmm-16_04
+  priorityOrder  = 0
+  dynamicCount   = true
+  containerCount = 1
+}
+
+resource "instance-type-layout" "ubuntu-scvmm-16_04" {
+  code                     = "ubuntu-scvmm-16.04"
+  name                     = "SCVMM VM"
+  sortOrder                = 16
+  serverType               = "vm"
+  supportsConvertToManaged = true
+  instanceVersion          = "16.04"
+  description              = "This will provision a single process with no redundancy"
+  instanceType             = "ubuntu"
+  serverCount              = 1
+  portCount                = 1
+  enabled                  = true
+  creatable                = true
+  workloads                = [workload-type-set.ubuntu-scvmm-16_04-set]
+  actions                  = ["ubuntu-add-node"]
+  provisionType            = "scvmm"
+}
+
+resource "scale-action" "ubuntu-scvmm-16_04" {
+  code       = "ubuntu-scvmm-16.04"
+  scaleType  = "action"
+  layout     = instance-type-layout.ubuntu-scvmm-16_04
+  upAction   = "ubuntu-add-node"
+  downAction = "ubuntu-remove-node"
+}
