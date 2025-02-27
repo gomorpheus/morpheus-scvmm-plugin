@@ -81,11 +81,9 @@ class ScvmmCloudProvider implements CloudProvider {
 		options << new OptionType(
 				name: 'SCVMM Host',
 				category:'zoneType.scvmm',
-//				code: 'zoneType.scvmm.scvmmHost',
 				code: 'zoneType.scvmm.host',
 				fieldName: 'host',
 				displayOrder: displayOrder,
-//				fieldCode: 'gomorpheus.optiontype.scvmmHost',
 				fieldCode: 'gomorpheus.optiontype.Host',
 				fieldLabel:'SCVMM Host',
 				required: true,

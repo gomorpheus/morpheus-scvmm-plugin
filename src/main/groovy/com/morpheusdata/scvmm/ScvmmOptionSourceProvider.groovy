@@ -1,12 +1,10 @@
 package com.morpheusdata.scvmm
 
-import com.morpheusdata.core.MorpheusAccountCredentialService
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.OptionSourceProvider
 import com.morpheusdata.core.Plugin
 import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.model.Cloud
-import com.morpheusdata.model.ComputeServerType
 import groovy.util.logging.Slf4j
 
 @Slf4j
@@ -80,146 +78,84 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 		apiService.listLibraryShares(apiService.getScvmmZoneOpts(morpheusContext, cloud) + getScvmmInitializationOpts(cloud))
 	}
 
-	def scvmmCloud(params) {
-		log.info("RAZI :: scvmmCloud >> params1: ${params}")
+	def setupCloudConfig(params) {
 		params = params instanceof Object[] ? params.getAt(0) : params
-//		log.debug "scvmmCloud: ${params}"
-		log.info("RAZI :: scvmmCloud >> params2: ${params}")
+		log.debug("setupCloudConfig: ${params}")
+
 		def config = [
-				host:params.config?.host ?: params["config[host]"],
-				username:params.config?.username ?: params["config[username]"]
+				host: params.config?.host ?: params["config[host]"],
+				username: params.config?.username ?: params["config[username]"],
+				hostGroup: params.config?.hostGroup ?: params["config[hostGroup]"]
 		]
-		log.info("RAZI :: scvmmCloud >> config1: ${config}")
+		log.debug("config: ${config}")
+
 		def password = params.config?.password ?: params["config[password]"]
-		log.info("RAZI :: scvmmCloud >> password: ${password}")
-		log.info("RAZI :: scvmmCloud >> params.zoneId: ${params.zoneId}")
-		if(password == '*' * 12 && params.zoneId) {
+		if (password == '*' * 12 && params.zoneId) {
 			config.password = morpheusContext.services.cloud.get(params.zoneId.toLong()).configMap.password
-			log.info("RAZI :: scvmmCloud if >> config.password: ${config.password}")
 		} else {
 			config.password = password
-			log.info("RAZI :: scvmmCloud if-else >> config.password: ${config.password}")
 		}
-		def cloud = new Cloud()
-		log.info("RAZI :: scvmmCloud >> config2: ${config}")
-		cloud.setConfigMap(config)
+
+		def cloud
+		if (params.zoneId) {
+			cloud = morpheusContext.services.cloud.get(params.zoneId.toLong())
+			def credentials = morpheusContext.services.accountCredential.loadCredentials(cloud)
+			cloud.accountCredentialData = credentials.data
+			cloud.accountCredentialLoaded = true
+
+			config.username = credentials.data?.username
+			config.password = credentials.data?.password
+		} else {
+			cloud = new Cloud()
+			cloud.setConfigMap(config)
+		}
+
+		cloud.regionCode = params.config?.cloud ?: params["config[cloud]"]
 		cloud.cloudType = morpheusContext.services.cloud.type.find(new DataQuery().withFilter('code', 'scvmm'))
-		log.info("RAZI :: scvmmCloud >> cloud.cloudType: ${cloud.cloudType}")
-		log.info("RAZI :: scvmmCloud >> params.credential: ${params.credential}")
-		if(params.credential) {
+
+		log.debug("credential: ${params.credential}")
+		if (params.credential) {
 			def accountCredential = morpheusContext.services.accountCredential.loadCredentialConfig(params.credential, config)
-			log.info("RAZI :: scvmmCloud >> accountCredential: ${accountCredential}")
 			cloud.accountCredentialLoaded = true
 			cloud.accountCredentialData = accountCredential?.data
-			log.info("RAZI :: scvmmCloud >> cloud.accountCredentialData: ${cloud.accountCredentialData}")
 		}
-		log.info("RAZI :: scvmmCloud >> params.config?.apiProxy: ${params.config?.apiProxy}")
-		log.info("RAZI :: scvmmCloud >> params.config.long('apiProxy'): ${params.config?.long('apiProxy')}")
-		def proxy1 = morpheusContext.services.network.networkProxy.get(params.config?.long('apiProxy'))
-		log.info("RAZI :: scvmmCloud >> proxy1: ${proxy1}")
-		def proxy = params.config?.apiProxy ? morpheusContext.services.network.networkProxy.get(params.config?.long('apiProxy')) : null
+
+		def proxy = params.config?.apiProxy ? morpheusContext.services.network.networkProxy.get(params.config.long('apiProxy')) : null
 		cloud.apiProxy = proxy
-		log.info("RAZI :: scvmmCloud >> cloud.apiProxy: ${cloud.apiProxy}")
-//		log.debug("listing clouds {}", config)
+
+		return cloud
+	}
+
+	def scvmmCloud(params) {
+		log.debug("scvmmCloud: ${params}")
+		def cloud = setupCloudConfig(params)
 		def results = listClouds(cloud)
-		log.info("RAZI :: scvmmCloud >> results: ${results}")
-//		log.debug("cloud results {}", results)
-		log.info("RAZI :: scvmmCloud >> results.clouds?.collect: ${results.clouds?.collect{[name: it.Name, value: it.ID]}}")
-		return results.clouds?.collect{[name: it.Name, value: it.ID]}
+		log.debug("listClouds: ${results}")
+		return results.clouds?.collect { [name: it.Name, value: it.ID] }
 	}
 
 	def scvmmHostGroup(params) {
-		params = params instanceof Object[] ? params.getAt(0) : params
-		log.debug("scvmmHostGroup: {}", params)
-		def config = [
-				host      : params.config?.host ?: params["config[host]"],
-				username  : params.config?.username ?: params["config[username]"]
-		]
-		def password = params.config?.password ?: params["config[password]"]
-		if (password == '*' * 12 && params.zoneId) {
-			config.password = morpheusContext.services.cloud.get(params.zoneId.toLong()).configMap.password
-		} else {
-			config.password = password
-		}
-
-		def cloud = new Cloud()
-		cloud.setConfigMap(config)
-		cloud.regionCode = params.config?.cloud ?: params["config[cloud]"]
-		cloud.cloudType = morpheusContext.services.cloud.type.find(new DataQuery().withFilter('code', 'scvmm'))
-		if(params.credential) {
-			def accountCredential = morpheusContext.services.accountCredential.loadCredentialConfig(params.credential, config)
-			cloud.accountCredentialLoaded = true
-			cloud.accountCredentialData = accountCredential?.data
-		}
-		def proxy = params.config?.apiProxy ? morpheusContext.services.network.networkProxy.get(params.config.long('apiProxy')) : null
-		cloud.apiProxy = proxy
-		log.debug "Listing host groups ${config}"
+		log.debug("scvmmHostGroup: ${params}")
+		def cloud = setupCloudConfig(params)
 		def results = listHostGroups(cloud)
-		log.debug "Results ${results}"
-		return results.hostGroups?.collect{[name: it.path, value: it.path]}
+		log.debug("listHostGroups: ${results}")
+		return results.hostGroups?.collect { [name: it.path, value: it.path] }
 	}
 
 	def scvmmCluster(params) {
-		params = params instanceof Object[] ? params.getAt(0) : params
-		log.debug "scvmmCluster: ${params}"
-		def config = [
-				host      : params.config?.host ?: params["config[host]"],
-				username  : params.config?.username ?: params["config[username]"],
-				hostGroup : params.config?.hostGroup ?: params["config[hostGroup]"]
-		]
-		def password = params.config?.password ?: params["config[password]"]
-		if (password == '*' * 12 && params.zoneId) {
-			config.password = morpheusContext.services.cloud.get(params.zoneId.toLong()).configMap.password
-		} else {
-			config.password = password
-		}
-
-		def cloud = new Cloud()
-		cloud.setConfigMap(config)
-		cloud.regionCode = params.config?.cloud ?: params["config[cloud]"]
-		cloud.cloudType = morpheusContext.services.cloud.type.find(new DataQuery().withFilter('code', 'scvmm'))
-		if(params.credential) {
-			def accountCredential = morpheusContext.services.accountCredential.loadCredentialConfig(params.credential, config)
-			cloud.accountCredentialLoaded = true
-			cloud.accountCredentialData = accountCredential?.data
-		}
-		def proxy = params.config?.apiProxy ? morpheusContext.services.network.networkProxy.get(params.config.long('apiProxy')) : null
-		cloud.apiProxy = proxy
-		log.debug "Listing clusters ${config}"
+		log.debug("scvmmCluster: ${params}")
+		def cloud = setupCloudConfig(params)
 		def results = listClusters(cloud)
-		log.debug "Results ${results}"
-		return results.clusters?.collect{[name: it.name, value: it.id]}
+		log.debug("listClusters: ${results}")
+		return results.clusters?.collect { [name: it.name, value: it.id] }
 	}
 
 	def scvmmLibraryShares(params) {
-		params = params instanceof Object[] ? params.getAt(0) : params
-		log.debug "scvmmLibraryShares: ${params}"
-		def config = [
-				host      : params.config?.host ?: params["config[host]"],
-				username  : params.config?.username ?: params["config[username]"]
-		]
-		def password = params.config?.password ?: params["config[password]"]
-		if (password == '*' * 12 && params.zoneId) {
-			config.password = morpheusContext.services.cloud.get(params.zoneId.toLong()).configMap.password
-		}
-		else {
-			config.password = password
-		}
-
-		def cloud = new Cloud()
-		cloud.setConfigMap(config)
-		cloud.regionCode = params.config?.cloud ?: params["config[cloud]"]
-		cloud.cloudType = morpheusContext.services.cloud.type.find(new DataQuery().withFilter('code', 'scvmm'))
-		if(params.credential) {
-			def accountCredential = morpheusContext.services.accountCredential.loadCredentialConfig(params.credential, config)
-			cloud.accountCredentialLoaded = true
-			cloud.accountCredentialData = accountCredential?.data
-		}
-		def proxy = params.config?.apiProxy ? morpheusContext.services.network.networkProxy.get(params.config.long('apiProxy')) : null
-		cloud.apiProxy = proxy
-		log.debug "Listing library shares ${config}"
+		log.debug("scvmmLibraryShares: ${params}")
+		def cloud = setupCloudConfig(params)
 		def results = listLibraryShares(cloud)
-		return results.libraryShares?.collect{[name: it.Path, value: it.Path]}
+		log.debug("listLibraryShares: ${results}")
+		return results.libraryShares?.collect { [name: it.Path, value: it.Path] }
 	}
 
 	def scvmmSharedControllers(params) {
