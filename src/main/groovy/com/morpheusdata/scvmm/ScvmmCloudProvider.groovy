@@ -55,8 +55,7 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	Icon getIcon() {
-		// TODO: change icon paths to correct filenames once added to your project
-		return new Icon(path:'cloud.svg', darkPath:'cloud-dark.svg')
+		return new Icon(path:'scvmm.svg', darkPath:'scvmm-dark.svg')
 	}
 
 	/**
@@ -67,7 +66,7 @@ class ScvmmCloudProvider implements CloudProvider {
 	@Override
 	Icon getCircularIcon() {
 		// TODO: change icon paths to correct filenames once added to your project
-		return new Icon(path:'cloud-circular.svg', darkPath:'cloud-circular-dark.svg')
+		return new Icon(path:'scvmm-circular.svg', darkPath:'scvmm-circular.svg')
 	}
 
 	/**

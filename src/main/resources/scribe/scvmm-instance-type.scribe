@@ -1,0 +1,101 @@
+resource "option-type" "provisionType-scvmm-virtual-image" {
+  code         = "instanceType.scvmm.custom.containerType.virtualImageId"
+  type         = "select"
+  name         = "virtual image"
+  category     = "instanceType.scvmm.custom"
+  fieldName    = "template"
+  optionSourceType = "scvmm"
+  optionSource = "scvmmVirtualImages"
+  fieldCode    = "gomorpheus.optiontype.VirtualImage"
+  fieldLabel   = "Virtual Image"
+  fieldContext = "config"
+  fieldGroup   = "Options"
+  required     = false
+  enabled      = true
+  editable     = false
+  global       = false
+  placeHolder  = null
+  helpBlock    = ""
+  defaultValue = null
+  custom       = false
+  displayOrder = 3
+  fieldClass   = null
+  visibleOnCode = null
+}
+
+resource "workload-type" "scvmm-1_0" {
+  code             = "scvmm-1.0"
+  shortName        = "scvmm"
+  name             = "SCVMM"
+  ports = []
+  containerVersion = "1.0"
+  repositoryImage  = ""
+  entryPoint       = ""
+  category         = "scvmm"
+  statTypeCode     = "vm"
+  logTypeCode      = "scvmm"
+  checkTypeCode    = "containerCheck"
+  serverType       = "vm"
+  mountPoint       = "/data"
+  provisionType    = "scvmm"
+  actions = ["generic-remove-node"]
+}
+
+resource "workload-type-set" "scvmm-1_0-set" {
+  code           = "scvmm-1.0-set"
+  workloadType   = workload-type.scvmm-1_0
+  priorityOrder  = 0
+  dynamicCount   = true
+  containerCount = 1
+}
+
+resource "instance-type" "scvmm" {
+  code                    = "scvmm"
+  name                    = "SCVMM"
+  category                = "cloud"
+  active                  = true
+  enabled                 = true
+  stackTier               = 30
+  hasConfig               = false
+  hasSettings             = false
+  hasDeployment           = false
+  deploymentService       = "defaultDeployService"
+  versions = ["1.0"]
+  hasAutoScale            = true
+  description             = "Spin up any VM Image on your SCVMM based infrastructure."
+  provisionTypeDefault    = true
+  environmentPrefix       = "SCVMM"
+  provisionType           = "scvmm"
+  pluginIconPath          = "scvmm.svg"
+  pluginIconDarkPath      = "scvmm-dark.svg"
+  pluginIconHidpiPath     = "scvmm.svg"
+  pluginIconDarkHidpiPath = "scvmm-dark.svg"
+  optionTypes             = [
+    "instanceType.exposePorts", "instanceType.scvmm.custom.containerType.virtualImageId"
+  ]
+}
+
+resource "instance-type-layout" "scvmm-1_0-single" {
+  code            = "scvmm-1.0-single"
+  name            = "SCVMM VM"
+  sortOrder       = 0
+  instanceVersion = "1.0"
+  description     = "This will provision a single vm"
+  instanceType    = instance-type.scvmm
+  serverCount     = 1
+  portCount       = 1
+  enabled         = true
+  creatable       = true
+  containers      = [workload-type-set.scvmm-1_0-set]
+  actions         = ["generic-add-node"]
+  optionTypes     = []
+  provisionType   = "scvmm"
+}
+
+resource "scale-action" "scvmm-1_0-single" {
+  code       = "scvmm-1.0-single"
+  scaleType  = "action"
+  layout     = instance-type-layout.scvmm-1_0-single
+  upAction   = "generic-add-node"
+  downAction = "generic-remove-node"
+}
