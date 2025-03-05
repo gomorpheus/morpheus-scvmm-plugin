@@ -71,7 +71,7 @@ resource "instance-type" "scvmm" {
   pluginIconHidpiPath     = "scvmm.svg"
   pluginIconDarkHidpiPath = "scvmm-dark.svg"
   optionTypes             = [
-    "instanceType.exposePorts", "instanceType.scvmm.custom.containerType.virtualImageId"
+    "instanceType.exposePorts", option-type.provisionType-scvmm-virtual-image
   ]
 }
 
