@@ -80,14 +80,12 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 
 	def setupCloudConfig(params) {
 		params = params instanceof Object[] ? params.getAt(0) : params
-		log.debug("setupCloudConfig: ${params}")
 
 		def config = [
 				host: params.config?.host ?: params["config[host]"],
 				username: params.config?.username ?: params["config[username]"],
 				hostGroup: params.config?.hostGroup ?: params["config[hostGroup]"]
 		]
-		log.debug("config: ${config}")
 
 		def password = params.config?.password ?: params["config[password]"]
 		if (password == '*' * 12 && params.zoneId) {
@@ -113,7 +111,6 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 		cloud.regionCode = params.config?.cloud ?: params["config[cloud]"]
 		cloud.cloudType = morpheusContext.services.cloud.type.find(new DataQuery().withFilter('code', 'scvmm'))
 
-		log.debug("credential: ${params.credential}")
 		if (params.credential) {
 			def accountCredential = morpheusContext.services.accountCredential.loadCredentialConfig(params.credential, config)
 			cloud.accountCredentialLoaded = true
@@ -164,8 +161,6 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 		def cloud
 		if(params.zoneId){
 			cloud = morpheusContext.services.cloud.get(params.zoneId?.toLong())
-		} else {
-			cloud = new Cloud()
 		}
 		def existingController = morpheusContext.services.computeServer.find(new DataQuery()
 				.withFilter('computeServerType.code', 'scvmmController')
