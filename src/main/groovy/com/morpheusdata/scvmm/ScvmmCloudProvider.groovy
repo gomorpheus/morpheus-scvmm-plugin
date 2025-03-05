@@ -45,7 +45,7 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	String getDescription() {
-		return 'Describe me!'
+		return 'System Center Virtual Machine Manager'
 	}
 
 	/**
