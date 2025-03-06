@@ -195,10 +195,11 @@ class ScvmmCloudProvider implements CloudProvider {
 				displayOrder: displayOrder += 10,
 				fieldCode: 'gomorpheus.optiontype.SharedController',
 				fieldLabel:'Shared Controller',
-				required: true,
+				required: false,
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmSharedControllers',
 				fieldContext:'config',
+				editable: false
 		)
 		options << new OptionType(
 				name: 'Working Path',
@@ -490,45 +491,65 @@ class ScvmmCloudProvider implements CloudProvider {
 	def initializeHypervisor(cloud) {
 		def rtn = [success: false]
 		log.debug("cloud: ${cloud}")
-		ComputeServer newServer
-		def opts = apiService.getScvmmInitializationOpts(cloud)
-		def serverInfo = apiService.getScvmmServerInfo(opts)
-		if (serverInfo.success == true && serverInfo.hostname) {
-			def cloudConfig = cloud.getConfigMap()
-			newServer = context.services.computeServer.find(new DataQuery().withFilters(
+		def sharedController = cloud.getConfigProperty('sharedController')
+		if(sharedController) {
+			// No controller needed.. we are sharing another cloud's controller
+			rtn.success = true
+		} else {
+			ComputeServer newServer
+			def opts = apiService.getScvmmInitializationOpts(cloud)
+			def serverInfo = apiService.getScvmmServerInfo(opts)
+			if(serverInfo.success == true && serverInfo.hostname) {
+				newServer = context.services.computeServer.find(new DataQuery().withFilters(
 					new DataFilter('zone.id', cloud.id),
 					new DataOrFilter(
-							new DataFilter('hostname', serverInfo.hostname),
-							new DataFilter('name', serverInfo.hostname)
+						new DataFilter('hostname', serverInfo.hostname),
+						new DataFilter('name', serverInfo.hostname)
 					)
-			))
-			def serverType = context.async.cloud.findComputeServerTypeByCode("scvmmController").blockingGet()
-			if (!newServer) {
-				newServer = new ComputeServer()
-				newServer.account = cloud.account
-				newServer.cloud = cloud
-				newServer.computeServerType = serverType
-				newServer.serverOs = new OsType(code: 'windows.server.2012')
-				newServer.name = serverInfo.hostname
-				newServer = context.services.computeServer.create(newServer)
+				))
+				if(!newServer) {
+					newServer = new ComputeServer()
+					newServer.account = cloud.account
+					newServer.cloud = cloud
+					newServer.computeServerType = context.async.cloud.findComputeServerTypeByCode("scvmmController").blockingGet()
+					newServer.serverOs = new OsType(code: 'windows.server.2012')
+					newServer.name = serverInfo.hostname
+					newServer = context.services.computeServer.create(newServer)
+				}
+				if(serverInfo.hostname) {
+					newServer.hostname = serverInfo.hostname
+				}
+				newServer.sshHost = cloud.getConfigProperty('host')
+				newServer.internalIp = newServer.sshHost
+				newServer.externalIp = newServer.sshHost
+				newServer.sshUsername = apiService.getUsername(cloud)
+				newServer.sshPassword = apiService.getPassword(cloud)
+				newServer.setConfigProperty('workingPath', cloud.getConfigProperty('workingPath'))
+				newServer.setConfigProperty('diskPath', cloud.getConfigProperty('diskPath'))
 			}
-			if (serverInfo.hostname) {
-				newServer.hostname = serverInfo.hostname
+
+			def maxStorage = serverInfo?.disks?.toLong() ?:0
+			def maxMemory = serverInfo?.memory?.toLong() ?:0
+			def maxCores = 1
+			newServer.serverOs = OsType.findByCode('windows.server.2012')
+			newServer.platform = 'windows'
+			newServer.platformVersion = '2012'
+			newServer.statusDate = new Date()
+			newServer.status = 'provisioning'
+			newServer.powerState = 'on'
+			newServer.serverType = 'hypervisor'
+			newServer.osType = 'windows' //linux, windows, unmanaged
+			newServer.maxMemory = maxMemory
+			newServer.maxCores = maxCores
+			newServer.maxStorage = maxStorage
+
+			// initializeHypervisor from context
+			log.debug("newServer: ${newServer}")
+			context.services.computeServer.save(newServer)
+			if(newServer) {
+				context.async.hypervisorService.initialize(newServer)
+				rtn.success = true
 			}
-			newServer.sshHost = cloud.getConfigProperty('host')
-			newServer.internalIp = newServer.sshHost
-			newServer.externalIp = newServer.sshHost
-			newServer.sshUsername = apiService.getUsername(cloud)
-			newServer.sshPassword = apiService.getPassword(cloud)
-			newServer.setConfigProperty('workingPath', cloud.getConfigProperty('workingPath'))
-			newServer.setConfigProperty('diskPath', cloud.getConfigProperty('diskPath'))
-		}
-		// initializeHypervisor from context
-		log.debug("newServer: ${newServer}")
-		context.services.computeServer.save(newServer)
-		if (newServer) {
-			context.async.hypervisorService.initialize(newServer)
-			rtn.success = true
 		}
 		return rtn
 	}
@@ -918,7 +939,7 @@ class ScvmmCloudProvider implements CloudProvider {
 		} else {
 			// Verify that the controller selected has the same Host ip as defined in the cloud
 			def sharedController = context.services.computeServer.get(sharedControllerId?.toLong())
-			if (sharedController?.externalIp != cloud.getConfigProperty('host')) {
+			if (sharedController?.sshHost != cloud.getConfigProperty('host') && sharedController?.externalIp != cloud.getConfigProperty('host') ) {
 				rtn.success = false
 				rtn.msg = 'The selected controller is on a different host than specified for this cloud'
 			}

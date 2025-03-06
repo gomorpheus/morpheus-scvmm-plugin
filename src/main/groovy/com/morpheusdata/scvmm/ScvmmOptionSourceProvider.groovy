@@ -3,8 +3,12 @@ package com.morpheusdata.scvmm
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.OptionSourceProvider
 import com.morpheusdata.core.Plugin
+import com.morpheusdata.core.data.DataFilter
+import com.morpheusdata.core.data.DataOrFilter
 import com.morpheusdata.core.data.DataQuery
+import com.morpheusdata.core.util.MorpheusUtils
 import com.morpheusdata.model.Cloud
+import com.morpheusdata.model.ComputeServer
 import groovy.util.logging.Slf4j
 
 @Slf4j
@@ -46,36 +50,8 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 				'scvmmCloud', 'scvmmHostGroup', 'scvmmCluster', 'scvmmLibraryShares', 'scvmmSharedControllers'])
 	}
 
-	private getUsername(Cloud cloud) {
-		cloud.accountCredentialData?.username ?: cloud.getConfigProperty('username') ?: 'dunno'
-	}
-
-	private getPassword(Cloud cloud) {
-		cloud.accountCredentialData?.password ?: cloud.getConfigProperty('password')
-	}
-
-	def getScvmmInitializationOpts(cloud) {
-		def cloudConfig = cloud.getConfigMap()
-		def diskRoot = cloudConfig.diskPath?.length() > 0 ? cloudConfig.diskPath : apiService.defaultRoot + '\\Disks'
-		def zoneRoot = cloudConfig.workingPath?.length() > 0 ? cloudConfig.workingPath : apiService.defaultRoot
-		return [sshHost:cloudConfig.host, sshUsername:getUsername(cloud), sshPassword:getPassword(cloud), zoneRoot:zoneRoot,
-				diskRoot:diskRoot]
-	}
-
-	def listClouds(cloud) {
-		apiService.listClouds(apiService.getScvmmZoneOpts(morpheusContext, cloud) + getScvmmInitializationOpts(cloud))
-	}
-
-	def listHostGroups(cloud) {
-		apiService.listHostGroups(apiService.getScvmmZoneOpts(morpheusContext, cloud) + getScvmmInitializationOpts(cloud))
-	}
-
-	def listClusters(cloud) {
-		apiService.listClusters(apiService.getScvmmZoneOpts(morpheusContext, cloud) + getScvmmInitializationOpts(cloud))
-	}
-
-	def listLibraryShares(cloud) {
-		apiService.listLibraryShares(apiService.getScvmmZoneOpts(morpheusContext, cloud) + getScvmmInitializationOpts(cloud))
+	def getApiConfig(cloud) {
+		return apiService.getScvmmZoneOpts(morpheusContext, cloud) + apiService.getScvmmInitializationOpts(cloud)
 	}
 
 	def setupCloudConfig(params) {
@@ -126,7 +102,7 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	def scvmmCloud(params) {
 		log.debug("scvmmCloud: ${params}")
 		def cloud = setupCloudConfig(params)
-		def results = listClouds(cloud)
+		def results = apiService.listClouds(getApiConfig(cloud))
 		log.debug("listClouds: ${results}")
 		return results.clouds?.collect { [name: it.Name, value: it.ID] }
 	}
@@ -134,7 +110,7 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	def scvmmHostGroup(params) {
 		log.debug("scvmmHostGroup: ${params}")
 		def cloud = setupCloudConfig(params)
-		def results = listHostGroups(cloud)
+		def results = apiService.listHostGroups(getApiConfig(cloud))
 		log.debug("listHostGroups: ${results}")
 		return results.hostGroups?.collect { [name: it.path, value: it.path] }
 	}
@@ -142,7 +118,7 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	def scvmmCluster(params) {
 		log.debug("scvmmCluster: ${params}")
 		def cloud = setupCloudConfig(params)
-		def results = listClusters(cloud)
+		def results = apiService.listClusters(getApiConfig(cloud))
 		log.debug("listClusters: ${results}")
 		return results.clusters?.collect { [name: it.name, value: it.id] }
 	}
@@ -150,7 +126,7 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	def scvmmLibraryShares(params) {
 		log.debug("scvmmLibraryShares: ${params}")
 		def cloud = setupCloudConfig(params)
-		def results = listLibraryShares(cloud)
+		def results = apiService.listLibraryShares(getApiConfig(cloud))
 		log.debug("listLibraryShares: ${results}")
 		return results.libraryShares?.collect { [name: it.Path, value: it.Path] }
 	}
@@ -158,21 +134,21 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	def scvmmSharedControllers(params) {
 		params = params instanceof Object[] ? params.getAt(0) : params
 		log.debug("scvmmSharedControllers: ${params}")
-		def cloud
-		if(params.zoneId){
-			cloud = morpheusContext.services.cloud.get(params.zoneId?.toLong())
-		}
-		def existingController = morpheusContext.services.computeServer.find(new DataQuery()
-				.withFilter('computeServerType.code', 'scvmmController')
-				.withFilter('cloud.id', cloud?.id))
 
-		def query = new DataQuery()
-				.withFilter('enabled', true)
-				.withFilter('computeServerType.code', 'scvmmController')
-		if(existingController) {
-			query.withFilter('id', '!=', existingController.id)
+		def orFilters = []
+		if(params.zoneId) {
+			orFilters << new DataFilter('zone.id', params.zoneId)
 		}
-		def sharedControllers = morpheusContext.services.computeServer.find(query)
+		if(params.config?.host) {
+			orFilters << new DataFilter('sshHost', params.config.host)
+		}
+
+		def sharedControllers = morpheusContext.services.computeServer.find(new DataQuery().withFilters(
+			new DataFilter('enabled', true),
+			new DataFilter('computeServerType.code', 'scvmmController'),
+			new DataOrFilter(orFilters)
+		))
+
 		return sharedControllers?.collect{[name: it.name, value: it.id]}
 	}
 
