@@ -120,7 +120,7 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 			results = apiService.listClouds(apiConfig)
 		}
 		log.debug("listClouds: ${results}")
-		return results?.size() > 0 ? results.clouds?.collect { [name: it.Name, value: it.ID] } : [[name:"No Clouds Found: verify credentials above", value:""]]
+		return results.clouds?.size() > 0 ? results.clouds?.collect { [name: it.Name, value: it.ID] } : [[name:"No Clouds Found: verify credentials above", value:""]]
 	}
 
 	def scvmmHostGroup(params) {
