@@ -2549,11 +2549,11 @@ For (\$i=0; \$i -le 10; \$i++) {
                 diskRoot: diskRoot]
     }
 
-    private getUsername(cloud) {
-        cloud.accountCredentialData?.username ?: cloud.getConfigProperty('username') ?: 'dunno'
+    private getUsername(Cloud cloud) {
+		(cloud.accountCredentialLoaded ? cloud.accountCredentialData?.username : cloud.getConfigProperty('username')) ?: 'dunno'
     }
 
-    private getPassword(cloud) {
-        cloud.accountCredentialData?.password ?: cloud.getConfigProperty('password')
+    private getPassword(Cloud cloud) {
+		cloud.accountCredentialLoaded ? cloud.accountCredentialData?.password : cloud.getConfigProperty('password')
     }
 }

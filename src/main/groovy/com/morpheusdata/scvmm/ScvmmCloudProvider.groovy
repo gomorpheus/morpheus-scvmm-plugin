@@ -83,7 +83,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				code: 'zoneType.scvmm.host',
 				fieldName: 'host',
 				displayOrder: displayOrder,
-				fieldCode: 'gomorpheus.optiontype.Host',
+				fieldCode: 'gomorpheus.scvmm.option.host',
 				fieldLabel:'SCVMM Host',
 				required: true,
 				inputType: OptionType.InputType.TEXT,
@@ -142,6 +142,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmCloud',
 				fieldContext:'domain',
+				noBlank: true,
 				dependsOn: 'config.host, config.username, config.password, credential.type, credential.username, credential.password'
 		)
 		options << new OptionType(
@@ -156,6 +157,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmHostGroup',
 				fieldContext:'config',
+				noBlank: true,
 				dependsOn: 'config.host, config.username, config.password, credential.type, credential.username, credential.password',
 		)
 		options << new OptionType(
@@ -170,6 +172,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmCluster',
 				fieldContext:'config',
+				noBlank: true,
 				dependsOn: 'config.host, config.username, config.password, config.hostGroup, credential.type, credential.username, credential.password'
 		)
 		options << new OptionType(
@@ -184,6 +187,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.SELECT,
 				optionSource: 'scvmmLibraryShares',
 				fieldContext:'config',
+				noBlank: true,
 				dependsOn: 'config.host, config.username, config.password, credential.type, credential.username, credential.password'
 		)
 		options << new OptionType(

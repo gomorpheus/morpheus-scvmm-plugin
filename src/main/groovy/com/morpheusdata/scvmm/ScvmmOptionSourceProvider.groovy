@@ -51,7 +51,8 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	}
 
 	def getApiConfig(cloud) {
-		return apiService.getScvmmZoneOpts(morpheusContext, cloud) + apiService.getScvmmInitializationOpts(cloud)
+		def rtn = apiService.getScvmmZoneOpts(morpheusContext, cloud) + apiService.getScvmmInitializationOpts(cloud)
+		return rtn
 	}
 
 	def setupCloudConfig(params) {
@@ -62,73 +63,100 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 				username: params.config?.username ?: params["config[username]"],
 				hostGroup: params.config?.hostGroup ?: params["config[hostGroup]"]
 		]
-
 		def password = params.config?.password ?: params["config[password]"]
-		if (password == '*' * 12 && params.zoneId) {
-			config.password = morpheusContext.services.cloud.get(params.zoneId.toLong()).configMap.password
-		} else {
-			config.password = password
-		}
 
-		def cloud
+
+		Cloud cloud
+		// get the correct credentials
 		if (params.zoneId) {
+			// load the cloud
 			cloud = morpheusContext.services.cloud.get(params.zoneId.toLong())
-			def credentials = morpheusContext.services.accountCredential.loadCredentials(cloud)
-			cloud.accountCredentialData = credentials.data
-			cloud.accountCredentialLoaded = true
-
-			config.username = credentials.data?.username
-			config.password = credentials.data?.password
+			if(params.credential.type != "local") {
+				// not local creds, load from cloud or form
+				if (params.credential && params.credential?.type != "local") {
+					// might have new credential, load from form data
+					def credentials = morpheusContext.services.accountCredential.loadCredentialConfig(params.credential, config)
+					cloud.accountCredentialLoaded = true
+					cloud.accountCredentialData = credentials?.data
+				} else {
+					// no form data, load credentials from cloud
+					def credentials = morpheusContext.services.accountCredential.loadCredentials(cloud)
+					cloud.accountCredentialData = credentials.data
+					cloud.accountCredentialLoaded = true
+				}
+			} else if(password != '*' * 12) {
+				// new password, update it
+				config.password = password
+			}
 		} else {
 			cloud = new Cloud()
-			cloud.setConfigMap(config)
+			if (params.credential && params.credential?.type != "local") {
+				def credentials = morpheusContext.services.accountCredential.loadCredentialConfig(params.credential, config)
+				cloud.accountCredentialLoaded = true
+				cloud.accountCredentialData = credentials?.data
+				log.debug("cloud.accountCredentialData: ${cloud.accountCredentialData}")
+			} else {
+				// local credential, set the local cred config
+				config.password = password
+			}
 		}
+
+		// set the config map
+		cloud.setConfigMap(config)
 
 		cloud.regionCode = params.config?.cloud ?: params["config[cloud]"]
 		cloud.cloudType = morpheusContext.services.cloud.type.find(new DataQuery().withFilter('code', 'scvmm'))
 
-		if (params.credential) {
-			def accountCredential = morpheusContext.services.accountCredential.loadCredentialConfig(params.credential, config)
-			cloud.accountCredentialLoaded = true
-			cloud.accountCredentialData = accountCredential?.data
-		}
-
-		def proxy = params.config?.apiProxy ? morpheusContext.services.network.networkProxy.get(params.config.long('apiProxy')) : null
-		cloud.apiProxy = proxy
+		cloud.apiProxy = params.config?.apiProxy ? morpheusContext.services.network.networkProxy.get(params.config.long('apiProxy')) : null
 
 		return cloud
 	}
 
 	def scvmmCloud(params) {
-		log.debug("scvmmCloud: ${params}")
 		def cloud = setupCloudConfig(params)
-		def results = apiService.listClouds(getApiConfig(cloud))
+		def apiConfig = getApiConfig(cloud)
+		def results = []
+		if(apiConfig.sshUsername && apiConfig.sshPassword) {
+			results = apiService.listClouds(apiConfig)
+		}
 		log.debug("listClouds: ${results}")
-		return results.clouds?.collect { [name: it.Name, value: it.ID] }
+		return results?.size() > 0 ? results.clouds?.collect { [name: it.Name, value: it.ID] } : [[name:"No Clouds Found: verify credentials above", value:""]]
 	}
 
 	def scvmmHostGroup(params) {
 		log.debug("scvmmHostGroup: ${params}")
 		def cloud = setupCloudConfig(params)
-		def results = apiService.listHostGroups(getApiConfig(cloud))
+		def apiConfig = getApiConfig(cloud)
+		def results = []
+		if(apiConfig.sshUsername && apiConfig.sshPassword) {
+			results = apiService.listHostGroups(apiConfig)
+		}
 		log.debug("listHostGroups: ${results}")
-		return results.hostGroups?.collect { [name: it.path, value: it.path] }
+		return results.hostGroups?.size() > 0 ? results.hostGroups?.collect { [name: it.path, value: it.path] } :  [[name:"No Host Groups found", value:""]]
 	}
 
 	def scvmmCluster(params) {
 		log.debug("scvmmCluster: ${params}")
 		def cloud = setupCloudConfig(params)
-		def results = apiService.listClusters(getApiConfig(cloud))
+		def apiConfig = getApiConfig(cloud)
+		def results = []
+		if(apiConfig.sshUsername && apiConfig.sshPassword) {
+			results = apiService.listClusters(apiConfig)
+		}
 		log.debug("listClusters: ${results}")
-		return results.clusters?.collect { [name: it.name, value: it.id] }
+		return results.clusters.size() > 0 ? results.clusters?.collect { [name: it.name, value: it.id] } : [[name:"No Clusters found: check your config", value:""]]
 	}
 
 	def scvmmLibraryShares(params) {
 		log.debug("scvmmLibraryShares: ${params}")
 		def cloud = setupCloudConfig(params)
-		def results = apiService.listLibraryShares(getApiConfig(cloud))
+		def apiConfig = getApiConfig(cloud)
+		def results = []
+		if(apiConfig.sshUsername && apiConfig.sshPassword) {
+			results = apiService.listLibraryShares(apiConfig)
+		}
 		log.debug("listLibraryShares: ${results}")
-		return results.libraryShares?.collect { [name: it.Path, value: it.Path] }
+		return results.libraryShares.size() > 0 ? results.libraryShares?.collect { [name: it.Path, value: it.Path] } : [[name:"No Library Shares found", value:""]]
 	}
 
 	def scvmmSharedControllers(params) {
