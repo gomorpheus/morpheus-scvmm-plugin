@@ -1333,6 +1333,11 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
         return true
     }
 
+	@Override
+	Integer getMaxNetworks() {
+		return 1
+	}
+
     @Override
     Boolean canAddVolumes() {
         return true
@@ -1342,6 +1347,21 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
     Boolean canCustomizeRootVolume() {
         return true
     }
+
+	@Override
+	Boolean canResizeRootVolume() {
+		return true
+	}
+
+	@Override
+	Boolean canCustomizeDataVolumes() {
+		return true
+	}
+
+	@Override
+	Boolean hasDatastores() {
+		return true
+	}
 
     @Override
     HostType getHostType() {
