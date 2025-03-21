@@ -244,7 +244,7 @@ class VirtualMachineSync {
                             def osType = context.services.osType.find(new DataQuery().withFilter('code', osTypeCodeStr))
                             if (osType && currentServer.serverOs != osType) {
                                 currentServer.serverOs = osType
-                                currentServer.osType = currentServer.serverOs?.platform?.toLowerCase()
+                                currentServer.osType = currentServer.serverOs?.platform?.toString()?.toLowerCase()
                                 currentServer.platform = osType?.platform
                                 save = true
                             }
