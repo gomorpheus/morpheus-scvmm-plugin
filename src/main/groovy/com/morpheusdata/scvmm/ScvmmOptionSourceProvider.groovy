@@ -71,7 +71,7 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 		if (params.zoneId) {
 			// load the cloud
 			cloud = morpheusContext.services.cloud.get(params.zoneId.toLong())
-			if(params.credential.type != "local") {
+			if(params.credential?.type != "local") {
 				// not local creds, load from cloud or form
 				if (params.credential && params.credential?.type != "local") {
 					// might have new credential, load from form data
