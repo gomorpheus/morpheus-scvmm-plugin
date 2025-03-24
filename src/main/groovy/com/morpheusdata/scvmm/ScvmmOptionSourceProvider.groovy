@@ -120,7 +120,14 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 			results = apiService.listClouds(apiConfig)
 		}
 		log.debug("listClouds: ${results}")
-		return results.clouds?.size() > 0 ? results.clouds?.collect { [name: it.Name, value: it.ID] } : [[name:"No Clouds Found: verify credentials above", value:""]]
+		def optionList = []
+		if(results.clouds?.size() > 0) {
+			optionList << [name: "Select a Cloud", value: ""]
+			optionList += results.clouds?.collect { [name: it.Name, value: it.ID] }
+		} else {
+			optionList = [[name:"No Clouds Found: verify credentials above", value:""]]
+		}
+		return optionList
 	}
 
 	def scvmmHostGroup(params) {
@@ -132,7 +139,14 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 			results = apiService.listHostGroups(apiConfig)
 		}
 		log.debug("listHostGroups: ${results}")
-		return results.hostGroups?.size() > 0 ? results.hostGroups?.collect { [name: it.path, value: it.path] } :  [[name:"No Host Groups found", value:""]]
+		def optionList = []
+		if(results.hostGroups?.size() > 0) {
+			optionList << [name: "Select", value: ""]
+			optionList += results.hostGroups?.collect { [name: it.path, value: it.path] }
+		} else {
+			optionList = [[name:"No Host Groups found", value:""]]
+		}
+		return optionList
 	}
 
 	def scvmmCluster(params) {
@@ -144,7 +158,14 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 			results = apiService.listClusters(apiConfig)
 		}
 		log.debug("listClusters: ${results}")
-		return results.clusters.size() > 0 ? results.clusters?.collect { [name: it.name, value: it.id] } : [[name:"No Clusters found: check your config", value:""]]
+		def optionList = []
+		if(results.clusters?.size() > 0) {
+			optionList << [name: "All", value: ""]
+			optionList += results.clusters?.collect { [name: it.name, value: it.id] }
+		} else {
+			optionList = [[name:"No Clusters found: check your config", value:""]]
+		}
+		return optionList
 	}
 
 	def scvmmLibraryShares(params) {
