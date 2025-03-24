@@ -512,6 +512,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
         Cloud cloud = server.cloud
         try {
             def containerConfig = workload.getConfigMap()
+			WorkloadType workloadType = context.services.workloadType.get(workload.workloadType.id)
             opts.server = workload.server
             opts.noAgent = containerConfig.noAgent
 
@@ -519,7 +520,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             def scvmmOpts = apiService.getScvmmZoneOpts(context, cloud)
             scvmmOpts.name = server.name
             def imageId
-            def virtualImage
+            def virtualImage = server.sourceImage
 
             scvmmOpts.controllerServerId = controllerNode.id
             def externalPoolId
@@ -585,10 +586,11 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             }
 
             scvmmOpts += apiService.getScvmmControllerOpts(cloud, controllerNode)
-            if (containerConfig.imageId || containerConfig.template || workload.workloadType.virtualImage?.id) {
-                def virtualImageId = (containerConfig.imageId?.toLong() ?: containerConfig.template?.toLong() ?: workload.workloadType.virtualImage.id)
+            if (containerConfig.template || virtualImage?.id) {
+				if(containerConfig.template) {
+					virtualImage = context.services.virtualImage.get(containerConfig.template?.toLong())
+				}
 
-                virtualImage = context.async.virtualImage.get(virtualImageId).blockingGet()
                 scvmmOpts.scvmmGeneration = virtualImage?.getConfigProperty('generation') ?: 'generation1'
                 scvmmOpts.isSyncdImage = virtualImage?.refType == 'ComputeZone'
                 scvmmOpts.isTemplate = !(virtualImage?.remotePath != null) && !virtualImage?.systemImage
@@ -1542,7 +1544,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
         def volumePath
         if (datastore) {
             StorageVolume storageVolume = context.services.storageVolume.find(new DataQuery()
-                    .withFilter('datastore', datastore)
+                    .withFilter('datastore.id', datastore.id)
                     .withFilter('volumePath', '!=', null))
             volumePath = storageVolume?.volumePath
         }
