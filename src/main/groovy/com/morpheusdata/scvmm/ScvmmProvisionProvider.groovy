@@ -514,7 +514,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             def containerConfig = workload.getConfigMap()
 			WorkloadType workloadType = context.services.workloadType.get(workload.workloadType.id)
             opts.server = workload.server
-            opts.noAgent = containerConfig.noAgent
 
             def controllerNode = pickScvmmController(cloud)
             def scvmmOpts = apiService.getScvmmZoneOpts(context, cloud)
@@ -653,11 +652,9 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                     // Need to lookup the OS name
                     scvmmOpts.OSName = apiService.getMapScvmmOsType(virtualImage.osType.code, false)
                 }
-                opts.installAgent = (virtualImage ? virtualImage.installAgent : true) && !opts.noAgent
-                opts.skipNetworkWait = virtualImage?.imageType == 'iso' || !virtualImage?.vmToolsInstalled ? true : false
-                if (virtualImage?.installAgent == false) {
-                    opts.noAgent = true
-                }
+				opts.installAgent = (virtualImage ? virtualImage.installAgent : true) && !workloadRequest.cloudConfigOpts?.noAgent
+				// If the image is an ISO or VMTools not installed, we need to skip network wait
+				opts.skipNetworkWait = virtualImage?.imageType == 'iso' || !virtualImage?.vmToolsInstalled ? true : false
                 //user config
                 def userGroups = workload.instance.userGroups?.toList() ?: []
                 if (workload.instance.userGroup && userGroups.contains(workload.instance.userGroup) == false) {
@@ -696,7 +693,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 
                 if (virtualImage?.isCloudInit || scvmmOpts.isSysprep) {
                     def initOptions = constructCloudInitOptions(workload, workloadRequest, opts.installAgent, scvmmOpts.platform, virtualImage, scvmmOpts.networkConfig, scvmmOpts.licenses, scvmmOpts)
-                    opts.installAgent = initOptions.installAgent && !opts.noAgent
                     scvmmOpts.cloudConfigUser = initOptions.cloudConfigUser
                     scvmmOpts.cloudConfigMeta = initOptions.cloudConfigMeta
                     scvmmOpts.cloudConfigBytes = initOptions.cloudConfigBytes
@@ -705,10 +701,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                         opts.licenseApplied = true
                     }
                     opts.unattendCustomized = initOptions.unattendCustomized
-                    server.cloudConfigUser = scvmmOpts.cloudConfigUser
-                    server.cloudConfigMeta = scvmmOpts.cloudConfigMeta
-                    server.cloudConfigNetwork = scvmmOpts.cloudConfigNetwork
-                    server = saveAndGetMorpheusServer(server, true)
                 }
                 // If cloning.. gotta stop it first
                 if (containerConfig.cloneContainerId) {
@@ -727,8 +719,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                         def clonedScvmmOpts = apiService.getScvmmZoneOpts(context, cloud)
                         clonedScvmmOpts += apiService.getScvmmControllerOpts(cloud, controllerNode)
                         clonedScvmmOpts += getScvmmContainerOpts(cloneContainer)
-                        opts.installAgent = initOptions.installAgent && !opts.noAgent
-                        clonedScvmmOpts.installAgent = opts.installAgent
                         cloneBaseOpts.imageFolderName = clonedScvmmOpts.serverFolder
                         cloneBaseOpts.diskFolder = "${clonedScvmmOpts.diskRoot}\\${cloneBaseOpts.imageFolderName}"
                         cloneBaseOpts.cloudConfigBytes = initOptions.cloudConfigBytes
@@ -739,11 +729,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                             opts.licenseApplied = true
                         }
                         opts.unattendCustomized = initOptions.unattendCustomized
-                    } else {
-                        if (scvmmOpts.isSysprep && !opts.installAgent && !opts.noAgent) {
-                            // Need Morpheus to install the agent.. can't do it over unattend on clone cause SCVMM commands don't seem to support passing AnswerFile
-                            opts.installAgent = true
-                        }
                     }
                     scvmmOpts.cloneBaseOpts = cloneBaseOpts
                 }
@@ -857,8 +842,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 server.statusMessage = 'Failed to upload image'
                 context.async.computeServer.save(server).blockingGet()
             }
-            provisionResponse.noAgent = opts.noAgent ?: false
-            if (provisionResponse.success != true) {
+
+			if (provisionResponse.success != true) {
                 return new ServiceResponse(success: false, msg: provisionResponse.message ?: 'vm config error', error: provisionResponse.message, data: provisionResponse)
             } else {
                 return new ServiceResponse<ProvisionResponse>(success: true, data: provisionResponse)
@@ -887,6 +872,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 }
             }
         }
+
         log.debug "returning additionalTemplateDisks ${additionalTemplateDisks}"
         additionalTemplateDisks
     }
@@ -908,7 +894,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
         rtn.installAgent = installAgent && (cloudConfigOpts.installAgent != true)
         // If cloudConfigOpts.installAgent == true, it means we are installing the agent via cloud config.. so do NOT install is via morpheus
         cloudConfigOpts.licenses = licenses
-        context.services.provision.buildCloudNetworkData(PlatformType.valueOf(platform), cloudConfigOpts)
         rtn.cloudConfigUser = workloadRequest?.cloudConfigUser ?: null
         rtn.cloudConfigMeta = workloadRequest?.cloudConfigMeta ?: null
         rtn.cloudConfigNetwork = workloadRequest?.cloudConfigNetwork ?: null
@@ -916,7 +901,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             rtn.licenseApplied = true
         }
         rtn.unattendCustomized = cloudConfigOpts.unattendCustomized
-        rtn.cloudConfigUnattend = context.services.provision.buildCloudUserData(PlatformType.valueOf(platform), workloadRequest.usersConfiguration, cloudConfigOpts)
+        rtn.cloudConfigUnattend = workloadRequest.cloudConfigUser
         def isoBuffer = context.services.provision.buildIsoOutputStream(virtualImage.isSysprep, PlatformType.valueOf(platform), rtn.cloudConfigMeta, rtn.cloudConfigUnattend, rtn.cloudConfigNetwork)
         rtn.cloudConfigBytes = isoBuffer
         return rtn
