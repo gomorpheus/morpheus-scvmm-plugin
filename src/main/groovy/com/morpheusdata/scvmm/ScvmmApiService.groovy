@@ -194,12 +194,13 @@ class ScvmmApiService {
                 diskDrives.disks?.eachWithIndex { disk, diskIndex ->
                     if (diskIndex == bookDiskIndex) {
                         disks.osDisk.externalId = disk.ID
-                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
+                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, VhdID: disk.VhdID, Location: disk.VhdLocation, PartitionUniqueId: disk.PartitionUniqueId]
                     } else {
                         disks.dataDisks[diskIndex - 1].externalId = disk.ID
-                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, dataDisk: true, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
+                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, dataDisk: true, VhdID: disk.VhdID, Location: disk.VhdLocation, PartitionUniqueId: disk.PartitionUniqueId]
                     }
 
+                    log.debug("createServer - instance volume metadata (disks) : ${disks}")
                     //resize disk
                     log.debug ".. about to resize disk ${opts.osDiskSize}"
                     diskRoot = opts.diskRoot

@@ -2105,6 +2105,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                             if (volumePath) {
                                 newVolume.volumePath = volumePath
                             }
+							//internalId can now be set to the location of the VirtualHardDisk (VhdLocation)
+							newVolume.internalId = diskResults.disk.VhdLocation
                             newVolume.maxStorage = volumeAdd.size.toInteger() * ComputeUtility.ONE_GIGABYTE
                             newVolume.externalId = diskResults.disk.VhdID
 

@@ -489,8 +489,10 @@ class TemplatesSync {
                 volume.maxStorage = masterDiskSize
                 save = true
             }
-            if (volume.internalId != masterItem.Name) {
-                volume.internalId = masterItem.Name
+            // InternalId - Unique Path for the VHD disk file from masterItem.Location
+            if(volume.internalId != masterItem.Location) {
+                volume.internalId = masterItem.Location
+                //volume.name = masterItem.Name
                 save = true
             }
             def isRootVolume = (masterItem?.VolumeType == 'BootAndSystem') || (addLocation.volumes.size() == 1)
