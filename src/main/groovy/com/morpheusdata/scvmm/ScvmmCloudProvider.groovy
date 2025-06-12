@@ -1,5 +1,6 @@
 package com.morpheusdata.scvmm
 
+import com.morpheusdata.scvmm.helper.morpheus.types.StorageVolumeTypeHelper
 import com.morpheusdata.scvmm.sync.CloudCapabilityProfilesSync
 import com.morpheusdata.scvmm.sync.ClustersSync
 import com.morpheusdata.scvmm.sync.DatastoresSync
@@ -306,8 +307,7 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	Collection<StorageVolumeType> getStorageVolumeTypes() {
-		Collection<StorageVolumeType> volumeTypes = []
-		return volumeTypes
+		return StorageVolumeTypeHelper.getAllStorageVolumeTypes()
 	}
 
 	/**

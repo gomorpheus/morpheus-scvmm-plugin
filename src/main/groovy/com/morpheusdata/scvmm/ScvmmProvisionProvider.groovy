@@ -21,6 +21,7 @@ import com.morpheusdata.response.InitializeHypervisorResponse
 import com.morpheusdata.response.PrepareWorkloadResponse
 import com.morpheusdata.response.ProvisionResponse
 import com.morpheusdata.response.ServiceResponse
+import com.morpheusdata.scvmm.helper.morpheus.types.StorageVolumeTypeHelper
 import groovy.util.logging.Slf4j
 
 @Slf4j
@@ -436,8 +437,9 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
      */
     @Override
     Collection<StorageVolumeType> getRootVolumeStorageTypes() {
-        context.async.storageVolume.storageVolumeType.list(
-                new DataQuery().withFilter("code", "standard")).toList().blockingGet()
+//        context.async.storageVolume.storageVolumeType.list(
+//                new DataQuery().withFilter("code", "standard")).toList().blockingGet()
+		return StorageVolumeTypeHelper.getAllStorageVolumeTypes()
     }
 
     /**
@@ -446,8 +448,9 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
      */
     @Override
     Collection<StorageVolumeType> getDataVolumeStorageTypes() {
-        context.async.storageVolume.storageVolumeType.list(
-                new DataQuery().withFilter("code", "standard")).toList().blockingGet()
+//        context.async.storageVolume.storageVolumeType.list(
+//                new DataQuery().withFilter("code", "standard")).toList().blockingGet()
+		return StorageVolumeTypeHelper.getAllStorageVolumeTypes()
     }
 
     /**
