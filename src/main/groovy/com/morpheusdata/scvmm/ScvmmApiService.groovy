@@ -38,6 +38,7 @@ class ScvmmApiService {
     def generateCommandString(command) {
         // FormatEnumeration causes lists to show ALL items
         // width value prevents wrapping
+        //TODO make sure command does NOT end in a newline otherwise this fails
         "\$FormatEnumerationLimit =-1; ${command} | ConvertTo-Json -Depth 3"
     }
 
@@ -170,13 +171,40 @@ class ScvmmApiService {
             def serverCreated = checkServerCreated(opts, opts.externalId)
             log.debug "Servercreated: ${serverCreated}"
 
+            // Server Created - Remove Temporary templates and profiles
+            if(removeTemplateCommands) {
+                log.info("createServer - removing Temporary Templates and Hardware Profiles")
+                def command = removeTemplateCommands.join(';')
+                command += "@()"
+                wrapExecuteCommand(generateCommandString(command), opts)
+            }
+
             if (serverCreated.success == true) {
-                log.debug "opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}"
-                opts.additionalTemplateDisks?.each { diskConfig ->
-                    // Create the additional disks the user requests on the template
-                    createAndAttachDisk(opts, diskConfig.diskCounter, diskConfig.diskSize, '0', null, false)
+                // We have an SCVMM VM
+                loadControllerServer(opts)
+                //Get the created VM Disk configuration for new server with id opts.externalId
+                //expect Map [success:true/false, disks: []]
+                def vmDisk = listVirtualDiskDrives(opts,opts.externalId)
+                if (vmDisk.success) {
+                    log.info("createServer - received current Disk configuration for VM ${opts.externalId}")
+                    log.info("createServer - additional volumes - opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}")
+                    // TODO We could use diskSpec to provide more meaningful choices for additional disks like the type and format
+                    opts.additionalTemplateDisks?.each { diskConfig ->
+                        def diskSpec = [
+                                //TODO should vhdName come from the UI?
+                                vhdName  : "data-${UUID.randomUUID().toString()}",
+                                vhdType  : null,  //Use Default
+                                vhdFormat: null, //Use Default
+                                vhdPath  : null,
+                                sizeMb   : (int) (diskConfig.diskSize.toLong()).div(ComputeUtility.ONE_MEGABYTE)
+                        ]
+                        // Create the additional disks the user requests on the template
+                        // Now the Powershell automatically discovers next available bus/lun
+                        def result = createAndAttachDisk(opts, diskSpec)
+                        log.debug("createServer - add disk result ${result}")
+                    }
+                    log.debug "createServer - finished with adding additionalDisks: ${opts.additionalTemplateDisks}"
                 }
-                log.debug "finished with adding additionalDisks: ${opts.additionalTemplateDisks}"
 
                 // Special stuff for cloned VMs
                 if (opts.cloneVMId) {
@@ -194,10 +222,10 @@ class ScvmmApiService {
                 diskDrives.disks?.eachWithIndex { disk, diskIndex ->
                     if (diskIndex == bookDiskIndex) {
                         disks.osDisk.externalId = disk.ID
-                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, VhdID: disk.VhdID, Location: disk.VhdLocation, PartitionUniqueId: disk.PartitionUniqueId]
+                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
                     } else {
                         disks.dataDisks[diskIndex - 1].externalId = disk.ID
-                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, dataDisk: true, VhdID: disk.VhdID, Location: disk.VhdLocation, PartitionUniqueId: disk.PartitionUniqueId]
+                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, dataDisk: true, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
                     }
 
                     log.debug("createServer - instance volume metadata (disks) : ${disks}")
@@ -206,9 +234,12 @@ class ScvmmApiService {
                     diskRoot = opts.diskRoot
                     imageFolderName = opts.serverFolder
                     diskFolder = "${diskRoot}\\${imageFolderName}"
+                    //resizeResponse [success: true/false, errOut: message]
+                    def resizeResponse
                     if (opts.osDiskSize) {
                         def osDiskVhdID = disks.diskMetaData[disks.osDisk?.externalId]?.VhdID
-                        resizeDisk(opts, osDiskVhdID, opts.osDiskSize)
+                        resizeResponse = resizeDisk(opts, osDiskVhdID, opts.osDiskSize)
+                        log.debug("createServer - resizeDisk Response ${resizeResponse}")
                     }
 
                     // Resize the data disks if template
@@ -217,7 +248,8 @@ class ScvmmApiService {
                             def storageVolume = opts.dataDisks.find { it.externalId == externalId }
                             if (storageVolume) {
                                 def diskVhdID = disks.diskMetaData[externalId]?.VhdID
-                                resizeDisk(opts, diskVhdID, storageVolume.maxStorage)
+                                resizeResponse = resizeDisk(opts, diskVhdID, storageVolume.maxStorage)
+                                log.debug("createServer - resizeDisk Response ${resizeResponse}")
                             }
                         }
                     }
@@ -451,6 +483,7 @@ if(\$cloud) {
 				foreach (\$VM in \$VMs) {
 					\$data = New-Object PSObject -property @{
 						ID=\$VM.ID
+						ObjectType=\\$VM.ObjectType.ToString()
 						VMId=\$VM.VMId
 						Name=\$VM.Name
 						CPUCount=\$VM.CPUCount
@@ -478,7 +511,10 @@ if(\$cloud) {
 						\$VHD = \$VHDconf.VirtualHardDisk
 						\$disk = New-Object PSObject -property @{
 							ID=\$VHD.ID
+							ObjectType=\\$VHDConf.ObjectType.ToString()
 							Name=\$VHD.Name
+							VHDType=\\$VHD.VHDType.ToString()
+                            VHDFormat=\\$VHD.VHDFormatType.ToString()
 							Location=\$VHD.Location
 							TotalSize=\$VHD.MaximumSize
 							UsedSize=\$VHD.Size
@@ -537,6 +573,7 @@ if(\$cloud) {
 foreach (\$Template in \$VMTemplates) {
 	\$data = New-Object PSObject -property @{
 		ID=\$Template.ID
+		ObjectType=\$Template.ObjectType.ToString()
 		Name=\$Template.Name
 		CPUCount=\$Template.CPUCount
 		Memory=\$Template.Memory
@@ -552,6 +589,8 @@ foreach (\$Template in \$VMTemplates) {
 		\$disk = New-Object PSObject -property @{
 			ID=\$VHD.ID
 			Name=\$VHD.Name
+			VHDType=\$VHD.VHDType.ToString()
+            VHDFormat=\$VHD.VHDFormatType.ToString()
 			Location=\$VHD.Location
 			TotalSize=\$VHD.MaximumSize
 			UsedSize=\$VHD.Size
@@ -580,7 +619,10 @@ foreach (\$VHDconf in \$Disks) {
 	}
 	\$disk = New-Object PSObject -property @{
 		ID=\$VHDconf.ID
+		ObjectType=\$VHDConf.ObjectType.ToString()
 		Name=\$VHDconf.Name
+		VHDType=\$VHD.VHDType.ToString()
+        VHDFormat=\$VHD.VHDFormatType.ToString()
 		Location=\$VHDconf.Location
 		TotalSize=\$VHDconf.MaximumSize
 		UsedSize=\$VHDconf.Size
@@ -1239,30 +1281,50 @@ foreach (\$network in \$networks) {
     }
 
     def listVirtualDiskDrives(opts, externalId, name = null) {
+        log.info("listVirtualDiskDrives - Getting Virtual Disk info for VMId :${externalId}")
         def rtn = [success: false, disks: []]
-        def commands = []
-        commands << "\$VM = Get-SCVirtualMachine -VMMServer localhost -ID \"${externalId}\""
-        def getCmd = "\$disks = Get-SCVirtualDiskDrive -VM \$VM"
-        if (name) {
-            getCmd += " | where {\$_.VirtualHardDisk -like \"${name}\"}"
-        }
-        commands << getCmd
-        commands << """
-\$report = @()
-foreach (\$disk in \$disks) {
-  \$data = New-Object PSObject -property @{
-    ID=\$disk.ID
-    VhdID=\$disk.VirtualHardDisk.ID
-    Name=\$disk.Name
-    HostVolumeId=\$disk.VirtualHardDisk.HostVolumeId
-	FileShareId=\$disk.VirtualHardDisk.FileShare.ID
-	PartitionUniqueId=\$disk.VirtualHardDisk.HostVolume.PartitionUniqueId
-  }
-  \$report += \$data
-}
-\$report """
-        def command = generateCommandString(commands.join(';'))
-        def out = wrapExecuteCommand(command, opts)
+
+        String templateCmd = '''
+		#Morpheus will replace items in <%   %>
+		$vmId = "<%vmid%>"
+		$vhdName = "<%vhdname%>"
+		$VM =  Get-SCVirtualMachine -VMMServer localhost -ID $vmId -ErrorAction SilentlyContinue
+		if ($VM) {
+			if ($vhdName) {
+				$disks = Get-SCVirtualDiskDrive -VM $VM | Where-Object {$_.VirtualHardDisk -like $vhdName}
+			} else {
+				$disks = Get-SCVirtualDiskDrive -VM $VM
+			}
+		} else {
+			$disks = @()
+		}
+		$report = @()
+		foreach ($disk in $disks) {
+			$data = [PSCustomObject]@{
+				ID=$disk.ID
+				Name=$disk.Name
+				VolumeType=$disk.VolumeType.ToString()
+				BusType=$disk.BusType.ToString()
+				Bus=$disk.Bus
+				Lun=$disk.Lun
+				VhdID=$disk.VirtualHardDisk.ID
+				VhdName=$Disk.VirtualHardDisk.Name
+				VhdType=$disk.VirtualHardDisk.VHDType.ToString()
+				VhdFormat=$disk.VirtualHardDisk.VHDFormatType.ToString()
+				VhdLocation=$disk.VirtualHardDisk.Location
+				HostVolumeId=$disk.VirtualHardDisk.HostVolumeId
+				FileShareId=$disk.VirtualHardDisk.FileShare.ID
+				PartitionUniqueId=$disk.VirtualHardDisk.HostVolume.PartitionUniqueId
+			}
+			$report += $data
+		}
+		$report 
+		'''
+        String cmd = templateCmd.stripIndent().trim()
+                .replace("<%vmid%>",externalId)
+                .replace("<%vhdname%>",name ?: "")
+        //Execute
+        def out = wrapExecuteCommand(generateCommandString(cmd), opts)
         if (out.success) {
             rtn.disks = out.data
             rtn.success = true
@@ -1271,75 +1333,157 @@ foreach (\$disk in \$disks) {
     }
 
     def resizeDisk(opts, diskId, diskSizeBytes) {
-        log.debug "resizeDisk: ${diskId} ${diskSizeBytes}"
-        def commands = []
-        commands << "\$VM = Get-SCVirtualMachine -VMMServer localhost -ID \"${opts.externalId}\""
-        commands << "\$VirtualDiskDrive = Get-SCVirtualDiskDrive -VM \$VM | where { \$_.VirtualHardDiskId -eq \"${diskId}\" }"
-        commands << "\$ignore = Expand-SCVirtualDiskDrive -RunAsynchronously -JobVariable \"expandHD\" -VirtualDiskDrive \$VirtualDiskDrive -VirtualHardDiskSizeGB ${(int) (diskSizeBytes.toLong()).div(ComputeUtility.ONE_GIGABYTE)}"
-        commands << "\$expandHD.ID"
-        def cmd = commands.join(';')
+        log.info("resizeDisk - ${diskId} ${diskSizeBytes}")
+        String templateCmd = '''
+		$vmId = "<%vmid%>"
+		$diskId = "<%diskid%>"
+		$newSize = <%sizegb%>
+		#No replacement code after here
+		$report = [PSCustomObject]@{success=$true;jobId=$null;errOut=$null}
+		$VM = Get-SCVirtualMachine -VMMServer localhost -ID $vmID
+		$vDisk = Get-SCVirtualDiskDrive -VM $VM | Where-Object  {$_.VirtualHardDiskId -eq $diskId}
+		if ($vDisk) {
+			#Check format - can it be expanded
+			$vhd = $vDisk.VirtualHardDisk
+			if ($vhd.ParentDisk) {
+				$report.success = $false
+				$report.errOut="Cannot Resize a Differencing Disk or a Disk with Checkpoints"
+			} else {
+				$expandParams=@{
+					RunAsynchronously=$true;
+					VirtualDiskDrive=$vDisk;
+					VirtualHardDiskSizeGB=$newSize;
+					JobVariable="expandJob"
+					ErrorAction="Stop"
+				}
+				try {
+					$expandedDisk = Expand-SCVirtualDiskDrive @expandParams
+					$report.jobId = $expandJob.ID
+				}
+				catch {
+					$report.success = $false
+					$report.errout = "Expand-SCVirtualDiskDrive raised exception: {0}" -f $_.Exception.Message
+				}
+			}
+		} else {
+			$report.success = $false
+			$report.errOut = "Cannot locate VirtualHardDisk ID {0}" -f $diskId
+		}
+		$report 
+		'''
+        String resizeCmd = templateCmd.stripIndent().trim()
+                .replace("<%vmid%>",opts.externalId)
+                .replace("<%diskid%>",diskId ?: "")
+                .replace("<%sizegb%>","${(int)(diskSizeBytes.toLong()).div(ComputeUtility.ONE_GIGABYTE)}")
 
-        log.debug "resizeDisk: ${cmd}"
-        def resizeResults = wrapExecuteCommand(generateCommandString(cmd), opts)
-        def jobGuid = resizeResults.data?.getAt(0)?.value
-        if (!jobGuid) {
-            throw new Exception("Did not receive a job guid for resize disk: ${resizeResults}")
+        log.debug "resizeDisk: ${resizeCmd}"
+        def resizeResults = wrapExecuteCommand(generateCommandString(resizeCmd), opts)
+        //resizeResults.data is json payload array - want only the first item
+        if (resizeResults.data) {
+            def resizeStatus = resizeResults.data.first()
+            if (resizeStatus?.success) {
+                //Wait on the jobId to complete
+                def waitResults = waitForJobToComplete(opts, resizeStatus.jobId)
+                return waitResults
+            } else {
+                log.error("resizeDisk - Error resizing disk. Message : ${resizeStatus.errOut}")
+                return resizeStatus
+            }
+        } else {
+            log.warn("resizeDisk - rpc disk not return a usable response - ${resizeResults}")
+            return [success:false,errOut: "resizeDisk - did not receive expected response from rpc"]
         }
-        // Wait for the job to complete.. might take awhile!
-        def waitResults = waitForJobToComplete(opts, jobGuid)
-        return waitResults
     }
 
-
-    def createAndAttachDisk(opts, dataDiskNumber, diskSizeBytes, busNumber, path = null, returnDiskDrives = true) {
-        log.debug("createAndAttachDisk : opts: ${opts}, ${path}")
-        def commands = []
-        def sizeMB = (int) (diskSizeBytes.toLong()).div(ComputeUtility.ONE_MEGABYTE)
-        def fileName = "data-${UUID.randomUUID().toString()}.vhd"
-
-        def command = """
-\$busNumber = ${busNumber}
-\$lunNumber = 0
-\$success = \$false
-\$VM = Get-SCVirtualMachine -VMMServer localhost -ID \"${opts.externalId}\"
-\$startDiskCount=\$VM.VirtualDiskDrives.VirtualHardDisk.Count
-For (\$i=0; \$i -le 63; \$i++) {
-	\$VM = Get-SCVirtualMachine -VMMServer localhost -ID \"${opts.externalId}\"
-	\$currentDiskCount=\$VM.VirtualDiskDrives.VirtualHardDisk.Count
-	If ((\$success -eq \$false) -and (\$currentDiskCount -lt \$startDiskCount + 1)) {
-		\$jobGuid = New-Guid
-"""
-        if (path) {
-            command += """
-		\$ignore = New-SCVirtualDiskDrive -VMMServer localhost -SCSI -Bus \$busNumber -LUN \$lunNumber -JobGroup \$jobGuid -VirtualHardDiskSizeMB ${sizeMB} -CreateDiffDisk \$false -Dynamic -FileName \"$fileName\" -Path \"$path\" -VolumeType None
-"""
-        } else {
-            command += """
-		\$ignore = New-SCVirtualDiskDrive -VMMServer localhost -SCSI -Bus \$busNumber -LUN \$lunNumber -JobGroup \$jobGuid -VirtualHardDiskSizeMB ${sizeMB} -CreateDiffDisk \$false -Dynamic -FileName \"$fileName\" -VolumeType None
-"""
-        }
-
-        command += """
-		\$ignore = Set-SCVirtualMachine -VM \$VM -JobGroup \$jobGuid
-		if( -not \$? ) {
-			\$lunNumber = \$lunNumber + 1
-			\$ignore = Repair-SCVirtualMachine -VM \$VM -Dismiss -Force
-		} else {
-			\$success = \$true
+    static createAndAttachDisk(Map opts, Map diskSpec, Boolean returnDiskDrives=true) {
+        log.info("createAndAttachDisk - Adding new Virtual SCSI Disk VHDType:${diskSpec}")
+        String templateCmd = '''
+		#Morpheus will replace items in <%   %>
+		$vmId = "<%vmid%>"
+		$vhdName = "<%vhdname%>"
+		$sizeMB = <%sizemb%>
+		$vhdType = "<%vhdtype%>"
+		$vhdFormat = "<%vhdformat%>"
+		$vhdPath = "<%vhdpath%>"
+		#No replacement code after here
+		$report = [PSCustomObject]@{success=$false;BUS=0;LUN=0;vhdId=$null;jobStatus=$null;errOut=$null}
+		try {
+			$VM = Get-SCVirtualMachine -VMMServer localhost -ID $vmId -ErrorAction Stop
 		}
-	}
-}
-\$report = New-Object -Type PSObject -Property @{
-	'success'=\$success
-	'BUS'=\$busNumber
-	'LUN'=\$lunNumber}
-\$report"""
-
-        def out = wrapExecuteCommand(generateCommandString(command), opts)
-        if (out.success && returnDiskDrives) {
-            def listResults = listVirtualDiskDrives(opts, opts.externalId, fileName)
+		catch {
+		    $report.success = $false
+		    $report.errOut = $_.Exception.Message
+		}
+		if ($VM) {
+			# Default to FixedSize if not specified
+			if ($vhdType -eq "") {$vhdType = "FixedSize"}
+			if ($vhdFormat -eq "") {$vhdFormat = if ($VM.Generation -eq 2) {"VHDX"} else {"VHD"}}
+			$disks = Get-SCVirtualDiskDrive -VM $VM
+			$SCSIDisks = $disks | Where-Object {$_.BusType -eq "SCSI"}
+			if ($SCSIDisks) {
+				#Get the next free LUN the SCSI Controller 
+				$bus = $SCSIDisks.Bus | Sort-Object -Descending | Select-Object -First 1
+				$Lun = ($SCSIDisks.Lun | Sort-Object -Descending | Select-Object -First 1) + 1
+				if ($Lun -gt 63) {$Bus++; $Lun=0}
+			} else {
+				#No SCSI Disks yet Start SCSI Bus 0 Lun 0
+				$Bus=0; $Lun=0
+			}
+			$addDiskParams = @{
+				VMMServer="localhost";
+				VM=$VM;
+				FileName=$vhdName;
+				SCSI=$true;
+				Bus=$Bus;
+				Lun=$Lun;
+				JobVariable="AddDiskJob";
+				VirtualHardDiskSizeMB=$sizeMB;
+				VirtualHardDiskFormatType=$vhdFormat;
+				VolumeType="None";
+				ErrorAction="Stop"
+			}
+			if ($vhdPath -ne "") {$addDiskParams.Add("Path",$vhdPath)}
+			if ($vhdType -eq "FixedSize") {$addDiskParams.Add("Fixed",$true)}
+			if ($vhdType -eq "DynamicallyExpanding") {$addDiskParams.Add("Dynamic",$true)}
+			try {
+				$VHD=New-SCVirtualDiskDrive @addDiskParams
+				$report.success = $true
+				$report.BUS = $Bus
+				$report.LUN = $Lun
+				$report.jobStatus = $AddDiskJob.Status.ToString()
+				$Report.vhdId = $VHD.Id
+			}
+			Catch {
+				#Dismis any failed jobs
+				$dismiss = Repair-SCVirtualMachine -VM $VM -Dismiss -Force
+				$report.success=$false
+				$report.errOut = $_.Exception.Message
+				$report.jobStatus = $AddDiskJob.Status.ToString()
+			}
+		}
+		$Report
+		'''
+        String addDiskCmd = templateCmd.stripIndent().trim()
+                .replace("<%vmid%>",opts.externalId ?: "")
+                .replace("<%vhdname%>",diskSpec.vhdName ?: "data-${UUID.randomUUID().toString()}")
+                .replace("<%sizemb%>",diskSpec.sizeMb.toString())
+                .replace("<%vhdtype%>",diskSpec.vhdType ?: "")
+                .replace("<%vhdformat%>",diskSpec.vhdFormat ?: "")
+                .replace("<%vhdpath%>",diskSpec.vhdPath ?: "")
+        //Execute
+        def out = wrapExecuteCommand(generateCommandString(addDiskCmd), opts)
+        if(out.success && returnDiskDrives) {
+            def listResults = listVirtualDiskDrives(opts, opts.externalId, diskSpec.vhdName)
             return [success: listResults.success, disk: listResults.disks.first()]
         }
+    }
+
+    def getDiskName(index, platform = 'linux') {
+        if(platform == 'windows')
+            return "disk ${index+1}"
+        // return windowsDiskNames[index]
+        else
+            return '/dev/' + getDiskNameList()[index]
     }
 
     def removeDisk(opts, diskId) {
@@ -2089,7 +2233,7 @@ For (\$i=0; \$i -le 10; \$i++) {
         return rtn
     }
 
-
+    // TODO needs more error handling
     def buildCreateServerCommands(opts) {
         log.debug "buildCreateServerCommands: ${opts}"
         def rtn = [launchCommand: null, hardwareProfileName: '', templateName: '']
@@ -2253,12 +2397,11 @@ For (\$i=0; \$i -le 10; \$i++) {
             }
 
             def diskJobGuid = UUID.randomUUID().toString()
+            //Start with an SCVMM Template or a VHD Image to create the OS Disk and volume
             if (isTemplate && templateId) {
-                //commands << "New-SCVMTemplate -Name \"$templateName\" -Template \$Template -Generation $generationNumber -HardwareProfile \$HardwareProfile -JobGroup $diskJobGuid ${isSysprep ? '-OperatingSystem $OS' : '-NoCustomization'}"
-//				commands << "New-SCVMTemplate -VMTemplate \$Template -Name \"$templateName\" -HardwareProfile \$HardwareProfile -JobGroup $diskJobGuid ${isSysprep ? '-OperatingSystem $OS' : ''}"
-//				commands << "if( -not \$? ) { Exit 23 }"
+                // For a Template its all good
             } else {
-                // Disks (OS)
+                // virtualImage is an SCVMM VHD - locate this and use to form a Temporary Template
                 commands << "\$VirtualHardDisk = Get-SCVirtualHardDisk -VMMServer localhost -ID \"${imageId}\""
                 if (volumePath && !deployingToCloud) {
                     commands << "\$ignore = New-SCVirtualDiskDrive -VMMServer localhost ${generationNumber == '1' ? '-IDE' : '-SCSI'} -Bus 0 -LUN 0 -JobGroup $diskJobGuid -CreateDiffDisk \$false -VirtualHardDisk \$VirtualHardDisk -Path \"$volumePath\" -VolumeType BootAndSystem"
@@ -2266,28 +2409,17 @@ For (\$i=0; \$i -le 10; \$i++) {
                     commands << "\$ignore = New-SCVirtualDiskDrive -VMMServer localhost ${generationNumber == '1' ? '-IDE' : '-SCSI'} -Bus 0 -LUN 0 -JobGroup $diskJobGuid -CreateDiffDisk \$false -VirtualHardDisk \$VirtualHardDisk -VolumeType BootAndSystem"
                 }
 
-                // Data Disks
-                dataDisks?.eachWithIndex { dataDisk, index ->
-                    def fromDisk
-                    if (isSyncdImage) {
-                        fromDisk = "\$VirtualHardDisk${index}"
-                        def diskExternalId = diskExternalIdMappings[1 + index]?.externalId
-                        if (diskExternalId) {
-                            commands << "${fromDisk} = Get-SCVirtualHardDisk -VMMServer localhost -ID \"${diskExternalId}\""
-                        }
-                    }
-                    def busNumber = '0'
-                    def generateResults = generateDataDiskCommand(busNumber, index, diskJobGuid, (int) dataDisk.maxStorage.div(ComputeUtility.ONE_MEGABYTE), dataDisk.volumePath, fromDisk, deployingToCloud)
-                    commands << generateResults.command
-                }
+                //Data Disks are attached after VM Creation is complete
+
+                // Create the Temporary Template
 
                 commands << "\$ignore = New-SCVMTemplate -Name \"$templateName\" -Generation $generationNumber -HardwareProfile \$HardwareProfile -JobGroup $diskJobGuid ${isSysprep ? '-OperatingSystem $OS' : '-NoCustomization'}"
                 commands << "if( -not \$? ) { Exit 23 }"
                 commands << "\$template = Get-SCVMTemplate -All | where { \$_.Name -eq \"$templateName\" }"
             }
 
-            // Create a template based on the configuration above and create it
-//			commands << "\$template = Get-SCVMTemplate -All | where { \$_.Name -eq \"$templateName\" }"
+            // Use the Template to create a VM Configuration
+
             commands << "\$virtualMachineConfiguration = New-SCVMConfiguration -VMTemplate \$template -Name \"$vmId\""
 
             if (doStatic && doPool) {
@@ -2309,30 +2441,31 @@ For (\$i=0; \$i -le 10; \$i++) {
                 commands << "\$AnswerFile = Get-SCScript | where {\$_.IsXMLAnswerFile -eq \$True} | where {\$_.SharePath -eq \"$unattendPath\"}"
             }
 
-            if (hostExternalId) {
-                commands << "\$vmHost = Get-SCVMHost -ID \"$hostExternalId\""
-                commands << "\$ignore = Set-SCVMConfiguration -VMConfiguration \$virtualMachineConfiguration -VMHost \$vmHost"
+            // OS Disk configured in Template: Prepare to deploy VM
+            if (deployingToCloud) {
+                // deployingToCloud - then assign cloud Only - no need to pin Storage paths
+                // Deploying to a Cloud $cloud should be available
+                commands << "\$ignore = Set-SCVMConfiguration -VMConfiguration \$virtualMachineConfiguration -CapabilityProfile \$CapabilityProfile -cloud \$cloud"
                 commands << "\$ignore = Update-SCVMConfiguration -VMConfiguration \$virtualMachineConfiguration"
-                if (volumePath && !deployingToCloud) {
-                    commands << "\$VHDConfiguration = Get-SCVirtualHardDiskConfiguration -VMConfiguration \$virtualMachineConfiguration"
-                    if (volumePaths) {
-                        commands << "\$volumePaths = @( \"${volumePaths.join('","')}\" )"
-                        commands << "\$currentIndex = 0"
-                        commands << "Foreach (\$conf in \$VHDConfiguration) { \$ignore = Set-SCVirtualHardDiskConfiguration -VHDConfiguration \$conf -PinSourceLocation \$false -DestinationLocation \$volumePaths[\$currentIndex] -PinFileName \$false -StorageQoSPolicy \$null -DeploymentOption \"UseNetwork\"; \$currentIndex = \$currentIndex + 1 } "
-                    } else {
-                        commands << "Foreach (\$conf in \$VHDConfiguration) { \$ignore = Set-SCVirtualHardDiskConfiguration -VHDConfiguration \$conf -PinSourceLocation \$false -DestinationLocation \"$volumePath\" -PinFileName \$false -StorageQoSPolicy \$null -DeploymentOption \"UseNetwork\" } "
-                    }
-                }
-
-                def newVMString = "\$createdVm = New-SCVirtualMachine -Name \"$vmId\" -VMConfiguration \$virtualMachineConfiguration ${isSysprep ? "-AnswerFile \$AnswerFile" : ""} ${isTemplate ? "-HardwareProfile \$HardwareProfile" : ""} -JobGroup \"$diskJobGuid\" -StartAction \"TurnOnVMIfRunningWhenVSStopped\" -RunAsynchronously -StopAction \"SaveVM\""
+                def newVMString = "\$createdVm = New-SCVirtualMachine -Name \"$vmId\" -VMConfiguration \$virtualMachineConfiguration ${isSysprep ? "-AnswerFile \$AnswerFile" : ""} -HardwareProfile \$HardwareProfile -JobGroup \"$diskJobGuid\" -StartAction \"TurnOnVMIfRunningWhenVSStopped\" -RunAsynchronously -StopAction \"SaveVM\""
                 newVMString = appendOSCustomization(newVMString, opts)
                 commands << newVMString
             } else {
-                def newVMString = "\$createdVm = New-SCVirtualMachine -Name \"$vmId\" -VMConfiguration \$virtualMachineConfiguration -Cloud \$cloud ${isSysprep ? "-AnswerFile \$AnswerFile" : ""} -HardwareProfile \$HardwareProfile -JobGroup \"$diskJobGuid\" -StartAction \"TurnOnVMIfRunningWhenVSStopped\" -RunAsynchronously -StopAction \"SaveVM\""
-                newVMString = appendOSCustomization(newVMString, opts)
-                commands << newVMString
+                //HostGroup deployment NOT TO CLOUD
+                if(hostExternalId) {
+                    commands << "\$vmHost = Get-SCVMHost -ID \"$hostExternalId\""
+                    commands << "\$ignore = Set-SCVMConfiguration -VMConfiguration \$virtualMachineConfiguration -VMHost \$vmHost"
+                    commands << "\$ignore = Update-SCVMConfiguration -VMConfiguration \$virtualMachineConfiguration"
+                    //Do Not map Additional volumes here - done later
+                    def newVMString = "\$createdVm = New-SCVirtualMachine -Name \"$vmId\" -VMConfiguration \$virtualMachineConfiguration ${isSysprep ? "-AnswerFile \$AnswerFile" : ""} ${isTemplate ? "-HardwareProfile \$HardwareProfile" : ""} -JobGroup \"$diskJobGuid\" -StartAction \"TurnOnVMIfRunningWhenVSStopped\" -RunAsynchronously -StopAction \"SaveVM\""
+                    newVMString = appendOSCustomization(newVMString, opts)
+                    commands << newVMString
+                } else {
+                    log.error("buildCreateServerCommands : No Host provided")
+                }
             }
         } else {
+            //Clone request
             def virtualNetworkGuid = UUID.randomUUID().toString()
             commands << "\$VM = Get-SCVirtualMachine -VMMServer localhost -ID \"${cloneVMId}\""
             commands << "if (\$VMNetwork.VMSubnet) { if (\$VMNetwork.VMSubnet -is [Array] -or \$VMNetwork.VMSubnet -is [System.Collections.Generic.List[Microsoft.SystemCenter.VirtualMachineManager.VMSubnet]]) { \$VMSubnet = \$VMNetwork.VMSubnet[0]; } else { \$VMSubnet = \$VMNetwork.VMSubnet } }"

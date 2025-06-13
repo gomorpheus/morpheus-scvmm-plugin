@@ -459,12 +459,18 @@ class TemplatesSync {
             log.debug("adding new volume: ${diskData}")
             def datastore = diskData.datastore ?: loadDatastoreForVolume(diskData.HostVolumeId, diskData.FileShareId, diskData.PartitionUniqueId) ?: null
             def volumeConfig = [
+                    // TODO sync'd in volume replaces the name with vhd filename. This will cause issues with Differencing disks
+                    // TODO should we be syncing in diskData.Name?
                     name      : diskData.Name,
                     size      : diskData.TotalSize?.toLong() ?: 0,
                     rootVolume: diskData.VolumeType == 'BootAndSystem' || !addLocation.volumes?.size(),
-                    deviceName: diskData.deviceName,
+                    // TODO there is no diskData.deviceName
+                    deviceName: (diskData.deviceName ?: apiService.getDiskName(diskNumber)),
                     externalId: diskData.ID,
-                    internalId: diskData.Name
+                    // To ensure unique take the internalId from the Location property on diskData as this is the fully qualified path
+                    internalId: diskData.Location,
+                    // StorageVolumeType code eg 'scvmm-dynamicallyexpanding-vhd'
+                    storageType: getStorageVolumeType("scvmm-${diskData?.VHDType}-${diskData?.VHDFormat}".toLowerCase()).getId()
             ]
             if (datastore)
                 volumeConfig.datastoreId = "${datastore.id}"
@@ -492,7 +498,7 @@ class TemplatesSync {
             // InternalId - Unique Path for the VHD disk file from masterItem.Location
             if(volume.internalId != masterItem.Location) {
                 volume.internalId = masterItem.Location
-                //volume.name = masterItem.Name
+                volume.name = masterItem.Name
                 save = true
             }
             def isRootVolume = (masterItem?.VolumeType == 'BootAndSystem') || (addLocation.volumes.size() == 1)
@@ -500,12 +506,28 @@ class TemplatesSync {
                 volume.rootVolume = isRootVolume
                 save = true
             }
+            //StorageVolumeType
+            if (masterItem?.VHDType && masterItem?.VHDFormat) {
+                def storageVolumeType = getStorageVolumeType("scvmm-${masterItem?.VHDType}-${masterItem?.VHDFormat}".toLowerCase())
+                if (volume.type?.id != storageVolumeType.id) {
+                    log.debug("Updating StorageVolumeType to ${storageVolumeType}")
+                    volume.type = storageVolumeType
+                    save = true
+                }
+            }
             if (save) {
                 context.async.storageVolume.save(volume).blockingGet()
                 changes = true
             }
             maxStorage += masterDiskSize
         }
+    }
+
+    // todo Move to ScvmmComputeService?
+    // Get the SCVMM StorageVolumeType - set a meaningful default if vhdType is null
+    def getStorageVolumeType(String storageVolumeTypeCode) {
+        log.debug("getStorageVolumeTypeId - Looking up volumeTypeCode ${storageVolumeTypeCode}")
+        return StorageVolumeType.findByCode(storageVolumeTypeCode ?: 'standard')
     }
 
     def removeMissingStorageVolumes(removeItems, addLocation, changes) {

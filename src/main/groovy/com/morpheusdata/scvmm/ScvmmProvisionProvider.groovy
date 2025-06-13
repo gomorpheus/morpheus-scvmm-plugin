@@ -876,11 +876,13 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
         }
     }
 
+	// TODO this needs updating need the volume name to create tbe VHD filename
     def additionalTemplateDisksConfig(Workload workload, scvmmOpts) {
         // Determine what additional disks need to be added after provisioning
         def additionalTemplateDisks = []
         def dataDisks = getContainerDataDiskList(workload)
         log.debug "dataDisks: ${dataDisks} ${dataDisks?.size()}"
+		// scvmmOpts.diskExternalIdMappings will usually contain the virtualImage disk externalId
         def diskExternalIdMappings = scvmmOpts.diskExternalIdMappings
         def additionalDisksRequired = dataDisks?.size() + 1 > diskExternalIdMappings?.size()
         def busNumber = '0'
@@ -888,6 +890,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             def diskCounter = diskExternalIdMappings.size()
             dataDisks?.eachWithIndex { StorageVolume sv, index ->
                 if (index + 2 > diskExternalIdMappings.size()) {  // add 1 for the root disk and then 1 for 0 based
+					// TODO need vhdName from volume.name to use to create the VHD
+					// also need the type and format
                     additionalTemplateDisks << [idx: index + 1, diskCounter: diskCounter, diskSize: sv.maxStorage, busNumber: busNumber]
                     diskCounter++
                 }
@@ -2095,10 +2099,21 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                     }
                     // new disk add it
                     resizeRequest.volumesAdd.each { volumeAdd ->
-                        def diskSize = ComputeUtility.parseGigabytesToBytes(volumeAdd.size?.toLong())
+                        def diskSize = ComputeUtility.parseGigabytesToBytes(volumeAdd.size?.toLong())  / ComputeUtility.ONE_MEGABYTE
                         def busNumber = '0'
                         def volumePath = getVolumePathForDatastore(volumeAdd.datastore)
-                        def diskResults = apiService.createAndAttachDisk(scvmmOpts, diskCounter, diskSize, busNumber, volumePath, true)
+						//Create the new diskSpec
+						def diskSpec = [
+								vhdName: "data-${UUID.randomUUID().toString()}",
+								vhdType: null,  //Use Default as determined from existing VM
+								vhdFormat: null, //Use Default  as determined from existing VM
+								vhdPath: null, // Place with the VM?? or should this be volumePath?
+								sizeMb: diskSize
+						]
+						log.info("resizeContainer - volumePath: ${volumePath} - diskSpec: ${diskSpec}")
+						def diskResults = apiService.createAndAttachDisk(scvmmOpts, diskSpec, true)
+						log.info("create disk: ${diskResults.success}")
+                        //def diskResults = apiService.createAndAttachDisk(scvmmOpts, diskCounter, diskSize, busNumber, volumePath, true)
                         log.debug("create disk: ${diskResults.success}")
                         if (diskResults.success == true) {
                             def newVolume = buildStorageVolume(computeServer, volumeAdd, diskCounter)
@@ -2180,7 +2195,15 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 resizeRequest.volumesUpdate?.each { volumeUpdate ->
                     if (volumeUpdate.existingModel) {
                         //existing disk - resize it
+						def volumeCode = volumeUpdate.existing.type?.code ?: "standard"
                         if (volumeUpdate.updateProps.maxStorage > volumeUpdate.existingModel.maxStorage) {
+							if (volumeCode.contains("differencing")) {
+								log.warn("getResizeConfig - Resize is not supported on Differencing Disks  - volume type ${volumeCode}")
+								rtn.allowed = false
+							} else {
+								log.info("getResizeConfig - volumeCode: ${volumeCode}. Volume Resize requested. Current: ${volumeUpdate.existing.maxStorage} - requested : ${volumeUpdate.volume.maxStorage}")
+								rtn.allowed = true
+							}
                             if (volumeUpdate.existingModel.rootVolume) {
                                 rtn.hotResize = false
                             }
