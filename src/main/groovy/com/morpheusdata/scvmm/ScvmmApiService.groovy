@@ -219,13 +219,14 @@ class ScvmmApiService {
                 def disks = [osDisk: [externalId: ''], dataDisks: opts.dataDisks?.collect { [id: it.id] }, diskMetaData: [:]]
                 def diskDrives = listVirtualDiskDrives(opts, opts.externalId)
                 def bookDiskIndex = findBootDiskIndex(diskDrives)
+                //add property VhdLocation to diskMetaData property Location - this will set the StorageVolume.internalId
                 diskDrives.disks?.eachWithIndex { disk, diskIndex ->
                     if (diskIndex == bookDiskIndex) {
                         disks.osDisk.externalId = disk.ID
-                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
+                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, VhdID: disk.VhdID, Location: disk.VhdLocation, PartitionUniqueId: disk.PartitionUniqueId]
                     } else {
                         disks.dataDisks[diskIndex - 1].externalId = disk.ID
-                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, dataDisk: true, VhdID: disk.VhdID, PartitionUniqueId: disk.PartitionUniqueId]
+                        disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, dataDisk: true, VhdID: disk.VhdID, Location: disk.VhdLocation, PartitionUniqueId: disk.PartitionUniqueId]
                     }
 
                     log.debug("createServer - instance volume metadata (disks) : ${disks}")

@@ -459,12 +459,11 @@ class TemplatesSync {
             log.debug("adding new volume: ${diskData}")
             def datastore = diskData.datastore ?: loadDatastoreForVolume(diskData.HostVolumeId, diskData.FileShareId, diskData.PartitionUniqueId) ?: null
             def volumeConfig = [
-                    // TODO sync'd in volume replaces the name with vhd filename. This will cause issues with Differencing disks
-                    // TODO should we be syncing in diskData.Name?
-                    name      : diskData.Name,
+                    // Dont replace the Morpheus volume name with the one from SCVMM
+                    // name      : diskData.Name,
                     size      : diskData.TotalSize?.toLong() ?: 0,
                     rootVolume: diskData.VolumeType == 'BootAndSystem' || !addLocation.volumes?.size(),
-                    // TODO there is no diskData.deviceName
+                    // Note there is no property diskData.deviceName??
                     deviceName: (diskData.deviceName ?: apiService.getDiskName(diskNumber)),
                     externalId: diskData.ID,
                     // To ensure unique take the internalId from the Location property on diskData as this is the fully qualified path
@@ -498,7 +497,7 @@ class TemplatesSync {
             // InternalId - Unique Path for the VHD disk file from masterItem.Location
             if(volume.internalId != masterItem.Location) {
                 volume.internalId = masterItem.Location
-                volume.name = masterItem.Name
+                // volume.name = masterItem.Name
                 save = true
             }
             def isRootVolume = (masterItem?.VolumeType == 'BootAndSystem') || (addLocation.volumes.size() == 1)
