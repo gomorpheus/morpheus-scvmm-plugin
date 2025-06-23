@@ -140,11 +140,11 @@ class ScvmmApiService {
             createData = wrapExecuteCommand(generateCommandString(launchCommand), opts)
             log.debug "run server: ${createData}"
 
-            if (removeTemplateCommands) {
+            /*if (removeTemplateCommands) {
                 def command = removeTemplateCommands.join(';')
                 command += "@()"
                 wrapExecuteCommand(generateCommandString(command), opts)
-            }
+            }*/
 
             if (createData.success != true) {
                 if (createData.error?.contains('which includes generation 2')) {

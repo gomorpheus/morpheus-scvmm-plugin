@@ -2183,7 +2183,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             rtn.neededCores = (rtn.requestedCores ?: 1) - (currentCores ?: 1)
             setDynamicMemory(rtn, plan)
 
-            rtn.hotResize = (server ? server.hotResize != false : workload?.server?.hotResize != false) || (!rtn.neededMemory && !rtn.neededCores)
+            rtn.hotResize = false
 
             // Disk changes.. see if stop is required
             if (opts.volumes) {
@@ -2203,7 +2203,11 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                                 rtn.hotResize = false
                             }
                         }
-                    }
+                    } else {
+						// new disk - add it
+						log.info("getResizeConfig - Adding new volume ${volumeUpdate.volume}")
+						rtn.allowed = true
+					}
                 }
             }
         } catch (e) {
