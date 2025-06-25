@@ -1528,6 +1528,9 @@ foreach (\$network in \$networks) {
                             // Discard saved state... can't modify it if so
                             discardSavedState(opts, vmId)
                         }
+                    } else if (serverDetail.server?.Status == 'CreationFailed') {
+                        rtn.success = false
+                        pending = false
                     }
                 }
                 attempts++
