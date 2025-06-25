@@ -258,6 +258,22 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.CHECKBOX,
 				fieldContext: 'config',
 		)
+		options << new OptionType(
+				name: 'Install Agent',
+				code: 'gomorpheus.label.installAgent',
+				inputType: OptionType.InputType.CHECKBOX,
+				fieldName: 'installAgent',
+				fieldContext: 'config',
+				fieldCode: 'gomorpheus.label.installAgent',
+				fieldLabel: 'Install Agent',
+				fieldGroup: 'Advanced Options',
+				displayOrder: displayOrder += 10,
+				required: false,
+				enabled: true,
+				editable: false,
+				global: false,
+				custom: false,
+		)
 		return options
 	}
 
