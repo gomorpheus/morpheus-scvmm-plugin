@@ -1513,13 +1513,13 @@ foreach (\$network in \$networks) {
                     // the expected count.. we are good
                     log.debug "serverStatus: ${serverDetail.server?.Status}, opts.dataDisks: ${opts.dataDisks?.size()}, additionalTemplateDisks: ${opts.additionalTemplateDisks?.size()}"
 
-                    if (serverDetail.server?.Status == 'CreationFailed') {
-                        // additionalTemplateDisks are created after VM creation
-                        rtn.success = false
-                        pending = false
-
-                    } else if (serverDetail.server?.Status != 'UnderCreation' &&
+                    if (serverDetail.server?.Status != 'UnderCreation' &&
                             serverDetail.server?.VirtualDiskDrives?.size() == 1 + ((opts.dataDisks?.size() ?: 0) - (opts.additionalTemplateDisks?.size() ?: 0))) {
+                        // additionalTemplateDisks are created after VM creation
+                        // data disks are created and attached after vm creation
+
+                    // if(serverDetail.server?.Status != 'UnderCreation' && serverDetail.server?.VirtualDiskDrives?.size() == 1 - (opts.additionalTemplateDisks?.size() ?: 0)) {
+                        // additionalTemplateDisks are created after VM creation
                         rtn.success = true
                         rtn.server = serverDetail.server
                         pending = false
@@ -1528,6 +1528,9 @@ foreach (\$network in \$networks) {
                             // Discard saved state... can't modify it if so
                             discardSavedState(opts, vmId)
                         }
+                    } else if (serverDetail.server?.Status == 'CreationFailed') {
+                        rtn.success = false
+                        pending = false
                     }
                 }
                 attempts++
@@ -2410,7 +2413,19 @@ For (\$i=0; \$i -le 10; \$i++) {
                     commands << "\$ignore = New-SCVirtualDiskDrive -VMMServer localhost ${generationNumber == '1' ? '-IDE' : '-SCSI'} -Bus 0 -LUN 0 -JobGroup $diskJobGuid -CreateDiffDisk \$false -VirtualHardDisk \$VirtualHardDisk -VolumeType BootAndSystem"
                 }
 
-                //Data Disks are attached after VM Creation is complete
+                dataDisks?.eachWithIndex { dataDisk, index ->
+                    def fromDisk
+                    if (isSyncdImage) {
+                        fromDisk = "\$VirtualHardDisk${index}"
+                        def diskExternalId = diskExternalIdMappings[1 + index]?.externalId
+                        if(diskExternalId) {
+                            commands << "${fromDisk} = Get-SCVirtualHardDisk -VMMServer localhost -ID \"${diskExternalId}\""
+                        }
+                    }
+                    def busNumber = '0'
+                    def generateResults = generateDataDiskCommand(busNumber, index, diskJobGuid, (int) dataDisk.maxStorage.div(ComputeUtility.ONE_MEGABYTE), dataDisk.volumePath, fromDisk, deployingToCloud)
+                    commands << generateResults.command
+                }
 
                 // Create the Temporary Template
 
