@@ -1,3 +1,27 @@
+resource "option-type" "computeServerType-scvmm-capabilityProfile" {
+  code             = "computeServerType.scvmm.capabilityProfile"
+  name             = "capability profile"
+  type             = "select"
+  category         = "provisionType.scvmm"
+  optionSourceType = "scvmm"
+  fieldName        = "scvmmCapabilityProfile"
+  fieldCode        = "gomorpheus.optiontype.CapabilityProfile"
+  fieldLabel       = "Capability Profile"
+  fieldContext     = "config"
+  fieldGroup       = "Options"
+  required         = true
+  enabled          = true
+  optionSource     = "scvmmCapabilityProfile"
+  editable         = true
+  global           = false
+  placeHolder      = null
+  helpBlock        = ""
+  defaultValue     = null
+  custom           = false
+  displayOrder     = 10
+  fieldClass       = null
+}
+
 resource "compute-server-type" "scvmm-linux" {
   code                 = "scvmmLinux"
   name                 = "SCVMM Docker Host"
@@ -26,6 +50,9 @@ resource "compute-server-type" "scvmm-linux" {
   isEmbedded           = true
   provisionType        = "scvmm"
   computeType          = "docker-host"
+  optionTypes = [
+  		{ code = "computeServerType.scvmm.capabilityProfile" }
+  	]
 }
 
 resource "workload-type" "docker-scvmm-ubuntu-22_04" {
@@ -82,4 +109,78 @@ resource "compute-type-layout" "docker-scvmm-ubuntu-22_04-single" {
     compute-type-set.docker-scvmm-ubuntu-22_04-set
   ]
   provisionType = "scvmm"
+}
+
+resource "compute-type-set" "kubernetes-scvmm-ha-master-ubuntu-16_04-set" {
+  code                    = "kubernetes-scvmm-ha-master-ubuntu-16.04-set"
+  name                    = "kubernetes master"
+  workloadType            = "kubernetes-scvmm-ha-master-ubuntu-16.04"
+  computeServerType       = "scvmmKubeMaster"
+  category                = "ubuntu"
+  priorityOrder           = 0
+  dynamicCount            = false
+  nodeCount               = 1
+  nameSuffix              = "-master"
+  nodeType                = "master"
+  forceNameIndex          = true
+  installContainerRuntime = true
+  installStorageRuntime   = true
+}
+
+resource "compute-type-set" "kubernetes-scvmm-ha-add-master-ubuntu-16_04-set" {
+  code                    = "kubernetes-scvmm-ha-add-master-ubuntu-16.04-set"
+  name                    = "kubernetes master"
+  workloadType            = "kubernetes-scvmm-ha-add-master-ubuntu-16.04"
+  computeServerType       = "scvmmKubeMaster"
+  category                = "ubuntu"
+  priorityOrder           = 1
+  dynamicCount            = false
+  nodeCount               = 2
+  nameSuffix              = "-master"
+  nodeType                = "master"
+  forceNameIndex          = true
+  installContainerRuntime = true
+  installStorageRuntime   = true
+}
+
+resource "compute-type-set" "kubernetes-worker-scvmm-ha-ubuntu-16_04-set" {
+  code                    = "kubernetes-worker-scvmm-ha-ubuntu-16.04-set"
+  name                    = "kubernetes worker"
+  workloadType            = "kubernetes-scvmm-worker-ubuntu-16.04"
+  computeServerType       = "scvmmKubeWorker"
+  category                = "ubuntu"
+  priorityOrder           = 2
+  dynamicCount            = true
+  nodeCount               = 3
+  nameSuffix              = "-worker"
+  nodeType                = "worker"
+  forceNameIndex          = true
+  canAddNodes             = true
+  installContainerRuntime = true
+  installStorageRuntime   = true
+}
+
+resource "compute-type-layout" "kubernetes-scvmm-ubuntu-16_04-cluster-weave-openebs" {
+  code              = "kubernetes-scvmm-ubuntu-16.04-cluster-weave-openebs"
+  name              = "Kubernetes 1.14 HA Cluster on Ubuntu 16.04, Weave, OpenEBS"
+  sortOrder         = 45
+  computeVersion    = "16.04"
+  description       = "This will provision a single kubernetes master in scvmm with weave and openebs"
+  type              = "scvmmKubeMaster"
+  serverCount       = 6
+  memoryRequirement = 2 * 1024 * 1024 * 1024
+  hasAutoScale      = true
+  enabled           = false
+  creatable         = false
+  computeServers    = [
+    compute-type-set.kubernetes-scvmm-ha-master-ubuntu-16_04-set,
+    compute-type-set.kubernetes-scvmm-ha-add-master-ubuntu-16_04-set,
+    compute-type-set.kubernetes-worker-scvmm-ha-ubuntu-16_04-set
+  ]
+  groupType         = "kubernetes-cluster"
+  provisionType     = "scvmm"
+  optionTypes       = ["kubernetes.master.podCidr", "kubernetes.master.clusterHostname", "kubernetes.master.loadBalancerId"]
+  config            = jsonencode({
+    experimentalCerts = true
+  })
 }
