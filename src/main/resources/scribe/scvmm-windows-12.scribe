@@ -25,7 +25,7 @@ resource "workload-type" "scvmm-windows-2012_r2" {
 
 resource "workload-type-set" "scvmm-windows-2012_r2-set" {
   code           = "scvmm-windows-2012_r2-set"
-  containerType  = container-type.scvmm-windows-2012_r2
+  containerType  = workload-type.scvmm-windows-2012_r2
   priorityOrder  = 0
   category       = "windows",
   containerCount = 1
