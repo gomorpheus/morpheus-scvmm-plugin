@@ -25,7 +25,7 @@ resource "workload-type" "scvmm-windows-2012_r2" {
 
 resource "workload-type-set" "scvmm-windows-2012_r2-set" {
   code           = "scvmm-windows-2012_r2-set"
-  containerType  = workload-type.scvmm-windows-2012_r2
+  workloadType  = workload-type.scvmm-windows-2012_r2
   priorityOrder  = 0
   category       = "windows",
   containerCount = 1
@@ -44,7 +44,7 @@ resource "instance-type-layout" "scvmm-windows-2012_r2-single" {
   portCount                  = 1
   enabled                     = false
   creatable                   = false
-  containers                  = [scvmm-windows-2012_r2-set]
+  workloads                  = [workload-type-set.scvmm-windows-2012_r2-set]
   actions                     = ["generic-add-node"]
   provisionType              = "scvmm"
 }
