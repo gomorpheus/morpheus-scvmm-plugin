@@ -1115,7 +1115,7 @@ Get-SCLogicalNetwork -VMMServer localhost -Cloud \$cloud | Select ID,Name"""
                 if (out.success && out.exitCode == '0' && out.data?.size() > 0) {
                     def logicalNetworks = out.data
                     command = generateCommandString("""\$report = @()
-\$logicalNetworks = Get-SCLogicalNetworkDefinition -VMMServer localhost | Where-Object { \$_.IsolationType -eq "None" } | Sort-Object -Property ID | Select-Object -Skip $offset -First $pageSize
+\$logicalNetworks = Get-SCLogicalNetworkDefinition -VMMServer localhost | where {\$_.IsolationType -eq "None"} | Sort-Object -Property ID | Select-Object -Skip $offset -First $pageSize
 foreach (\$logicalNetwork in \$logicalNetworks) {
     if (-not \$logicalNetwork -or -not \$logicalNetwork.LogicalNetwork) { continue }
     \$network = Get-SCVMNetwork -VMMServer localhost -LogicalNetwork \$logicalNetwork.LogicalNetwork
