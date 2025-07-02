@@ -81,7 +81,7 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 				} else {
 					// no form data, load credentials from cloud
 					def credentials = morpheusContext.services.accountCredential.loadCredentials(cloud)
-					cloud.accountCredentialData = credentials.data
+					cloud.accountCredentialData = credentials?.data
 					cloud.accountCredentialLoaded = true
 				}
 			} else if(password != '*' * 12) {
