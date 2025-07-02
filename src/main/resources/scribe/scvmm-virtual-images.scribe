@@ -133,3 +133,354 @@ resource "os-type-image" "scvmm-image-morpheus-windows-2012-r2" {
      owner = null
   }
 }
+
+resource "virtual-image" "scvmm-image-morpheus-almalinux-9" {
+  code               = "scvmm.image.morpheus.almalinux.9.20250218.amd64"
+  category           = "x"
+  sshUsername        = null
+  sshPassword        = null
+  name               = "Morpheus AlmaLinux 9 20250218"
+  imageType          = "vhd"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20250218/almalinux-9/morpheus-almalinux-9-x86_64-20250218.vhd.tar.gz"
+  imagePath          = "hyperv/20250218/almalinux-9"
+  systemImage        = true
+  installAgent       = true
+  isCloudInit        = true
+  osType = {
+     code = "almalinux.9.64"
+     owner = null
+  }
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "virtual-image" "scvmm-image-morpheus-centos-9-stream-20230131" {
+  code               = "scvmm.image.morpheus.centos.9-stream.20230131.amd64"
+  category           = "scvmm.image.morpheus.centos"
+  sshUsername        = null
+  sshPassword        = null
+  name               = "Morpheus CentOS 9-stream 20230131"
+  imageType          = "vhd"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20230131/centos-9-stream/morpheus-centos-9-stream-x86_64-20230131.vhd.tar.gz"
+  imagePath          = "hyperv/20230131/centos-9-stream"
+  systemImage        = true
+  installAgent       = true
+  isCloudInit        = true
+  osType = {
+     code = "cent.9.64"
+     owner = null
+  }
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "virtual-image" "scvmm-image-morpheus-centos-9-stream-20230822" {
+  code               = "scvmm.image.morpheus.centos.9-stream.20230822.amd64"
+  category           = "scvmm.image.morpheus.centos"
+  sshUsername        = null
+  sshPassword        = null
+  name               = "Morpheus CentOS 9-stream 20230822"
+  imageType          = "vhd"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20230822/centos-9-stream/morpheus-centos-9-stream-x86_64-20230822.vhd.tar.gz"
+  imagePath          = "hyperv/20230822/centos-9-stream"
+  systemImage        = true
+  installAgent       = true
+  isCloudInit        = true
+  osType = {
+     code = "cent.9.64"
+     owner = null
+  }
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "virtual-image" "scvmm-image-morpheus-centos-9-stream-20250218" {
+  code               = "scvmm.image.morpheus.centos.9-stream.20250218.amd64"
+  category           = "scvmm.image.morpheus.centos"
+  sshUsername        = null
+  sshPassword        = null
+  name               = "Morpheus CentOS 9-stream 20250218"
+  imageType          = "vhd"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20250218/centos-9-stream/morpheus-centos-9-stream-x86_64-20250218.vhd.tar.gz"
+  imagePath          = "hyperv/20250218/centos-9-stream"
+  systemImage        = true
+  installAgent       = true
+  isCloudInit        = true
+  osType = {
+     code = "cent.9.64"
+     owner = null
+  }
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "virtual-image" "scvmm-image-morpheus-debian-11-v1" {
+  code               = "scvmm.image.morpheus.debian.11.0.0-v1.amd64"
+  category           = "scvmm.image.morpheus.debian"
+  sshUsername        = null
+  sshPassword        = null
+  name               = "Morpheus Debian 11.0.0 v1"
+  imageType          = "vhd"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/debian/debian-11_0_0-v1/morpheus-debian-11_0_0-v1-amd64.vhd.tar.gz"
+  imagePath          = "hyperv/debian/debian-11_0_0-v1"
+  systemImage        = true
+  installAgent       = true
+  isCloudInit        = true
+  osType = {
+     code = "debian.11.64"
+     owner = null
+  }
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "virtual-image" "scvmm-image-morpheus-debian-11-20250218" {
+  code               = "scvmm.image.morpheus.debian.11.20250218"
+  category           = "scvmm.image.morpheus.debian"
+  sshUsername        = null
+  sshPassword        = null
+  name               = "Morpheus Debian 11 20250218"
+  imageType          = "vhd"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20250218/debian-11/morpheus-debian-11-x86_64-20250218.vhd.tar.gz"
+  imagePath          = "hyperv/20250218/debian-11"
+  systemImage        = true
+  installAgent       = true
+  isCloudInit        = true
+  osType = {
+     code = "debian.11.64"
+     owner = null
+  }
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "virtual-image" "scvmm-image-morpheus-debian-12-20250218" {
+  code               = "scvmm.image.morpheus.debian.12.20250218"
+  category           = "scvmm.image.morpheus.debian"
+  sshUsername        = null
+  sshPassword        = null
+  name               = "Morpheus Debian 12 20250218"
+  imageType          = "vhd"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20250218/debian-12/morpheus-debian-12-x86_64-20250218.vhd.tar.gz"
+  imagePath          = "hyperv/20250218/debian-12"
+  systemImage        = true
+  installAgent       = true
+  isCloudInit        = true
+  osType = {
+     code = "debian.12.64"
+     owner = null
+  }
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "virtual-image" "scvmm-image-morpheus-rocky-8-20250218" {
+  code               = "scvmm.image.morpheus.rocky.8.20250218.amd64"
+  category           = "scvmm.image.morpheus.rocky"
+  sshUsername        = null
+  sshPassword        = null
+  name               = "Morpheus Rocky 8 20250218"
+  imageType          = "vhd"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20250218/rocky-8/morpheus-rocky-8-x86_64-20250218.vhd.tar.gz"
+  imagePath          = "hyperv/20250218/rocky-8"
+  systemImage        = true
+  installAgent       = true
+  isCloudInit        = true
+  osType = {
+     code = "rocky.8.64"
+     owner = null
+  }
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "virtual-image" "scvmm-image-morpheus-rocky-9-20250218" {
+  code               = "scvmm.image.morpheus.rocky.9.20250218.amd64"
+  category           = "scvmm.image.morpheus.rocky"
+  sshUsername        = null
+  sshPassword        = null
+  name               = "Morpheus Rocky 9 20250218"
+  imageType          = "vhd"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20250218/rocky-9/morpheus-rocky-9-x86_64-20250218.vhd.tar.gz"
+  imagePath          = "hyperv/20250218/rocky-9"
+  systemImage        = true
+  installAgent       = true
+  isCloudInit        = true
+  osType = {
+     code = "rocky.9.64"
+     owner = null
+  }
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "virtual-image" "scvmm-image-morpheus-ubuntu-18-04-20250218" {
+  code               = "scvmm.image.morpheus.ubuntu.18.04.20250218.amd64"
+  category           = "scvmm.image.morpheus.ubuntu"
+  sshUsername        = null
+  sshPassword        = null
+  name               = "Morpheus Ubuntu 18.04 20250218"
+  imageType          = "vhd"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20250218/ubuntu-18/morpheus-ubuntu-18_04-amd64-20250218.vhd.tar.gz"
+  imagePath          = "hyperv/20250218/ubuntu-18"
+  systemImage        = true
+  installAgent       = true
+  isCloudInit        = true
+  osType = {
+     code = "ubuntu.18.04.64"
+     owner = null
+  }
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "virtual-image" "scvmm-image-morpheus-ubuntu-14-04" {
+  code               = "scvmm.image.morpheus.ubuntu.14.04"
+  category           = "scvmm.image.morpheus.ubuntu.14.04"
+  sshUsername        = "ubuntu"
+  sshPassword        = null
+  name               = "morpheus ubuntu 14.04"
+  imageType          = "vhd"
+  remotePath         = ""
+  imagePath          = "vhd/ubuntu/ubuntu-14_04"
+  systemImage        = true
+  installAgent       = true
+  isCloudInit        = true
+  osType = {
+     code = "ubuntu.14.04.64"
+     owner = null
+  }
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "virtual-image" "scvmm-image-morpheus-ubuntu-24-04-20250218" {
+  code               = "scvmm.image.morpheus.ubuntu.24.04.20250218.amd64"
+  category           = "scvmm.image.morpheus.ubuntu"
+  sshUsername        = null
+  sshPassword        = null
+  name               = "Morpheus Ubuntu 24.04 20250218"
+  imageType          = "vhd"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20250218/ubuntu-24/morpheus-ubuntu-24_04-amd64-20250218.vhd.tar.gz"
+  imagePath          = "hyperv/20250218/ubuntu-24"
+  systemImage        = true
+  installAgent       = true
+  isCloudInit        = true
+  osType = {
+     code = "ubuntu.24.04.64"
+     owner = null
+  }
+  active             = true
+  delete             = false
+  zoneType           = "scvmm"
+}
+
+resource "os-type-image" "scvmm-morpheus-almalinux-9" {
+  code          = "scvmm-morpheus-almalinux-9"
+  provisionType = "scvmm"
+  virtualImage  = virtual-image.scvmm-image-morpheus-almalinux-9
+  account       = null
+  osType = {
+     code = "almalinux.9.64"
+     owner = null
+  }
+}
+
+resource "os-type-image" "scvmm-morpheus-centos-9-stream" {
+  code          = "scvmm-morpheus-centos-9-stream"
+  provisionType = "scvmm"
+  virtualImage  = virtual-image.scvmm-image-morpheus-centos-9-stream-20250218
+  account       = null
+  osType = {
+     code = "cent.9.64"
+     owner = null
+  }
+}
+
+resource "os-type-image" "scvmm-morpheus-debian-11" {
+  code          = "scvmm-morpheus-debian-11"
+  provisionType = "scvmm"
+  virtualImage  = virtual-image.scvmm-image-morpheus-debian-11-20250218
+  account       = null
+  osType = {
+     code = "debian.11.64"
+     owner = null
+  }
+}
+
+resource "os-type-image" "scvmm-morpheus-debian-12" {
+  code          = "scvmm-morpheus-debian-12"
+  provisionType = "scvmm"
+  virtualImage  = virtual-image.scvmm-image-morpheus-debian-12-20250218
+  account       = null
+  osType = {
+     code = "debian.12.64"
+     owner = null
+  }
+}
+
+resource "os-type-image" "scvmm-morpheus-rocky-8" {
+  code          = "scvmm-morpheus-rocky-8"
+  provisionType = "scvmm"
+  virtualImage  = virtual-image.scvmm-image-morpheus-rocky-8-20250218
+  account       = null
+  osType = {
+     code = "rocky.8.64"
+     owner = null
+  }
+}
+
+resource "os-type-image" "scvmm-morpheus-rocky-9" {
+  code          = "scvmm-morpheus-rocky-9"
+  provisionType = "scvmm"
+  virtualImage  = virtual-image.scvmm-image-morpheus-rocky-9-20250218
+  account       = null
+  osType = {
+     code = "rocky.9.64"
+     owner = null
+  }
+}
+
+resource "os-type-image" "scvmm-morpheus-ubuntu-18-04" {
+  code          = "scvmm-morpheus-ubuntu-18.04"
+  provisionType = "scvmm"
+  virtualImage  = virtual-image.scvmm-image-morpheus-ubuntu-18-04-20250218
+  account       = null
+  osType = {
+     code = "ubuntu.18.04.64"
+     owner = null
+  }
+}
+
+resource "os-type-image" "scvmm-morpheus-ubuntu-24-04" {
+  code          = "scvmm-morpheus-ubuntu-24.04"
+  provisionType = "scvmm"
+  virtualImage  = virtual-image.scvmm-image-morpheus-ubuntu-24-04-20250218
+  account       = null
+  osType = {
+     code = "ubuntu.24.04.64"
+     owner = null
+  }
+}
+
+resource "os-type-image" "scvmm-morpheus-ubuntu-14-04" {
+  code          = "scvmm-morpheus-ubuntu-14.04"
+  provisionType = "scvmm"
+  virtualImage  = virtual-image.scvmm-image-morpheus-ubuntu-14-04
+  account       = null
+  osType = {
+     code = "ubuntu.14.04"
+     owner = null
+  }
+}
