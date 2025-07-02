@@ -1,0 +1,207 @@
+resource "instance-type-layout" "almalinux-scvmm-9" {
+  code                     = "almalinux-scvmm-9"
+  name                     = "SCVMM VM"
+  sortOrder                = 99
+  serverType               = "vm"
+  supportsConvertToManaged = true
+  instanceVersion          = "9"
+  description              = "This will provision a single process with no redundancy"
+  instanceType             = "almalinux"
+  serverCount              = 1
+  portCount                = 1
+  enabled                  = true
+  creatable                = true
+  workloads                = [workload-type-set.almalinux-scvmm-9-set]
+  actions                  = ["generic-add-node"]
+  provisionType            = "scvmm"
+}
+
+resource "scale-action" "almalinux-scvmm-9" {
+  code       = "almalinux-scvmm-9"
+  scaleType  = "action"
+  layout     = instance-type-layout.almalinux-scvmm-9
+  upAction   = "generic-add-node"
+  downAction = "generic-remove-node"
+}
+
+resource "instance-type-layout" "centos-scvmm-9-stream" {
+  code                     = "centos-scvmm-9-stream"
+  name                     = "SCVMM VM"
+  sortOrder                = 99
+  serverType               = "vm"
+  supportsConvertToManaged = true
+  instanceVersion          = "9-stream"
+  description              = "This will provision a single process with no redundancy"
+  instanceType             = "centos"
+  serverCount              = 1
+  portCount                = 1
+  enabled                  = true
+  creatable                = true
+  workloads                = [workload-type-set.centos-scvmm-9-stream-set]
+  actions                  = ["generic-add-node"]
+  provisionType            = "scvmm"
+}
+
+resource "scale-action" "centos-scvmm-9-stream" {
+  code       = "centos-scvmm-9-stream"
+  scaleType  = "action"
+  layout     = instance-type-layout.centos-scvmm-9-stream
+  upAction   = "generic-add-node"
+  downAction = "generic-remove-node"
+}
+
+resource "instance-type-layout" "debian-scvmm-11" {
+  code                     = "debian-scvmm-11"
+  name                     = "SCVMM VM"
+  sortOrder                = 11
+  serverType               = "vm"
+  supportsConvertToManaged = true
+  instanceVersion          = "11"
+  description              = "This will provision a single process with no redundancy"
+  instanceType             = "debian"
+  serverCount              = 1
+  portCount                = 1
+  enabled                  = true
+  creatable                = true
+  workloads                = [workload-type-set.debian-scvmm-11-set]
+  actions                  = ["generic-add-node"]
+  provisionType            = "scvmm"
+}
+
+resource "scale-action" "debian-scvmm-11" {
+  code       = "debian-scvmm-11"
+  scaleType  = "action"
+  layout     = instance-type-layout.debian-scvmm-11
+  upAction   = "generic-add-node"
+  downAction = "generic-remove-node"
+}
+
+resource "instance-type-layout" "debian-scvmm-12" {
+  code                     = "debian-scvmm-12"
+  name                     = "SCVMM VM"
+  sortOrder                = 12
+  serverType               = "vm"
+  supportsConvertToManaged = true
+  instanceVersion          = "12"
+  description              = "This will provision a single process with no redundancy"
+  instanceType             = "debian"
+  serverCount              = 1
+  portCount                = 1
+  enabled                  = true
+  creatable                = true
+  workloads                = [workload-type-set.debian-scvmm-12-set]
+  actions                  = ["generic-add-node"]
+  provisionType            = "scvmm"
+}
+
+resource "scale-action" "debian-scvmm-12" {
+  code       = "debian-scvmm-12"
+  scaleType  = "action"
+  layout     = instance-type-layout.debian-scvmm-12
+  upAction   = "generic-add-node"
+  downAction = "generic-remove-node"
+}
+
+resource "instance-type-layout" "rocky-scvmm-8" {
+  code                     = "rocky-scvmm-8"
+  name                     = "SCVMM VM"
+  sortOrder                = 89
+  serverType               = "vm"
+  supportsConvertToManaged = true
+  instanceVersion          = "8"
+  description              = "This will provision a single process with no redundancy"
+  instanceType             = "rocky"
+  serverCount              = 1
+  portCount                = 1
+  enabled                  = true
+  creatable                = true
+  workloads                = [workload-type-set.rocky-scvmm-8-set]
+  actions                  = ["generic-add-node"]
+  provisionType            = "scvmm"
+}
+
+resource "scale-action" "rocky-scvmm-8" {
+  code       = "rocky-scvmm-8"
+  scaleType  = "action"
+  layout     = instance-type-layout.rocky-scvmm-8
+  upAction   = "generic-add-node"
+  downAction = "generic-remove-node"
+}
+
+resource "instance-type-layout" "rocky-scvmm-9" {
+  code                     = "rocky-scvmm-9"
+  name                     = "SCVMM VM"
+  sortOrder                = 99
+  serverType               = "vm"
+  supportsConvertToManaged = true
+  instanceVersion          = "9"
+  description              = "This will provision a single process with no redundancy"
+  instanceType             = "rocky"
+  serverCount              = 1
+  portCount                = 1
+  enabled                  = true
+  creatable                = true
+  workloads                = [workload-type-set.rocky-scvmm-9-set]
+  actions                  = ["generic-add-node"]
+  provisionType            = "scvmm"
+}
+
+resource "scale-action" "rocky-scvmm-9" {
+  code       = "rocky-scvmm-9"
+  scaleType  = "action"
+  layout     = instance-type-layout.rocky-scvmm-9
+  upAction   = "generic-add-node"
+  downAction = "generic-remove-node"
+}
+
+resource "instance-type-layout" "ubuntu-scvmm-18_04" {
+  code                     = "ubuntu-scvmm-18.04"
+  name                     = "SCVMM VM"
+  sortOrder                = 18
+  serverType               = "vm"
+  supportsConvertToManaged = true
+  instanceVersion          = "18.04"
+  description              = "This will provision a single process with no redundancy"
+  instanceType             = "ubuntu"
+  serverCount              = 1
+  portCount                = 1
+  enabled                  = true
+  creatable                = true
+  workloads                = [workload-type-set.ubuntu-scvmm-18_04-set]
+  actions                  = ["ubuntu-add-node"]
+  provisionType            = "scvmm"
+}
+
+resource "scale-action" "ubuntu-scvmm-18_04" {
+  code       = "ubuntu-scvmm-1.04"
+  scaleType  = "action"
+  layout     = instance-type-layout.ubuntu-scvmm-18_04
+  upAction   = "ubuntu-add-node"
+  downAction = "ubuntu-remove-node"
+}
+
+resource "instance-type-layout" "ubuntu-scvmm-24_04" {
+  code                     = "ubuntu-scvmm-24.04"
+  name                     = "SCVMM VM"
+  sortOrder                = 24
+  serverType               = "vm"
+  supportsConvertToManaged = true
+  instanceVersion          = "24.04"
+  description              = "This will provision a single process with no redundancy"
+  instanceType             = "ubuntu"
+  serverCount              = 1
+  portCount                = 1
+  enabled                  = true
+  creatable                = true
+  workloads                = [workload-type-set.ubuntu-scvmm-24_04-set]
+  actions                  = ["ubuntu-add-node"]
+  provisionType            = "scvmm"
+}
+
+resource "scale-action" "ubuntu-scvmm-24_04" {
+  code       = "ubuntu-scvmm-24.04"
+  scaleType  = "action"
+  layout     = instance-type-layout.ubuntu-scvmm-24_04
+  upAction   = "ubuntu-add-node"
+  downAction = "ubuntu-remove-node"
+}
