@@ -1120,7 +1120,7 @@ foreach (\$logicalNetwork in \$logicalNetworks) {
     if (-not \$logicalNetwork -or -not \$logicalNetwork.LogicalNetwork) { continue }
     \$network = Get-SCVMNetwork -VMMServer localhost -LogicalNetwork \$logicalNetwork.LogicalNetwork
     if (-not \$network) { continue }
-    \$subnets = \$logicalNetwork.SubnetVLans | Where-Object { \$_.IsVlanEnabled -eq \$true }
+    \$subnets = \$logicalNetwork.SubnetVLans | where { \$_.IsVlanEnabled -eq \$true }
     if (-not \$subnets) { continue }
     foreach (\$vlan in \$subnets) {
         if (-not \$vlan.Subnet -or -not \$vlan.VLanId) { continue }
