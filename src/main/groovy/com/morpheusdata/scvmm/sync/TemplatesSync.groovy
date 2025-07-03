@@ -526,7 +526,9 @@ class TemplatesSync {
     // Get the SCVMM StorageVolumeType - set a meaningful default if vhdType is null
     def getStorageVolumeType(String storageVolumeTypeCode) {
         log.debug("getStorageVolumeTypeId - Looking up volumeTypeCode ${storageVolumeTypeCode}")
-        return StorageVolumeType.findByCode(storageVolumeTypeCode ?: 'standard')
+        def code = storageVolumeTypeCode ?: 'standard'
+        return context.async.storageVolume.storageVolumeType.find(
+                new DataQuery().withFilter('code', code)).blockingGet()
     }
 
     def removeMissingStorageVolumes(removeItems, addLocation, changes) {

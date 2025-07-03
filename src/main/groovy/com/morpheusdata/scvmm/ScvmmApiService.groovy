@@ -484,7 +484,7 @@ if(\$cloud) {
 				foreach (\$VM in \$VMs) {
 					\$data = New-Object PSObject -property @{
 						ID=\$VM.ID
-						ObjectType=\\$VM.ObjectType.ToString()
+						ObjectType=\$VM.ObjectType.ToString()
 						VMId=\$VM.VMId
 						Name=\$VM.Name
 						CPUCount=\$VM.CPUCount
@@ -512,10 +512,10 @@ if(\$cloud) {
 						\$VHD = \$VHDconf.VirtualHardDisk
 						\$disk = New-Object PSObject -property @{
 							ID=\$VHD.ID
-							ObjectType=\\$VHDConf.ObjectType.ToString()
+							ObjectType=\$VHDConf.ObjectType.ToString()
 							Name=\$VHD.Name
-							VHDType=\\$VHD.VHDType.ToString()
-                            VHDFormat=\\$VHD.VHDFormatType.ToString()
+							VHDType=\$VHD.VHDType.ToString()
+                            VHDFormat=\$VHD.VHDFormatType.ToString()
 							Location=\$VHD.Location
 							TotalSize=\$VHD.MaximumSize
 							UsedSize=\$VHD.Size
@@ -1117,19 +1117,24 @@ Get-SCLogicalNetwork -VMMServer localhost -Cloud \$cloud | Select ID,Name"""
                     command = generateCommandString("""\$report = @()
 \$logicalNetworks = Get-SCLogicalNetworkDefinition -VMMServer localhost | where {\$_.IsolationType -eq "None"} | Sort-Object -Property ID | Select-Object -Skip $offset -First $pageSize
 foreach (\$logicalNetwork in \$logicalNetworks) {
-	\$network = Get-SCVMNetwork -VMMServer localhost -LogicalNetwork \$logicalNetwork.LogicalNetwork 
-	\$subnets = \$logicalNetwork.SubnetVLans | where {\$_.IsVlanEnabled -eq "True" }
-	foreach (\$vlan in \$subnets) {	
-		\$data = New-Object PSObject -property @{
-			ID=\$network.ID.toString() + "-" + \$vlan.VLanId
-			Name=\$vlan.VLanId.toString() + "-" + \$logicalNetwork.LogicalNetwork.Name
-			NetworkName=\$logicalNetwork.Name
-			LogicalNetworkID=\$logicalNetwork.LogicalNetwork.ID
-			Subnet=\$vlan.Subnet
-			VLanID=\$vlan.VLanId
-		}
-		\$report += \$data
-	}
+    if (-not \$logicalNetwork -or -not \$logicalNetwork.LogicalNetwork) { continue }
+    \$network = Get-SCVMNetwork -VMMServer localhost -LogicalNetwork \$logicalNetwork.LogicalNetwork
+    if (-not \$network) { continue }
+    \$subnets = \$logicalNetwork.SubnetVLans | where { \$_.IsVlanEnabled -eq \$true }
+    if (-not \$subnets) { continue }
+    foreach (\$vlan in \$subnets) {
+        if (-not \$vlan.Subnet -or -not \$vlan.VLanId) { continue }
+
+        \$data = New-Object PSObject -Property @{
+            ID               = "\$(\$network.ID)-\$(\$vlan.VLanId)"
+            Name             = "\$(\$vlan.VLanId)-\$(\$logicalNetwork.LogicalNetwork.Name)"
+            NetworkName      = \$logicalNetwork.Name
+            LogicalNetworkID = \$logicalNetwork.LogicalNetwork.ID
+            Subnet           = \$vlan.Subnet
+            VLanID           = \$vlan.VLanId
+        }
+        \$report += \$data
+    }
 }
 \$report""")
                     out = wrapExecuteCommand(command, opts)
@@ -1485,6 +1490,10 @@ foreach (\$network in \$networks) {
         // return windowsDiskNames[index]
         else
             return '/dev/' + getDiskNameList()[index]
+    }
+
+    def getDiskNameList() {
+        return ['sda', 'sdb', 'sdc', 'sdd', 'sde', 'sdf', 'sdg', 'sdh', 'sdi', 'sdj', 'sdk', 'sdl']
     }
 
     def removeDisk(opts, diskId) {
@@ -2700,10 +2709,10 @@ For (\$i=0; \$i -le 10; \$i++) {
     }
 
     private getUsername(Cloud cloud) {
-		(cloud.accountCredentialLoaded ? cloud.accountCredentialData?.username : cloud.getConfigProperty('username')) ?: 'dunno'
+		((cloud.accountCredentialLoaded && cloud.accountCredentialData) ? cloud.accountCredentialData?.username : cloud.getConfigProperty('username')) ?: 'dunno'
     }
 
     private getPassword(Cloud cloud) {
-		cloud.accountCredentialLoaded ? cloud.accountCredentialData?.password : cloud.getConfigProperty('password')
+		(cloud.accountCredentialLoaded && cloud.accountCredentialData) ? cloud.accountCredentialData?.password : cloud.getConfigProperty('password')
     }
 }

@@ -437,9 +437,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
      */
     @Override
     Collection<StorageVolumeType> getRootVolumeStorageTypes() {
-//        context.async.storageVolume.storageVolumeType.list(
-//                new DataQuery().withFilter("code", "standard")).toList().blockingGet()
-		return StorageVolumeTypeHelper.getAllStorageVolumeTypes()
+        context.async.storageVolume.storageVolumeType.list(
+                new DataQuery().withFilter("code", "standard")).toList().blockingGet()
     }
 
     /**
@@ -448,9 +447,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
      */
     @Override
     Collection<StorageVolumeType> getDataVolumeStorageTypes() {
-//        context.async.storageVolume.storageVolumeType.list(
-//                new DataQuery().withFilter("code", "standard")).toList().blockingGet()
-		return StorageVolumeTypeHelper.getAllStorageVolumeTypes()
+        context.async.storageVolume.storageVolumeType.list(
+				new DataQuery().withFilter("code", "standard")).toList().blockingGet()
     }
 
     /**
@@ -662,7 +660,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 }
                 if (scvmmOpts.templateId && scvmmOpts.isSyncdImage) {
                     // Determine if any additional data disks were added to the template
-                    scvmmOpts.additionalTemplateDisks = additionalTemplateDisksConfig(container, scvmmOpts)
+                    scvmmOpts.additionalTemplateDisks = additionalTemplateDisksConfig(workload, scvmmOpts)
                     log.debug "scvmmOpts.additionalTemplateDisks ${scvmmOpts.additionalTemplateDisks}"
                 }
             }
@@ -953,7 +951,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
         }
     }
 
-    private getVirtualImageLocation(VirtualImage virtualImage, cloud) {
+    private getVirtualImageLocation(VirtualImage virtualImage, Cloud cloud) {
         def location = context.services.virtualImage.location.find(new DataQuery().withFilters(
                 new DataFilter('virtualImage.id', virtualImage.id),
                 new DataOrFilter(
@@ -962,7 +960,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                                 new DataFilter('refId', cloud.id)
                         ),
                         new DataAndFilter(
-                                new DataFilter('owner.id', cloud.owner.id),
+                                new DataFilter('virtualImage.owner.id', cloud.owner.id),
                                 new DataFilter('imageRegion', cloud.regionCode)
                         )
                 )
@@ -1584,7 +1582,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 hasFilteredDatastores = true
                 def scopedDatastoreIds = context.services.computeServer.list(new DataQuery()
                         .withFilter('hostId', hostId.toLong())
-                        .withJoin('volumes.datastore')).collect { it.volumes.collect { it.datastore.id } }.flatten().unique()
+                        .withJoin('volumes.datastore')).collect { it.volumes.collect { it.datastore?.id } }.flatten().unique()
                 datastoreIds = scopedDatastoreIds
             }
 
