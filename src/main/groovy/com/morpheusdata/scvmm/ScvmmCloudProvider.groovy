@@ -1,5 +1,6 @@
 package com.morpheusdata.scvmm
 
+import com.morpheusdata.scvmm.helper.morpheus.types.StorageVolumeTypeHelper
 import com.morpheusdata.scvmm.sync.CloudCapabilityProfilesSync
 import com.morpheusdata.scvmm.sync.ClustersSync
 import com.morpheusdata.scvmm.sync.DatastoresSync
@@ -257,6 +258,22 @@ class ScvmmCloudProvider implements CloudProvider {
 				inputType: OptionType.InputType.CHECKBOX,
 				fieldContext: 'config',
 		)
+		options << new OptionType(
+				name: 'Install Agent',
+				code: 'gomorpheus.label.installAgent',
+				inputType: OptionType.InputType.CHECKBOX,
+				fieldName: 'installAgent',
+				fieldContext: 'config',
+				fieldCode: 'gomorpheus.label.installAgent',
+				fieldLabel: 'Install Agent',
+				fieldGroup: 'Advanced Options',
+				displayOrder: displayOrder += 10,
+				required: false,
+				enabled: true,
+				editable: false,
+				global: false,
+				custom: false,
+		)
 		return options
 	}
 
@@ -306,8 +323,7 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	Collection<StorageVolumeType> getStorageVolumeTypes() {
-		Collection<StorageVolumeType> volumeTypes = []
-		return volumeTypes
+		return StorageVolumeTypeHelper.getAllStorageVolumeTypes()
 	}
 
 	/**
@@ -535,7 +551,7 @@ class ScvmmCloudProvider implements CloudProvider {
 			def maxStorage = serverInfo?.disks?.toLong() ?:0
 			def maxMemory = serverInfo?.memory?.toLong() ?:0
 			def maxCores = 1
-			newServer.serverOs = OsType.findByCode('windows.server.2012')
+			newServer.serverOs = context.async.osType.find(new DataQuery().withFilter('code', 'windows.server.2012')).blockingGet()
 			newServer.platform = 'windows'
 			newServer.platformVersion = '2012'
 			newServer.statusDate = new Date()

@@ -459,12 +459,17 @@ class TemplatesSync {
             log.debug("adding new volume: ${diskData}")
             def datastore = diskData.datastore ?: loadDatastoreForVolume(diskData.HostVolumeId, diskData.FileShareId, diskData.PartitionUniqueId) ?: null
             def volumeConfig = [
-                    name      : diskData.Name,
+                    // Dont replace the Morpheus volume name with the one from SCVMM
+                    // name      : diskData.Name,
                     size      : diskData.TotalSize?.toLong() ?: 0,
                     rootVolume: diskData.VolumeType == 'BootAndSystem' || !addLocation.volumes?.size(),
-                    deviceName: diskData.deviceName,
+                    // Note there is no property diskData.deviceName??
+                    deviceName: (diskData.deviceName ?: apiService.getDiskName(diskNumber)),
                     externalId: diskData.ID,
-                    internalId: diskData.Name
+                    // To ensure unique take the internalId from the Location property on diskData as this is the fully qualified path
+                    internalId: diskData.Location,
+                    // StorageVolumeType code eg 'scvmm-dynamicallyexpanding-vhd'
+                    storageType: getStorageVolumeType("scvmm-${diskData?.VHDType}-${diskData?.VHDFormat}".toLowerCase()).getId()
             ]
             if (datastore)
                 volumeConfig.datastoreId = "${datastore.id}"
@@ -489,8 +494,10 @@ class TemplatesSync {
                 volume.maxStorage = masterDiskSize
                 save = true
             }
-            if (volume.internalId != masterItem.Name) {
-                volume.internalId = masterItem.Name
+            // InternalId - Unique Path for the VHD disk file from masterItem.Location
+            if(volume.internalId != masterItem.Location) {
+                volume.internalId = masterItem.Location
+                // volume.name = masterItem.Name
                 save = true
             }
             def isRootVolume = (masterItem?.VolumeType == 'BootAndSystem') || (addLocation.volumes.size() == 1)
@@ -498,12 +505,30 @@ class TemplatesSync {
                 volume.rootVolume = isRootVolume
                 save = true
             }
+            //StorageVolumeType
+            if (masterItem?.VHDType && masterItem?.VHDFormat) {
+                def storageVolumeType = getStorageVolumeType("scvmm-${masterItem?.VHDType}-${masterItem?.VHDFormat}".toLowerCase())
+                if (volume.type?.id != storageVolumeType.id) {
+                    log.debug("Updating StorageVolumeType to ${storageVolumeType}")
+                    volume.type = storageVolumeType
+                    save = true
+                }
+            }
             if (save) {
                 context.async.storageVolume.save(volume).blockingGet()
                 changes = true
             }
             maxStorage += masterDiskSize
         }
+    }
+
+    // todo Move to ScvmmComputeService?
+    // Get the SCVMM StorageVolumeType - set a meaningful default if vhdType is null
+    def getStorageVolumeType(String storageVolumeTypeCode) {
+        log.debug("getStorageVolumeTypeId - Looking up volumeTypeCode ${storageVolumeTypeCode}")
+        def code = storageVolumeTypeCode ?: 'standard'
+        return context.async.storageVolume.storageVolumeType.find(
+                new DataQuery().withFilter('code', code)).blockingGet()
     }
 
     def removeMissingStorageVolumes(removeItems, addLocation, changes) {

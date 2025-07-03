@@ -1,0 +1,4 @@
+resource "backup-integration" "veeamScvmmBackup-scvmm" {
+  provisionType = "scvmm"
+  backupType    = "veeamScvmmBackup"
+}

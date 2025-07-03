@@ -21,6 +21,7 @@ import com.morpheusdata.response.InitializeHypervisorResponse
 import com.morpheusdata.response.PrepareWorkloadResponse
 import com.morpheusdata.response.ProvisionResponse
 import com.morpheusdata.response.ServiceResponse
+import com.morpheusdata.scvmm.helper.morpheus.types.StorageVolumeTypeHelper
 import groovy.util.logging.Slf4j
 
 @Slf4j
@@ -241,7 +242,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			category: 'provisionType.scvmm.custom',
 			optionSourceType: 'scvmm',
 			optionSource: 'scvmmVirtualImages',
-			fieldName: 'template',
+			fieldName: 'virtualImage.id',
 			fieldCode: 'gomorpheus.optiontype.VirtualImage',
 			fieldLabel: 'Virtual Image',
 			fieldContext: 'config',
@@ -256,8 +257,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			custom: false,
 			displayOrder: 12,
 			fieldClass: null,
-			visibleOnCode: 'config.virtualImageSelect:vi'
-
+			visibleOnCode: 'config.virtualImageSelect:vi',
+			noSelection: 'Select',
 		)
 
 		nodeOptions << new OptionType(
@@ -447,7 +448,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
     @Override
     Collection<StorageVolumeType> getDataVolumeStorageTypes() {
         context.async.storageVolume.storageVolumeType.list(
-                new DataQuery().withFilter("code", "standard")).toList().blockingGet()
+				new DataQuery().withFilter("code", "standard")).toList().blockingGet()
     }
 
     /**
@@ -659,7 +660,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 }
                 if (scvmmOpts.templateId && scvmmOpts.isSyncdImage) {
                     // Determine if any additional data disks were added to the template
-                    scvmmOpts.additionalTemplateDisks = additionalTemplateDisksConfig(container, scvmmOpts)
+                    scvmmOpts.additionalTemplateDisks = additionalTemplateDisksConfig(workload, scvmmOpts)
                     log.debug "scvmmOpts.additionalTemplateDisks ${scvmmOpts.additionalTemplateDisks}"
                 }
             }
@@ -878,6 +879,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
         def additionalTemplateDisks = []
         def dataDisks = getContainerDataDiskList(workload)
         log.debug "dataDisks: ${dataDisks} ${dataDisks?.size()}"
+		// scvmmOpts.diskExternalIdMappings will usually contain the virtualImage disk externalId
         def diskExternalIdMappings = scvmmOpts.diskExternalIdMappings
         def additionalDisksRequired = dataDisks?.size() + 1 > diskExternalIdMappings?.size()
         def busNumber = '0'
@@ -949,7 +951,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
         }
     }
 
-    private getVirtualImageLocation(VirtualImage virtualImage, cloud) {
+    private getVirtualImageLocation(VirtualImage virtualImage, Cloud cloud) {
         def location = context.services.virtualImage.location.find(new DataQuery().withFilters(
                 new DataFilter('virtualImage.id', virtualImage.id),
                 new DataOrFilter(
@@ -958,7 +960,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                                 new DataFilter('refId', cloud.id)
                         ),
                         new DataAndFilter(
-                                new DataFilter('owner.id', cloud.owner.id),
+                                new DataFilter('virtualImage.owner.id', cloud.owner.id),
                                 new DataFilter('imageRegion', cloud.regionCode)
                         )
                 )
@@ -1580,7 +1582,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 hasFilteredDatastores = true
                 def scopedDatastoreIds = context.services.computeServer.list(new DataQuery()
                         .withFilter('hostId', hostId.toLong())
-                        .withJoin('volumes.datastore')).collect { it.volumes.collect { it.datastore.id } }.flatten().unique()
+                        .withJoin('volumes.datastore')).collect { it.volumes.collect { it.datastore?.id } }.flatten().unique()
                 datastoreIds = scopedDatastoreIds
             }
 
@@ -2092,16 +2094,27 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                     }
                     // new disk add it
                     resizeRequest.volumesAdd.each { volumeAdd ->
-                        def diskSize = ComputeUtility.parseGigabytesToBytes(volumeAdd.size?.toLong())
+                        def diskSize = ComputeUtility.parseGigabytesToBytes(volumeAdd.size?.toLong())  / ComputeUtility.ONE_MEGABYTE
                         def busNumber = '0'
                         def volumePath = getVolumePathForDatastore(volumeAdd.datastore)
-                        def diskResults = apiService.createAndAttachDisk(scvmmOpts, diskCounter, diskSize, busNumber, volumePath, true)
-                        log.debug("create disk: ${diskResults.success}")
+						//Create the new diskSpec
+						def diskSpec = [
+								vhdName: "data-${UUID.randomUUID().toString()}",
+								vhdType: null,  //Use Default as determined from existing VM
+								vhdFormat: null, //Use Default  as determined from existing VM
+								vhdPath: null, // Place with the VM?? or should this be volumePath?
+								sizeMb: diskSize
+						]
+						log.info("resizeContainer - volumePath: ${volumePath} - diskSpec: ${diskSpec}")
+						def diskResults = apiService.createAndAttachDisk(scvmmOpts, diskSpec, true)
+						log.info("create disk: ${diskResults.success}")
                         if (diskResults.success == true) {
                             def newVolume = buildStorageVolume(computeServer, volumeAdd, diskCounter)
                             if (volumePath) {
                                 newVolume.volumePath = volumePath
                             }
+							//internalId can now be set to the location of the VirtualHardDisk (VhdLocation)
+							newVolume.internalId = diskResults.disk.VhdLocation
                             newVolume.maxStorage = volumeAdd.size.toInteger() * ComputeUtility.ONE_GIGABYTE
                             newVolume.externalId = diskResults.disk.VhdID
 
@@ -2168,19 +2181,31 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             rtn.neededCores = (rtn.requestedCores ?: 1) - (currentCores ?: 1)
             setDynamicMemory(rtn, plan)
 
-            rtn.hotResize = (server ? server.hotResize != false : workload?.server?.hotResize != false) || (!rtn.neededMemory && !rtn.neededCores)
+            rtn.hotResize = false
 
             // Disk changes.. see if stop is required
             if (opts.volumes) {
                 resizeRequest.volumesUpdate?.each { volumeUpdate ->
                     if (volumeUpdate.existingModel) {
                         //existing disk - resize it
+						def volumeCode = volumeUpdate.existing.type?.code ?: "standard"
                         if (volumeUpdate.updateProps.maxStorage > volumeUpdate.existingModel.maxStorage) {
+							if (volumeCode.contains("differencing")) {
+								log.warn("getResizeConfig - Resize is not supported on Differencing Disks  - volume type ${volumeCode}")
+								rtn.allowed = false
+							} else {
+								log.info("getResizeConfig - volumeCode: ${volumeCode}. Volume Resize requested. Current: ${volumeUpdate.existing.maxStorage} - requested : ${volumeUpdate.volume.maxStorage}")
+								rtn.allowed = true
+							}
                             if (volumeUpdate.existingModel.rootVolume) {
                                 rtn.hotResize = false
                             }
                         }
-                    }
+                    } else {
+						// new disk - add it
+						log.info("getResizeConfig - Adding new volume ${volumeUpdate.volume}")
+						rtn.allowed = true
+					}
                 }
             }
         } catch (e) {

@@ -1,0 +1,453 @@
+resource "workload-type" "almalinux-scvmm-9" {
+  code             = "almalinux-scvmm-9"
+  shortName        = "almalinux"
+  name             = "AlmaLinux 9"
+  ports            = [22]
+  containerVersion = "9"
+  repositoryImage  = null
+  entryPoint       = null
+  serverType       = "vm"
+  statTypeCode     = "vm"
+  logTypeCode      = "vm"
+  showServerLogs   = true
+  checkTypeCode    = "containerCheck"
+  mountPoint       = "/morpheus"
+  virtualImage     = null
+  osType           = "almalinux.9.64"
+  containerPorts   = ["almalinux.22"]
+  actions          = ["generic-remove-node"]
+  provisionType    = "scvmm"
+  backupType       = "scvmmSnapshot"
+}
+
+resource "workload-type-set" "almalinux-scvmm-9-set" {
+  code           = "almalinux-scvmm-9-set"
+  workloadType   = workload-type.almalinux-scvmm-9
+  priorityOrder  = 0
+  dynamicCount   = true
+  containerCount = 1
+}
+
+resource "workload-type" "centos-scvmm-9-stream" {
+  code             = "centos-scvmm-9-stream"
+  shortName        = "centos"
+  name             = "CentOS 9-stream"
+  ports            = [22]
+  containerVersion = "9-stream"
+  repositoryImage  = null
+  entryPoint       = null
+  serverType       = "vm"
+  statTypeCode     = "vm"
+  logTypeCode      = "centos"
+  showServerLogs   = true
+  checkTypeCode    = "containerCheck"
+  mountPoint       = "/morpheus"
+  virtualImage     = null
+  osType           = "cent.9.64"
+  containerPorts   = ["centos.22"]
+  actions          = ["generic-remove-node"]
+  provisionType    = "scvmm"
+  backupType       = "scvmmSnapshot"
+}
+
+resource "workload-type-set" "centos-scvmm-9-stream-set" {
+  code           = "centos-scvmm-9-stream-set"
+  workloadType   = workload-type.centos-scvmm-9-stream
+  priorityOrder  = 0
+  dynamicCount   = true
+  containerCount = 1
+}
+
+resource "workload-type" "debian-scvmm-11" {
+  code             = "debian-scvmm-11"
+  shortName        = "debian"
+  name             = "Debian 11"
+  ports            = [22]
+  containerVersion = "11"
+  repositoryImage  = null
+  entryPoint       = null
+  serverType       = "vm"
+  statTypeCode     = "vm"
+  logTypeCode      = "debian"
+  showServerLogs   = true
+  checkTypeCode    = "containerCheck"
+  mountPoint       = "/morpheus"
+  virtualImage     = null
+  osType           = "debian.11.64"
+  containerPorts   = ["debian.22"]
+  actions          = ["generic-remove-node"]
+  provisionType    = "scvmm"
+  backupType       = "scvmmSnapshot"
+}
+
+resource "workload-type-set" "debian-scvmm-11-set" {
+  code           = "debian-scvmm-11-set"
+  workloadType   = workload-type.debian-scvmm-11
+  priorityOrder  = 0
+  dynamicCount   = true
+  containerCount = 1
+}
+
+resource "workload-type" "debian-scvmm-12" {
+  code             = "debian-scvmm-12"
+  shortName        = "debian"
+  name             = "Debian 12"
+  ports            = [22]
+  containerVersion = "12"
+  repositoryImage  = null
+  entryPoint       = null
+  serverType       = "vm"
+  statTypeCode     = "vm"
+  logTypeCode      = "debian"
+  showServerLogs   = true
+  checkTypeCode    = "containerCheck"
+  mountPoint       = "/morpheus"
+  virtualImage     = null
+  osType           = "debian.12.64"
+  containerPorts   = ["debian.22"]
+  actions          = ["generic-remove-node"]
+  provisionType    = "scvmm"
+  backupType       = "scvmmSnapshot"
+}
+
+resource "workload-type-set" "debian-scvmm-12-set" {
+  code           = "debian-scvmm-12-set"
+  workloadType   = workload-type.debian-scvmm-12
+  priorityOrder  = 0
+  dynamicCount   = true
+  containerCount = 1
+}
+
+resource "workload-type" "rocky-scvmm-8" {
+  code             = "rocky-scvmm-8"
+  shortName        = "rocky"
+  name             = "Rocky 8"
+  ports            = [22]
+  containerVersion = "8"
+  repositoryImage  = null
+  entryPoint       = null
+  serverType       = "vm"
+  statTypeCode     = "vm"
+  logTypeCode      = "vm"
+  showServerLogs   = true
+  checkTypeCode    = "containerCheck"
+  mountPoint       = "/morpheus"
+  virtualImage     = null
+  osType           = "rocky.8.64"
+  containerPorts   = ["rocky.22"]
+  actions          = ["generic-remove-node"]
+  provisionType    = "scvmm"
+  backupType       = "scvmmSnapshot"
+}
+
+resource "workload-type-set" "rocky-scvmm-8-set" {
+  code           = "rocky-scvmm-8-set"
+  workloadType   = workload-type.rocky-scvmm-8
+  priorityOrder  = 0
+  dynamicCount   = true
+  containerCount = 1
+}
+
+resource "workload-type" "rocky-scvmm-9" {
+  code             = "rocky-scvmm-9"
+  shortName        = "rocky"
+  name             = "Rocky 9"
+  ports            = [22]
+  containerVersion = "9"
+  repositoryImage  = null
+  entryPoint       = null
+  serverType       = "vm"
+  statTypeCode     = "vm"
+  logTypeCode      = "rocky"
+  showServerLogs   = true
+  checkTypeCode    = "containerCheck"
+  mountPoint       = "/morpheus"
+  virtualImage     = null
+  osType           = "rocky.9.64"
+  containerPorts   = ["rocky.22"]
+  actions          = ["generic-remove-node"]
+  provisionType    = "scvmm"
+  backupType       = "scvmmSnapshot"
+}
+
+resource "workload-type-set" "rocky-scvmm-9-set" {
+  code           = "rocky-scvmm-9-set"
+  workloadType   = workload-type.rocky-scvmm-9
+  priorityOrder  = 0
+  dynamicCount   = true
+  containerCount = 1
+}
+
+resource "workload-type" "ubuntu-scvmm-18_04" {
+  code             = "ubuntu-scvmm-18.04"
+  shortName        = "ubuntu"
+  name             = "Ubuntu 18.04"
+  ports            = [22]
+  containerVersion = "18.04"
+  repositoryImage  = null
+  entryPoint       = null
+  serverType       = "vm"
+  statTypeCode     = "vm"
+  logTypeCode      = "ubuntu"
+  showServerLogs   = true
+  checkTypeCode    = "containerCheck"
+  mountPoint       = "/morpheus"
+  virtualImage     = null
+  osType           = "ubuntu.18.04.64"
+  containerPorts   = ["ubuntu.22"]
+  actions          = ["ubuntu-remove-node"]
+  provisionType    = "scvmm"
+  backupType       = "scvmmSnapshot"
+}
+
+resource "workload-type-set" "ubuntu-scvmm-18_04-set" {
+  code           = "ubuntu-scvmm-18.04-set"
+  workloadType   = workload-type.ubuntu-scvmm-18_04
+  priorityOrder  = 0
+  dynamicCount   = true
+  containerCount = 1
+}
+
+resource "workload-type" "ubuntu-scvmm-24_04" {
+  code             = "ubuntu-scvmm-24.04"
+  shortName        = "ubuntu"
+  name             = "Ubuntu 24.04"
+  ports            = [22]
+  containerVersion = "24.04"
+  repositoryImage  = null
+  entryPoint       = null
+  serverType       = "vm"
+  statTypeCode     = "vm"
+  logTypeCode      = "ubuntu"
+  showServerLogs   = true
+  checkTypeCode    = "containerCheck"
+  mountPoint       = "/morpheus"
+  virtualImage     = null
+  osType           = "ubuntu.24.04.64"
+  containerPorts   = ["ubuntu.22"]
+  actions          = ["ubuntu-remove-node"]
+  provisionType    = "scvmm"
+  backupType       = "scvmmSnapshot"
+}
+
+resource "workload-type-set" "ubuntu-scvmm-24_04-set" {
+  code           = "ubuntu-scvmm-24.04-set"
+  workloadType   = workload-type.ubuntu-scvmm-24_04
+  priorityOrder  = 0
+  dynamicCount   = true
+  containerCount = 1
+}
+
+resource "workload-type" "kubernetes-scvmm-ubuntu-16_04" {
+  code             = "kubernetes-scvmm-ubuntu-16.04"
+  shortName        = "kubernetes-ubuntu"
+  name             = "Kubernetes 1.14 Cluster on Ubuntu 16.04"
+  containerVersion = "16.04"
+  repositoryImage  = null
+  imageCode        = "morpheus ubuntu 16.04"
+  entryPoint       = null
+  mountLogs        = "/var/log"
+  statTypeCode     = "server"
+  logTypeCode      = "ubuntu"
+  showServerLogs   = true
+  category         = "ubuntu"
+  cloneType        = "ubuntu"
+  priorityOrder    = 0
+  serverType       = "vm"
+  providerType     = "scvmm"
+  checkTypeCode    = "vmCheck"
+  virtualImage     = virtual-image.scvmm_image_morpheus_ubuntu_16_04_3-v1_ubuntu_16_04_3_amd64
+  containerPorts   = ["ubuntu.22"]
+  provisionType    = "scvmm"
+  scripts          = [
+    "kube-kubeadm-install-curl-1_14_1",
+    "kube-kubeadm-init",
+    "kube-kubeadm-copy-config",
+    "kube-kubeadm-iscsi-install-curl",
+    "kube-kubeadm-install-openebs-1-0-0-curl",
+    "kube-kubeadm-create-service-account",
+    "kube-kubeadm-check-pods",
+    "kube-kubeadm-install-weave",
+    "kube-kubeadm-install-openebs-1-0-0",
+    "kube-install-fluentbit"
+  ]
+  templates        = [
+    "kube-logging-fluentbit-service-spec",
+    "kube-logging-fluentbit-role-spec",
+    "kube-logging-fluentbit-role-binding-spec",
+    "kube-logging-fluentbit-config-spec",
+    "kube-logging-fluentbit-daemon-spec"
+  ]
+}
+
+resource "workload-type" "kubernetes-scvmm-worker-ubuntu-16_04" {
+  code             = "kubernetes-scvmm-worker-ubuntu-16.04"
+  shortName        = "kubernetes-worker-ubuntu"
+  name             = "Kubernetes Worker 1.14 on Ubuntu 16.04"
+  containerVersion = "16.04"
+  repositoryImage  = null
+  imageCode        = "morpheus ubuntu 16.04"
+  entryPoint       = null
+  mountLogs        = "/var/log"
+  statTypeCode     = "server"
+  logTypeCode      = "ubuntu"
+  showServerLogs   = true
+  category         = "ubuntu"
+  cloneType        = "ubuntu"
+  priorityOrder    = 0
+  serverType       = "vm"
+  providerType     = "scvmm"
+  checkTypeCode    = "vmCheck"
+  virtualImage     = virtual-image.scvmm_image_morpheus_ubuntu_16_04_3-v1_ubuntu_16_04_3_amd64
+  containerPorts   = ["ubuntu.22"]
+  provisionType    = "scvmm"
+  scripts          = [
+    "kube-kubeadm-install-curl-1_14_1",
+    "kube-kubeadm-iscsi-install-curl",
+    "kube-kubeadm-worker-join"
+  ]
+}
+
+resource "workload-type" "kubernetes-scvmm-ha-master-ubuntu-16_04" {
+  code             = "kubernetes-scvmm-ha-master-ubuntu-16.04"
+  shortName        = "kubernetes-ubuntu"
+  name             = "Kubernetes HA Master 1.14 on Ubuntu 16.04"
+  containerVersion = "16.04"
+  repositoryImage  = null
+  imageCode        = "morpheus ubuntu 16.04"
+  entryPoint       = null
+  mountLogs        = "/var/log"
+  statTypeCode     = "server"
+  logTypeCode      = "ubuntu"
+  showServerLogs   = true
+  category         = "ubuntu"
+  cloneType        = "ubuntu"
+  priorityOrder    = 0
+  serverType       = "vm"
+  providerType     = "scvmm"
+  checkTypeCode    = "vmCheck"
+  virtualImage     = virtual-image.scvmm_image_morpheus_ubuntu_16_04_3-v1_ubuntu_16_04_3_amd64
+  containerPorts   = ["ubuntu.22"]
+  provisionType    = "scvmm"
+  scripts          = [
+    "kube-kubeadm-cluster-master-prep",
+    "kube-kubeadm-cluster-shared-key",
+    "kube-kubeadm-install-curl-1_14_1",
+    "kube-kubeadm-cluster-master-init-1_14_1",
+    "kube-kubeadm-copy-config",
+    "kube-kubeadm-iscsi-install-curl",
+    "kube-kubeadm-install-openebs-1-0-0-curl",
+    "kube-kubeadm-create-service-account",
+    "kube-kubeadm-check-pods",
+    "kube-kubeadm-cluster-install-weave",
+    "kube-kubeadm-cluster-install-openebs-1-0-0",
+    "kube-install-fluentbit"
+  ]
+  templates        = [
+    "kube-kubeadm-cluster-master-config-1_14_1",
+    "kube-logging-fluentbit-service-spec",
+    "kube-logging-fluentbit-role-spec",
+    "kube-logging-fluentbit-role-binding-spec",
+    "kube-logging-fluentbit-config-spec",
+    "kube-logging-fluentbit-daemon-spec"
+  ]
+}
+
+resource "workload-type" "kubernetes-scvmm-ha-add-master-ubuntu-16_04" {
+  code             = "kubernetes-scvmm-ha-add-master-ubuntu-16.04"
+  shortName        = "kubernetes-ubuntu"
+  name             = "Kubernetes HA Add Master 1.14 on Ubuntu 16.04"
+  containerVersion = "16.04"
+  repositoryImage  = null
+  imageCode        = "morpheus ubuntu 16.04"
+  entryPoint       = null
+  mountLogs        = "/var/log"
+  statTypeCode     = "server"
+  logTypeCode      = "ubuntu"
+  showServerLogs   = true
+  category         = "ubuntu"
+  cloneType        = "ubuntu"
+  priorityOrder    = 0
+  serverType       = "vm"
+  providerType     = "scvmm"
+  checkTypeCode    = "vmCheck"
+  virtualImage     = virtual-image.scvmm_image_morpheus_ubuntu_16_04_3-v1_ubuntu_16_04_3_amd64
+  containerPorts   = ["ubuntu.22"]
+  provisionType    = "scvmm"
+  scripts          = [
+    "kube-kubeadm-cluster-master-prep",
+    "kube-kubeadm-cluster-shared-key",
+    "kube-kubeadm-install-curl-1_14_1",
+    "kube-kubeadm-cluster-add-master-certs",
+    "kube-kubeadm-iscsi-install-curl",
+    "kube-kubeadm-cluster-add-master-init-1_14_1",
+    "kube-kubeadm-copy-config"
+  ]
+  templates        = [
+    "kube-kubeadm-cluster-add-master-config-1_14_1"
+  ]
+}
+
+resource "workload-type-set" "kubernetes-scvmm-ha-master-ubuntu-16_04-set" {
+  code           = "kubernetes-scvmm-ha-master-ubuntu-16.04-set"
+  name           = "kubernetes master"
+  workloadType   = workload-type.kubernetes-scvmm-ha-master-ubuntu-16_04
+  priorityOrder  = 0
+  dynamicCount   = false
+  containerCount = 1
+  nodeSuffix     = "-master"
+  nodeType       = "master"
+  forceNameIndex = true
+}
+
+resource "workload-type-set" "kubernetes-scvmm-ha-add-master-ubuntu-16_04-set" {
+  code           = "kubernetes-scvmm-ha-add-master-ubuntu-16.04-set"
+  name           = "kubernetes master"
+  workloadType   = workload-type.kubernetes-scvmm-ha-add-master-ubuntu-16_04
+  priorityOrder  = 1
+  dynamicCount   = false
+  containerCount = 2
+  nodeSuffix     = "-master"
+  nodeType       = "master"
+  forceNameIndex = true
+}
+
+resource "workload-type-set" "kubernetes-worker-scvmm-ha-ubuntu-16_04-set" {
+  code           = "kubernetes-worker-scvmm-ha-ubuntu-16.04-set"
+  name           = "kubernetes worker"
+  workloadType   = workload-type.kubernetes-scvmm-worker-ubuntu-16_04
+  priorityOrder  = 2
+  dynamicCount   = true
+  containerCount = 3
+  nodeSuffix     = "-worker"
+  nodeType       = "worker"
+  forceNameIndex = true
+  canAddNodes    = true
+}
+
+resource "cluster-layout" "kubernetes-scvmm-ubuntu-16_04-cluster-weave-openebs" {
+  code                = "kubernetes-scvmm-ubuntu-16.04-cluster-weave-openebs"
+  name                = "Kubernetes 1.14 HA Cluster on Ubuntu 16.04, Weave, OpenEBS"
+  sortOrder           = 45
+  clusterVersion      = "16.04"
+  description         = "This will provision a single kubernetes master in scvmm with weave and openebs"
+  serverType          = "scvmmKubeMaster"
+  serverCount         = 6
+  memoryRequirement   = 2147483648
+  hasAutoScale        = true
+  enabled             = false
+  creatable           = false
+  workloadSets        = [
+    workload-type-set.kubernetes-scvmm-ha-master-ubuntu-16_04-set,
+    workload-type-set.kubernetes-scvmm-ha-add-master-ubuntu-16_04-set,
+    workload-type-set.kubernetes-worker-scvmm-ha-ubuntu-16_04-set
+  ]
+  groupType           = "kubernetes-cluster"
+  provisionType       = "scvmm"
+  optionTypes         = [
+    "kubernetes.master.podCidr",
+    "kubernetes.master.clusterHostname",
+    "kubernetes.master.loadBalancerId"
+  ]
+  config              = "{\"experimentalCerts\":true}"
+}
