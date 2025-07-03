@@ -52,6 +52,10 @@ class StorageVolumeTypeHelper {
     protected static final String FIXED_VHDX_EXTERNAL_ID = 'fixed-vhdx'
     protected static final String DYNAMIC_VHDX_EXTERNAL_ID = 'dynamic-vhdx'
     protected static final String LINKED_EXTERNAL_ID = 'linked'
+    protected static final String STANDARD_EXTERNAL_ID = 'standard'
+    protected static final String STANDARD_NAME = 'Standard'
+    protected static final String STANDARD_DISPLAY = 'Disk'
+    protected static final String STANDARD_CODE = 'standard'
 
     static Collection<StorageVolumeType> getDatastoreStorageTypes() {
         Collection<StorageVolumeType> volumeTypes = []
@@ -238,12 +242,37 @@ class StorageVolumeTypeHelper {
         return diskTypes
     }
 
+    static Collection<StorageVolumeType> getStandardDiskStorageTypes() {
+        Collection<StorageVolumeType> diskTypes = []
+
+        diskTypes << new StorageVolumeType(
+                code: STANDARD_CODE,
+                displayName: STANDARD_DISPLAY,
+                name: STANDARD_NAME,
+                description: STANDARD_NAME,
+                volumeType: VOLUME_TYPE_DISK,
+                externalId: STANDARD_EXTERNAL_ID,
+                enabled: true,
+                displayOrder: 1,
+                customLabel: true,
+                customSize: true,
+                defaultType: true,
+                autoDelete: true,
+                hasDatastore: true,
+                allowSearch: true,
+                volumeCategory: VOLUME_CATEGORY_DISK
+        )
+
+        return diskTypes
+    }
+
     static Collection<StorageVolumeType> getAllStorageVolumeTypes() {
         Collection<StorageVolumeType> allTypes = []
         allTypes.addAll(getDatastoreStorageTypes())
         allTypes.addAll(getVhdDiskStorageTypes())
         allTypes.addAll(getVhdxDiskStorageTypes())
         allTypes.addAll(getLinkedPhysicalDiskStorageTypes())
+        allTypes.addAll(getStandardDiskStorageTypes())
         return allTypes
     }
 }
