@@ -66,12 +66,18 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 log.debug("serverInfo: ${serverInfo}")
                 if (serverInfo.success == true && serverInfo.hostname) {
                     server.hostname = serverInfo.hostname
+					def osVersion = serverInfo.osVersion
+					// Extract version number (2019, 2022, etc.) from OS version string
+					def versionMatch = osVersion =~ /\b(20\d{2})\b/
+					def versionCode = versionMatch.find() ? versionMatch.group(1) : "2012"
+					// Create proper OS code format
+					rtn.data.serverOs = new OsType(code: "windows.server.${versionCode}")
                 }
                 def maxStorage = serverInfo?.disks ? serverInfo?.disks.toLong() : 0
                 def maxMemory = serverInfo?.memory ? serverInfo?.memory.toLong() : 0
                 def maxCores = 1
 
-                rtn.data.serverOs = new OsType(code: 'windows.server.2012')
+                //rtn.data.serverOs = new OsType(code: 'windows.server.2012')
                 rtn.data.commType = 'winrm' //ssh, minrm
                 rtn.data.maxMemory = maxMemory
                 rtn.data.maxCores = maxCores

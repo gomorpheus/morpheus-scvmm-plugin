@@ -376,6 +376,10 @@ if(\$vm) {
         def out = executeCommand(command, opts)
         log.debug("out: ${out.data}")
         rtn.hostname = cleanData(out.data)
+        command = '(Get-ComputerInfo).OsName'
+        out = executeCommand(command, opts)
+        log.debug("out: ${out.data}")
+        rtn.osName = cleanData(out.data)
         command = 'wmic computersystem get TotalPhysicalMemory'
         out = executeCommand(command, opts)
         log.debug("out: ${out.data}")
