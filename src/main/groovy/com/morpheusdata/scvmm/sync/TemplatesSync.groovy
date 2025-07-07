@@ -455,7 +455,8 @@ class TemplatesSync {
 
     def addMissingStorageVolumes(itemsToAdd, VirtualImageLocation addLocation, int diskNumber, maxStorage, changes) {
         def provisionProvider = cloudProvider.getProvisionProvider('morpheus-scvmm-plugin.provision')
-        itemsToAdd?.each { diskData ->
+        List<StorageVolume> volumes = []
+        itemsToAdd?.eachWithIndex { diskData, index ->
             log.debug("adding new volume: ${diskData}")
             def datastore = diskData.datastore ?: loadDatastoreForVolume(diskData.HostVolumeId, diskData.FileShareId, diskData.PartitionUniqueId) ?: null
             def volumeConfig = [
@@ -469,16 +470,19 @@ class TemplatesSync {
                     // To ensure unique take the internalId from the Location property on diskData as this is the fully qualified path
                     internalId: diskData.Location,
                     // StorageVolumeType code eg 'scvmm-dynamicallyexpanding-vhd'
-                    storageType: getStorageVolumeType("scvmm-${diskData?.VHDType}-${diskData?.VHDFormat}".toLowerCase()).getId()
+                    storageType: getStorageVolumeType("scvmm-${diskData?.VHDType}-${diskData?.VHDFormat}".toLowerCase()).getId(),
+                    displayOrder: volumes?.size()
             ]
             if (datastore)
                 volumeConfig.datastoreId = "${datastore.id}"
             def storageVolume = buildStorageVolume(cloud.account, addLocation, volumeConfig)
-            def createdStorageVolume = context.async.storageVolume.create([storageVolume], addLocation).blockingGet()
+            // def createdStorageVolume = context.async.storageVolume.create([storageVolume], addLocation).blockingGet()
             maxStorage += storageVolume.maxStorage ?: 0l
             diskNumber++
+            volumes << storageVolume
             log.debug("added volume: ${storageVolume?.dump()}")
         }
+        context.async.storageVolume.create(volumes, addLocation).blockingGet()
     }
 
     def updateMatchedStorageVolumes(updateItems, addLocation, maxStorage, changes) {
@@ -553,6 +557,7 @@ class TemplatesSync {
                 .withFilter('code', 'standard'))
         storageVolume.type = storageType
 
+        storageVolume.maxStorage = volume?.size?.toLong() ?: volume.maxStorage?.toLong()
         storageVolume.rootVolume = volume.rootVolume == true
         if (volume.datastoreId) {
             storageVolume.datastoreOption = volume.datastoreId

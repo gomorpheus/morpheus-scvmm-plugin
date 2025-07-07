@@ -1338,45 +1338,44 @@ foreach (\$network in \$networks) {
         return rtn
     }
 
-    def resizeDisk(opts, diskId, diskSizeBytes) {
+    def resizeDisk(opts, String diskId, Long diskSizeBytes) {
         log.info("resizeDisk - ${diskId} ${diskSizeBytes}")
-        String templateCmd = '''
-		$vmId = "<%vmid%>"
-		$diskId = "<%diskid%>"
-		$newSize = <%sizegb%>
+        String templateCmd = """\$vmId = "<%vmid%>"
+		\$diskId = "<%diskid%>"
+		\$newSize = <%sizegb%>
 		#No replacement code after here
-		$report = [PSCustomObject]@{success=$true;jobId=$null;errOut=$null}
-		$VM = Get-SCVirtualMachine -VMMServer localhost -ID $vmID
-		$vDisk = Get-SCVirtualDiskDrive -VM $VM | Where-Object  {$_.VirtualHardDiskId -eq $diskId}
-		if ($vDisk) {
+		\$report = [PSCustomObject]@{success=\$true;jobId=\$null;errOut=\$null}
+		\$VM = Get-SCVirtualMachine -VMMServer localhost -ID \$vmID
+		\$vDisk = Get-SCVirtualDiskDrive -VM \$VM | Where-Object  {\$_.VirtualHardDiskId -eq \$diskId}
+		if (\$vDisk) {
 			#Check format - can it be expanded
-			$vhd = $vDisk.VirtualHardDisk
-			if ($vhd.ParentDisk) {
-				$report.success = $false
-				$report.errOut="Cannot Resize a Differencing Disk or a Disk with Checkpoints"
+			\$vhd = \$vDisk.VirtualHardDisk
+			if (\$vhd.ParentDisk) {
+				\$report.success = \$false
+				\$report.errOut="Cannot Resize a Differencing Disk or a Disk with Checkpoints"
 			} else {
-				$expandParams=@{
-					RunAsynchronously=$true;
-					VirtualDiskDrive=$vDisk;
-					VirtualHardDiskSizeGB=$newSize;
+				\$expandParams=@{
+					RunAsynchronously=\$true;
+					VirtualDiskDrive=\$vDisk;
+					VirtualHardDiskSizeGB=\$newSize;
 					JobVariable="expandJob"
 					ErrorAction="Stop"
 				}
 				try {
-					$expandedDisk = Expand-SCVirtualDiskDrive @expandParams
-					$report.jobId = $expandJob.ID
+					\$expandedDisk = Expand-SCVirtualDiskDrive @expandParams
+					\$report.jobId = \$expandJob.ID
 				}
 				catch {
-					$report.success = $false
-					$report.errout = "Expand-SCVirtualDiskDrive raised exception: {0}" -f $_.Exception.Message
+					\$report.success = \$false
+					\$report.errout = "Expand-SCVirtualDiskDrive raised exception: {0}" -f \$_.Exception.Message
 				}
 			}
 		} else {
-			$report.success = $false
-			$report.errOut = "Cannot locate VirtualHardDisk ID {0}" -f $diskId
+			\$report.success = \$false
+			\$report.errOut = "Cannot locate VirtualHardDisk ID {0}" -f \$diskId
 		}
-		$report 
-		'''
+		\$report 
+		"""
         String resizeCmd = templateCmd.stripIndent().trim()
                 .replace("<%vmid%>",opts.externalId)
                 .replace("<%diskid%>",diskId ?: "")

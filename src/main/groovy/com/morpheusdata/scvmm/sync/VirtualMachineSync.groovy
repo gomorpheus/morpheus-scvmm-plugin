@@ -118,7 +118,7 @@ class VirtualMachineSync {
                 def osType = context.services.osType.find(new DataQuery().withFilter('code', osTypeCodeStr))
                 if (osType) {
                     add.serverOs = osType
-                    add.osType = add.serverOs?.platform?.toLowerCase()
+                    add.osType = add.serverOs?.platform?.toString()?.toLowerCase()
                     add.platform = osType?.platform
                 }
                 add.sshHost = add.internalIp ?: add.externalIp
