@@ -519,11 +519,8 @@ class ScvmmCloudProvider implements CloudProvider {
 			ComputeServer newServer
 			def opts = apiService.getScvmmInitializationOpts(cloud)
 			def serverInfo = apiService.getScvmmServerInfo(opts)
-			def versionCode
-			def osVersion = serverInfo.osName
-			// Extract version number (2019, 2022, etc.) from OS version string
-			def versionMatch = osVersion =~ /\b(20\d{2})\b/
-			versionCode = versionMatch.find() ? versionMatch.group(1) : "2012"
+			String versionCode
+			versionCode = apiService.extractWindowsServerVersion(serverInfo.osName)
 			if(serverInfo.success == true && serverInfo.hostname) {
 				newServer = context.services.computeServer.find(new DataQuery().withFilters(
 					new DataFilter('zone.id', cloud.id),
