@@ -557,9 +557,9 @@ class ScvmmCloudProvider implements CloudProvider {
 			def maxStorage = serverInfo?.disks?.toLong() ?:0
 			def maxMemory = serverInfo?.memory?.toLong() ?:0
 			def maxCores = 1
-			newServer.serverOs = context.async.osType.find(new DataQuery().withFilter('code', 'windows.server.${versionCode}')).blockingGet()
+			newServer.serverOs = context.async.osType.find(new DataQuery().withFilter('code', "windows.server.${versionCode}")).blockingGet()
 			newServer.platform = 'windows'
-			newServer.platformVersion = ${versionCode}
+			newServer.platformVersion = versionCode
 			newServer.statusDate = new Date()
 			newServer.status = 'provisioning'
 			newServer.powerState = 'on'
