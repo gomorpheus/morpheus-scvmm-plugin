@@ -519,6 +519,7 @@ class ScvmmCloudProvider implements CloudProvider {
 			ComputeServer newServer
 			def opts = apiService.getScvmmInitializationOpts(cloud)
 			def serverInfo = apiService.getScvmmServerInfo(opts)
+			def versionCode
 			if(serverInfo.success == true && serverInfo.hostname) {
 				newServer = context.services.computeServer.find(new DataQuery().withFilters(
 					new DataFilter('zone.id', cloud.id),
@@ -532,7 +533,12 @@ class ScvmmCloudProvider implements CloudProvider {
 					newServer.account = cloud.account
 					newServer.cloud = cloud
 					newServer.computeServerType = context.async.cloud.findComputeServerTypeByCode("scvmmController").blockingGet()
-					newServer.serverOs = new OsType(code: 'windows.server.2012')
+					def osVersion = serverInfo.osName
+					// Extract version number (2019, 2022, etc.) from OS version string
+					def versionMatch = osVersion =~ /\b(20\d{2})\b/
+					versionCode = versionMatch.find() ? versionMatch.group(1) : "2012"
+					// Create proper OS code format
+					newServer.serverOs = new OsType(code: "windows.server.${versionCode}")
 					newServer.name = serverInfo.hostname
 					newServer = context.services.computeServer.create(newServer)
 				}
@@ -551,9 +557,9 @@ class ScvmmCloudProvider implements CloudProvider {
 			def maxStorage = serverInfo?.disks?.toLong() ?:0
 			def maxMemory = serverInfo?.memory?.toLong() ?:0
 			def maxCores = 1
-			newServer.serverOs = context.async.osType.find(new DataQuery().withFilter('code', 'windows.server.2012')).blockingGet()
+			newServer.serverOs = context.async.osType.find(new DataQuery().withFilter('code', 'windows.server.${versionCode}')).blockingGet()
 			newServer.platform = 'windows'
-			newServer.platformVersion = '2012'
+			newServer.platformVersion = ${versionCode}
 			newServer.statusDate = new Date()
 			newServer.status = 'provisioning'
 			newServer.powerState = 'on'
