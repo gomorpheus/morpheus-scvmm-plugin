@@ -528,7 +528,11 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
     @Override
     ServiceResponse<ProvisionResponse> runWorkload(Workload workload, WorkloadRequest workloadRequest, Map opts) {
         log.debug "runWorkload: ${workload} ${workloadRequest} ${opts}"
-        ProvisionResponse provisionResponse = new ProvisionResponse(success: true)
+		ProvisionResponse provisionResponse = new ProvisionResponse(
+				success: true,
+				installAgent: !opts?.noAgent,
+				noAgent: opts?.noAgent
+		)
         def server = workload.server
         def containerId = workload?.id
         Cloud cloud = server.cloud
