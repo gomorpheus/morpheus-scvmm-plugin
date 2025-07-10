@@ -267,12 +267,12 @@ class ScvmmCloudProvider implements CloudProvider {
 				fieldCode: 'gomorpheus.label.installAgent',
 				fieldLabel: 'Install Agent',
 				fieldGroup: 'Advanced',
-				displayOrder: displayOrder += 10,
+				displayOrder: 999,
 				required: false,
 				enabled: true,
 				editable: false,
 				global: false,
-				custom: false,
+				custom: true,
 		)
 		return options
 	}
