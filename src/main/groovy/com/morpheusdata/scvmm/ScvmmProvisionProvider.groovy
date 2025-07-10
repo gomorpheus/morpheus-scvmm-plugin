@@ -225,7 +225,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			name: 'virtual image type',
 			category:'provisionType.scvmm.custom',
 			code: 'provisionType.scvmm.custom.containerType.virtualImageType',
-			fieldContext: 'config',
+			fieldContext: null,
 			fieldName: 'virtualImageSelect',
 			fieldCode: null,
 			fieldLabel: null,
@@ -248,9 +248,10 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			fieldName: 'virtualImage.id',
 			fieldCode: 'gomorpheus.optiontype.VirtualImage',
 			fieldLabel: 'Virtual Image',
-			fieldContext: 'config',
+			fieldContext: 'domain',
 			fieldGroup: null,
-			required: true,
+			noSelection: 'Select',
+			required: false,
 			enabled: true,
 			editable: true,
 			global: false,
@@ -260,8 +261,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			custom: false,
 			displayOrder: 12,
 			fieldClass: null,
-			visibleOnCode: 'config.virtualImageSelect:vi',
-			noSelection: 'Select',
+			visibleOnCode: 'virtualImageSelect:vi',
 		)
 
 		nodeOptions << new OptionType(
@@ -280,7 +280,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			editable: true,
 			noSelection: 'Select',
 			optionSource: 'osTypes',
-			visibleOnCode: 'config.virtualImageSelect:os'
+			visibleOnCode: 'virtualImageSelect:os'
 		)
 
 		nodeOptions << new OptionType(
