@@ -370,12 +370,22 @@ if(\$vm) {
         return rtn
     }
 
+    def extractWindowsServerVersion(String osName) {
+        // Extract version number (2019, 2022, etc.) from OS version string
+        def versionMatch = osName =~ /\b(20\d{2})\b/
+        return versionMatch.find() ? versionMatch.group(1) : "2012"
+    }
+
     def getScvmmServerInfo(opts) {
         def rtn = [success: false]
         def command = 'hostname'
         def out = executeCommand(command, opts)
         log.debug("out: ${out.data}")
         rtn.hostname = cleanData(out.data)
+        command = '(Get-ComputerInfo).OsName'
+        out = executeCommand(command, opts)
+        log.debug("out: ${out.data}")
+        rtn.osName = cleanData(out.data)
         command = 'wmic computersystem get TotalPhysicalMemory'
         out = executeCommand(command, opts)
         log.debug("out: ${out.data}")

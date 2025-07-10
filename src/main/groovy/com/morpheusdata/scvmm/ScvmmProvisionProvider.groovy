@@ -63,6 +63,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 def opts = apiService.getScvmmZoneOpts(context, cloud)
                 opts += apiService.getScvmmControllerOpts(cloud, server)
                 def serverInfo = apiService.getScvmmServerInfo(opts)
+				String versionCode
+				versionCode = apiService.extractWindowsServerVersion(serverInfo.osName)
                 log.debug("serverInfo: ${serverInfo}")
                 if (serverInfo.success == true && serverInfo.hostname) {
                     server.hostname = serverInfo.hostname
@@ -71,7 +73,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 def maxMemory = serverInfo?.memory ? serverInfo?.memory.toLong() : 0
                 def maxCores = 1
 
-                rtn.data.serverOs = new OsType(code: 'windows.server.2012')
+				// Create proper OS code format
+				rtn.data.serverOs = new OsType(code: "windows.server.${versionCode}")
                 rtn.data.commType = 'winrm' //ssh, minrm
                 rtn.data.maxMemory = maxMemory
                 rtn.data.maxCores = maxCores
@@ -525,7 +528,11 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
     @Override
     ServiceResponse<ProvisionResponse> runWorkload(Workload workload, WorkloadRequest workloadRequest, Map opts) {
         log.debug "runWorkload: ${workload} ${workloadRequest} ${opts}"
-        ProvisionResponse provisionResponse = new ProvisionResponse(success: true)
+		ProvisionResponse provisionResponse = new ProvisionResponse(
+				success: true,
+				installAgent: !opts?.noAgent,
+				noAgent: opts?.noAgent
+		)
         def server = workload.server
         def containerId = workload?.id
         Cloud cloud = server.cloud
