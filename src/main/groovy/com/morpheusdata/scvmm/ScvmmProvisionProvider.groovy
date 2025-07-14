@@ -225,7 +225,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			name: 'virtual image type',
 			category:'provisionType.scvmm.custom',
 			code: 'provisionType.scvmm.custom.containerType.virtualImageType',
-			fieldContext: null,
+			fieldContext: 'domain',
 			fieldName: 'virtualImageSelect',
 			fieldCode: null,
 			fieldLabel: null,
@@ -2088,7 +2088,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                         //existing disk - resize it
                         if (updateProps.maxStorage > existing.maxStorage) {
                             def volumeId = existing.externalId
-							def diskSize = ComputeUtility.parseGigabytesToBytes(updateProps.size?.toLong())
+			    def diskSize = ComputeUtility.parseGigabytesToBytes(updateProps.size?.toLong())
                             def resizeResults = apiService.resizeDisk(scvmmOpts, volumeId, diskSize)
                             if (resizeResults.success == true) {
                                 def existingVolume = context.services.storageVolume.get(existing.id)
