@@ -1478,7 +1478,7 @@ foreach (\$network in \$networks) {
 		}
 		$Report
 		'''
-        String addDiskCmd = templateCmd.stripIndent().trim()
+        def addDiskCmd = templateCmd.stripIndent().trim()
                 .replace("<%vmid%>",opts.externalId ?: "")
                 .replace("<%vhdname%>",diskSpec.vhdName ?: "data-${UUID.randomUUID().toString()}")
                 .replace("<%sizemb%>",diskSpec.sizeMb.toString())

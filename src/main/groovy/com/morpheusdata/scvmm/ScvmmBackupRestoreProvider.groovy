@@ -43,7 +43,7 @@ class ScvmmBackupRestoreProvider implements BackupRestoreProvider {
 	 */
 	@Override
 	ServiceResponse configureRestoreBackup(BackupResult backupResult, Map config, Map opts) {
-		return ServiceResponse.success()
+		return ServiceResponse.success(config)
 	}
 
 	/**
@@ -57,7 +57,7 @@ class ScvmmBackupRestoreProvider implements BackupRestoreProvider {
 	 */
 	@Override
 	ServiceResponse getBackupRestoreInstanceConfig(BackupResult backupResult, Instance instanceModel, Map restoreConfig, Map opts) {
-		return ServiceResponse.success()
+		return ServiceResponse.success(restoreConfig)
 	}
 
 	/**
@@ -161,6 +161,6 @@ class ScvmmBackupRestoreProvider implements BackupRestoreProvider {
 	 */
 	@Override
 	ServiceResponse refreshBackupRestoreResult(BackupRestore backupRestore, BackupResult backupResult) {
-		return ServiceResponse.success()
+		return ServiceResponse.success(backupRestore)
 	}
 }

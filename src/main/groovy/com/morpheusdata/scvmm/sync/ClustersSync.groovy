@@ -62,7 +62,7 @@ class ClustersSync {
                     chooseOwnerPoolDefaults(cloud.owner)
                 }
             } else {
-                log.error("Error not getting the listClusters")
+                log.info("Not getting the listClusters")
             }
         } catch (e) {
             log.error("ClustersSync error: ${e}", e)

@@ -225,7 +225,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			name: 'virtual image type',
 			category:'provisionType.scvmm.custom',
 			code: 'provisionType.scvmm.custom.containerType.virtualImageType',
-			fieldContext: 'config',
+			fieldContext: 'domain',
 			fieldName: 'virtualImageSelect',
 			fieldCode: null,
 			fieldLabel: null,
@@ -248,9 +248,10 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			fieldName: 'virtualImage.id',
 			fieldCode: 'gomorpheus.optiontype.VirtualImage',
 			fieldLabel: 'Virtual Image',
-			fieldContext: 'config',
+			fieldContext: 'domain',
 			fieldGroup: null,
-			required: true,
+			noSelection: 'Select',
+			required: false,
 			enabled: true,
 			editable: true,
 			global: false,
@@ -260,8 +261,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			custom: false,
 			displayOrder: 12,
 			fieldClass: null,
-			visibleOnCode: 'config.virtualImageSelect:vi',
-			noSelection: 'Select',
+			visibleOnCode: 'virtualImageSelect:vi',
 		)
 
 		nodeOptions << new OptionType(
@@ -280,7 +280,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			editable: true,
 			noSelection: 'Select',
 			optionSource: 'osTypes',
-			visibleOnCode: 'config.virtualImageSelect:os'
+			visibleOnCode: 'virtualImageSelect:os'
 		)
 
 		nodeOptions << new OptionType(
@@ -2072,6 +2072,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                             workload.setConfigProperty('maxCores', (requestedCores ?: 1))
                             workload.maxCores = (requestedCores ?: 1).toLong()
                             workload = context.services.workload.save(workload)
+							workload.server = computeServer
                         }
                     } else {
                         rtn.error = resizeResults.error ?: 'Failed to resize container'
@@ -2087,7 +2088,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                         //existing disk - resize it
                         if (updateProps.maxStorage > existing.maxStorage) {
                             def volumeId = existing.externalId
-                            def diskSize = ComputeUtility.parseGigabytesToBytes(updateProps.volume.size?.toLong())
+			    def diskSize = ComputeUtility.parseGigabytesToBytes(updateProps.size?.toLong())
                             def resizeResults = apiService.resizeDisk(scvmmOpts, volumeId, diskSize)
                             if (resizeResults.success == true) {
                                 def existingVolume = context.services.storageVolume.get(existing.id)
@@ -2195,13 +2196,13 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 resizeRequest.volumesUpdate?.each { volumeUpdate ->
                     if (volumeUpdate.existingModel) {
                         //existing disk - resize it
-						def volumeCode = volumeUpdate.existing.type?.code ?: "standard"
+						def volumeCode = volumeUpdate.existingModel.type?.code ?: "standard"
                         if (volumeUpdate.updateProps.maxStorage > volumeUpdate.existingModel.maxStorage) {
 							if (volumeCode.contains("differencing")) {
 								log.warn("getResizeConfig - Resize is not supported on Differencing Disks  - volume type ${volumeCode}")
 								rtn.allowed = false
 							} else {
-								log.info("getResizeConfig - volumeCode: ${volumeCode}. Volume Resize requested. Current: ${volumeUpdate.existing.maxStorage} - requested : ${volumeUpdate.volume.maxStorage}")
+								log.info("getResizeConfig - volumeCode: ${volumeCode}. Volume Resize requested. Current: ${volumeUpdate.existingModel.maxStorage} - requested : ${volumeUpdate.updateProps.maxStorage}")
 								rtn.allowed = true
 							}
                             if (volumeUpdate.existingModel.rootVolume) {
