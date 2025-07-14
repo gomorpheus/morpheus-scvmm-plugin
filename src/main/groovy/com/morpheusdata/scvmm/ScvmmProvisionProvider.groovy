@@ -2181,7 +2181,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
         ]
         try {
             // Memory and core changes
-            rtn.requestedMemory = resizeRequest.maxStorage
+            rtn.requestedMemory = resizeRequest.maxMemory
             rtn.requestedCores = resizeRequest?.maxCores
             def currentMemory = server?.maxMemory ?: workload?.server?.maxMemory ?: workload?.maxMemory ?: workload?.getConfigProperty('maxMemory')?.toLong()
             def currentCores = server?.maxCores ?: workload?.maxCores ?: 1
