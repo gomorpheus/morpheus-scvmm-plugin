@@ -569,8 +569,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
             def maxMemory = workload.maxMemory ?: workload.instance.plan.maxMemory
             setDynamicMemory(scvmmOpts, workload.instance.plan)
             try {
-                if (containerConfig.cloneContainerId) {
-                    Workload cloneContainer = context.services.workload.get(containerConfig.cloneContainerId.toLong())
+                if (opts.cloneContainerId) {
+                    Workload cloneContainer = context.services.workload.get(opts.cloneContainerId.toLong())
                     cloneContainer.server.volumes?.eachWithIndex { vol, i ->
                         server.volumes[i].datastore = vol.datastore
                         context.services.storageVolume.save(server.volumes[i])
@@ -729,8 +729,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                     opts.unattendCustomized = initOptions.unattendCustomized
                 }
                 // If cloning.. gotta stop it first
-                if (containerConfig.cloneContainerId) {
-                    Workload cloneContainer = context.services.workload.get(containerConfig.cloneContainerId.toLong())
+                if (opts.cloneContainerId) {
+                    Workload cloneContainer = context.services.workload.get(opts.cloneContainerId.toLong())
                     scvmmOpts.cloneContainerId = cloneContainer.id
                     scvmmOpts.cloneVMId = cloneContainer.server.externalId
                     if (cloneContainer.status == Workload.Status.running) {
@@ -783,7 +783,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                         // Restart the VM being cloned
                         if (scvmmOpts.startClonedVM) {
                             log.debug "Handling startup of the original VM"
-                            Workload cloneContainer = context.services.workload.get(containerConfig.cloneContainerId?.toLong())
+                            Workload cloneContainer = context.services.workload.get(opts.cloneContainerId?.toLong())
                             if (cloneContainer && cloneContainer.status != Workload.Status.running.toString()) {
                                 log.debug "stopping/starting original VM: ${scvmmOpts.cloneVMId}"
                                 apiService.startServer([async: true] + scvmmOpts.cloneBaseOpts.clonedScvmmOpts, scvmmOpts.cloneVMId)

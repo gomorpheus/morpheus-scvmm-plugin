@@ -2388,7 +2388,7 @@ For (\$i=0; \$i -le 10; \$i++) {
             commands << "\$ignore = If (-not ([string]::IsNullOrEmpty(\$template.RecoveryPointObjective))) { Set-SCHardwareProfile -HardwareProfile \$HardwareProfile -RecoveryPointObjective \$template.RecoveryPointObjective}"
             commands << "\$ignore = If (-not ([string]::IsNullOrEmpty(\$template.ProtectionProvider))) { Set-SCHardwareProfile -HardwareProfile \$HardwareProfile -ProtectionProvider \$template.ProtectionProvider}"
             commands << "\$ignore = If (-not ([string]::IsNullOrEmpty(\$template.BootOrder))) { Set-SCHardwareProfile -HardwareProfile \$HardwareProfile -BootOrder \$template.BootOrder}"
-            commands << "\$ignore = If (-not ([string]::IsNullOrEmpty(\$template.FirstBootDevice))) { Set-SCHardwareProfile -HardwareProfile \$HardwareProfile -FirstBootDevice \$template.FirstBootDevice}"
+            commands << "\$ignore = If (-not ([string]::IsNullOrEmpty(\$template.FirstBootDevice)) -and @('CD','PXE','SCSI') -contains \$template.FirstBootDevice) { Set-SCHardwareProfile -HardwareProfile \$HardwareProfile -FirstBootDevice \$template.FirstBootDevice; Write-Output \"FirstBootDevice set successfully to: \$(\$template.FirstBootDevice)\" }"
             commands << "\$ignore = If (-not ([string]::IsNullOrEmpty(\$template.SecureBootTemplate))) { Set-SCHardwareProfile -HardwareProfile \$HardwareProfile -SecureBootTemplate \$template.SecureBootTemplate}"
             commands << "\$ignore = If (-not ([string]::IsNullOrEmpty(\$template.CPUType))) { Set-SCHardwareProfile -HardwareProfile \$HardwareProfile -CPUType \$template.CPUType}"
             commands << "if( \$NumaIsolationRequired -eq \$True) {"
