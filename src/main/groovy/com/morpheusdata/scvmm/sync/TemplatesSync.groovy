@@ -411,7 +411,11 @@ class TemplatesSync {
                 def addLocation = new VirtualImageLocation(locationConfig)
                 add.imageLocations = [addLocation]
                 context.async.virtualImage.create([add], cloud).blockingGet()
-                def saved = syncVolumes(addLocation, it.Disks)
+                def savedLocation = context.async.virtualImage.location.find(new DataQuery()
+                        .withFilter('code', addLocation.code)
+                        .withFilter('refType', locationConfig.refType)
+                        .withFilter('refId', locationConfig.refId)).blockingGet()
+                def saved = syncVolumes(savedLocation, it.Disks)
                 if (saved) {
                     context.async.virtualImage.save([add], cloud).blockingGet()
                 }
@@ -456,7 +460,7 @@ class TemplatesSync {
     def addMissingStorageVolumes(itemsToAdd, VirtualImageLocation addLocation, int diskNumber, maxStorage, changes) {
         def provisionProvider = cloudProvider.getProvisionProvider('morpheus-scvmm-plugin.provision')
         List<StorageVolume> volumes = []
-        itemsToAdd?.eachWithIndex { diskData, index ->
+        itemsToAdd?.each { diskData ->
             log.debug("adding new volume: ${diskData}")
             def datastore = diskData.datastore ?: loadDatastoreForVolume(diskData.HostVolumeId, diskData.FileShareId, diskData.PartitionUniqueId) ?: null
             def volumeConfig = [
