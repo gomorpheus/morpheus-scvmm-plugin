@@ -25,10 +25,10 @@ plugins {
 	id 'idea'
 	id 'com.github.johnrengelman.shadow' version '8.1.1'
 	id 'com.bertramlabs.asset-pipeline' version "$assetPipelineVersion"
-	id 'com.morpheusdata.morpheus-plugin-gradle'
 	id 'com.jfrog.artifactory' version "5.+"
 }
 
+apply plugin: 'com.morpheusdata.morpheus-plugin-gradle'
 group = 'com.morpheusdata.scvmm'
 ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
 
