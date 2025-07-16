@@ -1,0 +1,104 @@
+# Copyright 2025 Hewlett Packard Enterprise Development LP
+
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  # Only allows one build per each workflow & branch/PR/tag.
+  # https://docs.github.com/en/actions/using-jobs/using-concurrency
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+#  copyright-check:
+#    if: github.ref != 'refs/heads/main'
+#    uses: hpe-actions/copyright/.github/workflows/copyright.yml@v2
+
+#  secrets-scanner:
+#    uses: hpe-actions/secrets-scanner/.github/workflows/secrets-scanner.yml@v2.0.2
+#    with:
+#      config_override: ".gitleaks.toml"
+
+  build:
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
+#    environment:
+#      name: github-pages
+#      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: write
+      packages: read
+      statuses: write
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@v4
+
+#      - name: Run tests and generate coverage report
+#        run: ./gradlew test
+
+#      - name: Run quality checks
+#        run: ./gradlew check
+
+      - name: Build and assemble the project artifacts
+        run: ./gradlew build
+
+#      - name: Run functional tests on simulated environment
+#        run: ./gradlew functionalTest --tests runners.CucumberTestSuite
+
+#      - name: Create test reports index page
+#        run: |
+#          echo '<html><body>
+#            <h1>Reports</h1>
+#            <ul>
+#              <li><a href="tests/test">Test Results</a></li>
+#              <li><a href="tests/cucumberFunctionalTest">Functional Test Results</a></li>
+#              <li><a href="jacoco/test/html">Coverage Report</a></li>
+#              <li><a href="codenarc/main.html">Main CodeNarc Report</a></li>
+#            </ul>
+#          </body></html>' > build/reports/index.html
+
+#      - name: Upload test reports as artifact
+#        uses: actions/upload-pages-artifact@v3
+#        with:
+#          path: build/reports
+
+#      - name: Deploy test reports to GitHub Pages
+#        id: deployment
+#        uses: actions/deploy-pages@v4
+
+#      - name: Verify minimum test coverage
+#        run: ./gradlew jacocoTestCoverageVerification
+
+
+  publish-to-artifactory:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      - name: Build with Gradle
+        run: ./gradlew artifactoryPublish
+        env:
+          ARTIFACTORY_USER: 'ci-token-morpheus'
+          # Secret defined at https://github.com/gomorpheus/morpheus-scvmm-plugin/settings/secrets/actions
+          ARTIFACTORY_PASSWORD: ${{ secrets.CI_TOKEN_MORPHEUS }}

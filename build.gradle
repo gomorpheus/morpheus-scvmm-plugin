@@ -1,3 +1,7 @@
+import org.gradle.api.publish.maven.MavenPublication
+
+// (C) Copyright 2025 Hewlett Packard Enterprise Development LP
+
 buildscript {
     repositories {
         mavenLocal()
@@ -78,6 +82,18 @@ sourceSets {
 	}
 }
 
+final gitCommitId = providers.exec {
+	commandLine('git', 'rev-parse', 'HEAD')
+}.standardOutput.asText.get()
+
+final gitBranchName = providers.exec {
+	commandLine('git', 'rev-parse', '--abbrev-ref', 'HEAD')
+}.standardOutput.asText.get()
+
+def getEnvOrProperty(final String envVar, final String propertyKey) {
+	return System.getenv(envVar) ?: project.findProperty(propertyKey)
+}
+
 //Set plugin metadata information here that gets written into the jar
 jar {
 	manifest {
@@ -114,3 +130,49 @@ test {
 	}
 }
 tasks.assemble.dependsOn tasks.shadowJar
+
+
+artifactory {
+	publish {
+		// Define the Artifactory URL for publishing artifacts
+		contextUrl = 'https://hpeartifacts.jfrog.io/artifactory'
+		// Define the project repository to which the artifacts will be published
+		repository {
+			// Set the Artifactory repository key
+			repoKey = 'morpheus-plugins'
+			// Specify the publisher username
+			username = getEnvOrProperty('ARTIFACTORY_USER', 'artifactory_user')
+			// Provide the publisher password
+			password = getEnvOrProperty('ARTIFACTORY_PASSWORD', 'artifactory_password')
+		}
+
+		// Include all configured publications for all the modules
+		defaults {
+			publications('mavenJava')
+			publishArtifacts = true
+			properties = [
+					'commit_id': gitCommitId,
+					'branch'   : gitBranchName,
+			]
+			publishPom = true
+			//
+			// TODO - Enable once permissions to deploy to
+			//        artifactory-build-info is granted by DevOps.
+			publishBuildInfo = false
+		}
+
+		artifacts {
+			archives shadowJar
+		}
+	}
+}
+
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			artifact(shadowJar.archiveFile) {
+				classifier = 'all'
+			}
+		}
+	}
+}
