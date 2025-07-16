@@ -26,6 +26,7 @@ apply plugin: 'idea'
 apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: 'asset-pipeline'
 apply plugin: 'com.morpheusdata.morpheus-plugin-gradle'
+apply plugin: 'com.jfrog.artifactory'
 
 
 group = 'com.morpheusdata.scvmm'
