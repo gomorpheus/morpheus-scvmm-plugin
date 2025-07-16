@@ -19,15 +19,15 @@ buildscript {
     }
 }
 
-
-apply plugin: 'java'
-apply plugin: 'groovy'
-apply plugin: 'idea'
-apply plugin: 'com.github.johnrengelman.shadow'
-apply plugin: 'asset-pipeline'
-apply plugin: 'com.morpheusdata.morpheus-plugin-gradle'
-apply plugin: 'com.jfrog.artifactory'
-
+plugins {
+	id 'java'
+	id 'groovy'
+	id 'idea'
+	id 'com.github.johnrengelman.shadow' version '8.1.1'
+	id 'asset-pipeline'
+	id 'com.morpheusdata.morpheus-plugin-gradle'
+	id 'com.jfrog.artifactory' version "5.+"
+}
 
 group = 'com.morpheusdata.scvmm'
 ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
