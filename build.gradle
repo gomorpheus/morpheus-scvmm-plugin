@@ -30,7 +30,7 @@ plugins {
 }
 
 apply plugin: 'com.morpheusdata.morpheus-plugin-gradle'
-group = 'com.morpheusdata.scvmm'
+group = 'com.hpe.scvmm'
 ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
 
 java {
