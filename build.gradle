@@ -24,7 +24,7 @@ plugins {
 	id 'groovy'
 	id 'idea'
 	id 'com.github.johnrengelman.shadow' version '8.1.1'
-	id 'asset-pipeline'
+	id 'com.bertramlabs.asset-pipeline' version "$assetPipelineVersion"
 	id 'com.morpheusdata.morpheus-plugin-gradle'
 	id 'com.jfrog.artifactory' version "5.+"
 }
