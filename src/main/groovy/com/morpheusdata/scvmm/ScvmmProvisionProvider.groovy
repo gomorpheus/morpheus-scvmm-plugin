@@ -74,7 +74,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 def maxCores = 1
 
 				// Create proper OS code format
-				rtn.data.serverOs = new OsType(code: "windows.server.${versionCode}")
+				rtn.data.serverOs = new OsType(code: versionCode)
                 rtn.data.commType = 'winrm' //ssh, minrm
                 rtn.data.maxMemory = maxMemory
                 rtn.data.maxCores = maxCores

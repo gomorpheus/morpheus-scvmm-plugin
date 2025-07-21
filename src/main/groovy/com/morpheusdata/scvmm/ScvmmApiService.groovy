@@ -371,9 +371,30 @@ if(\$vm) {
     }
 
     def extractWindowsServerVersion(String osName) {
-        // Extract version number (2019, 2022, etc.) from OS version string
-        def versionMatch = osName =~ /\b(20\d{2})\b/
-        return versionMatch.find() ? versionMatch.group(1) : "2012"
+        // Static map for Windows Server 2022 variants
+        def server2022Map = [
+                'standard core'     : '2022.std.core',
+                'standard desktop'  : '2022.std.desktop',
+                'datacenter core'   : '2022.dc.core',
+                'datacenter desktop': '2022.dc.desktop',
+                'standard'          : '2022.std.core',
+                'datacenter'        : '2022.dc.core',
+        ]
+        // Normalize input
+        def lowerName = osName.toLowerCase()
+
+        // Check for 2022 and match variant
+        if (lowerName.contains('2022')) {
+            def matched = server2022Map.find { variant, code ->
+                lowerName.contains(variant)
+            }
+            return matched ? "windows.server.${matched.value}" : "windows.server.2022"
+        }
+
+        // Fallback: extract year and return as-is
+        def versionMatch = osName =~ /\b(20\d{2}|2008|2003)\b/
+        def version = versionMatch.find() ? versionMatch.group(1) : '2012'
+        return "windows.server.${version}"
     }
 
     def getScvmmServerInfo(opts) {
@@ -2079,6 +2100,10 @@ For (\$i=0; \$i -le 10; \$i++) {
                 'Ubuntu Linux 14.04 (64 bit)'                        : 'ubuntu.14.04.64',
                 'Ubuntu Linux 16.04 (32 bit)'                        : 'ubuntu',
                 'Ubuntu Linux 16.04 (64 bit)'                        : 'ubuntu.64',
+                'Ubuntu Linux 20.04 (32 bit)'                        : 'ubuntu.20.04',
+                'Ubuntu Linux 20.04 (64 bit)'                        : 'ubuntu.20.04.64',
+                'Ubuntu Linux 24.04 (32 bit)'                        : 'ubuntu.24.04',
+                'Ubuntu Linux 24.04 (64 bit)'                        : 'ubuntu.24.04.64',
                 'Windows 10'                                         : 'windows.10',
                 'Windows 2000 Advanced Server'                       : 'windows',
                 'Windows 2000 Server'                                : 'windows',
@@ -2105,6 +2130,11 @@ For (\$i=0; \$i -le 10; \$i++) {
                 'Windows Server 2019 Datacenter'                     : 'windows.server.2019',
                 'Windows Server 2019 Essentials'                     : 'windows.server.2019',
                 'Windows Server 2019 Standard'                       : 'windows.server.2019',
+                'Windows Server 2022 Datacenter'                     : 'windows.server.2022.dc.core',
+                'Windows Server 2022 Standard'                       : 'windows.server.2022.std.core',
+                'Windows Server 2025 Datacenter'                     : 'windows.server.2025',
+                'Windows Server 2025 Essentials'                     : 'windows.server.2025',
+                'Windows Server 2025 Standard'                       : 'windows.server.2025',
                 'Windows Small Business Server 2003'                 : 'windows',
                 'Windows Vista'                                      : 'windows',
                 'Windows Web Server 2008'                            : 'windows.8',
