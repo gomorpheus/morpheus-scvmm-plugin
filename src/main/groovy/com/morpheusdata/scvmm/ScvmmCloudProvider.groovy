@@ -535,7 +535,7 @@ class ScvmmCloudProvider implements CloudProvider {
 					newServer.cloud = cloud
 					newServer.computeServerType = context.async.cloud.findComputeServerTypeByCode("scvmmController").blockingGet()
 					// Create proper OS code format
-					newServer.serverOs = new OsType(code: "windows.server.${versionCode}")
+					newServer.serverOs = new OsType(code: versionCode)
 					newServer.name = serverInfo.hostname
 					newServer = context.services.computeServer.create(newServer)
 				}
@@ -554,9 +554,14 @@ class ScvmmCloudProvider implements CloudProvider {
 			def maxStorage = serverInfo?.disks?.toLong() ?:0
 			def maxMemory = serverInfo?.memory?.toLong() ?:0
 			def maxCores = 1
-			newServer.serverOs = context.async.osType.find(new DataQuery().withFilter('code', "windows.server.${versionCode}")).blockingGet()
+			newServer.serverOs = context.async.osType.find(new DataQuery().withFilter('code', versionCode)).blockingGet()
 			newServer.platform = 'windows'
-			newServer.platformVersion = versionCode
+			def tokens = versionCode.split("\\.")
+			def version = tokens.length > 2 ? tokens[2] : ""
+			if (newServer.serverOs == null) {
+				newServer.serverOs = context.async.osType.find(new DataQuery().withFilter('code', "windows.server.${version}")).blockingGet()
+			}
+			newServer.platformVersion = version
 			newServer.statusDate = new Date()
 			newServer.status = 'provisioning'
 			newServer.powerState = 'on'
@@ -851,7 +856,7 @@ class ScvmmCloudProvider implements CloudProvider {
 
 			def stopResults = apiService.stopServer(scvmmOpts, scvmmOpts.externalId)
 			if(stopResults.success == true) {
-			def deleteResults = apiService.deleteServer(scvmmOpts, scvmmOpts.externalId)
+				def deleteResults = apiService.deleteServer(scvmmOpts, scvmmOpts.externalId)
 				if(deleteResults.success == true) {
 					rtn.success = true
 				}
