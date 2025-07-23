@@ -47,7 +47,7 @@ resource "compute-server-type" "scvmm-linux" {
   containerEngine      = "docker"
   viewSet              = "docker"
   containerMode        = "docker"
-  isEmbedded           = true
+  isEmbedded           = false
   provisionType        = "scvmm"
   computeType          = "docker-host"
   optionTypes = [

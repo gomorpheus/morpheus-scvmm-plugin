@@ -43,6 +43,9 @@ class ScvmmPlugin extends Plugin {
 		List<String> seedsToRun = [
 			"application.ZoneTypesSCVMMSeed",
 			"application.ProvisionTypeScvmmSeed",
+            "application.ScvmmSeed",
+            "application.ComputeServerTypeScvmmSeed",
+            "application.ScvmmComputeTypeSeed",
 		]
 		this.morpheus.services.seed.reinstallSeedData(seedsToRun)
 		// needs to be synchronous to prevent seeds from running during plugin install

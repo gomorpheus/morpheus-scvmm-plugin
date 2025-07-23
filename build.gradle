@@ -134,6 +134,10 @@ test {
 tasks.assemble.dependsOn tasks.shadowJar
 
 
+shadowJar {
+	archiveClassifier.set('all')
+}
+
 artifactory {
 	publish {
 		// Define the Artifactory URL for publishing artifacts
