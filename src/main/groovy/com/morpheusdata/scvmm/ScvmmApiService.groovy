@@ -83,14 +83,30 @@ class ScvmmApiService {
                 def commands = []
                 commands << "\$ignore = Import-SCLibraryPhysicalResource -SourcePath \"$sourcePath\" -SharePath \"$tgtFolder\" -OverwriteExistingFiles -VMMServer localhost"
                 commands << "Get-SCVirtualHardDisk | where {\$_.SharePath -like \"${tgtFolder}\\*\"} | Select ID"
-                out = wrapExecuteCommand(generateCommandString(commands.join(";")), opts)
+                def importRes = wrapExecuteCommand(generateCommandString(commands.join(";")), opts)
+                rtn.imageId = importRes.data?.getAt(0)?.ID
+
+                if (importRes.error != null) {
+                    log.info("Import-SCLibraryPhysicalResource failed for error: ${importRes?.error}. Trying with Copy-Item")
+                    def copyCommands = []
+                    copyCommands << "\$ignore = Copy-Item \"$sourcePath\" \"$tgtFolder\""
+                    copyCommands << "\$ignore = Get-SCLibraryShare -VMMServer localhost | Read-SCLibraryShare"
+                    copyCommands << "Get-SCVirtualHardDisk | where {\$_.SharePath -like \"${tgtFolder}\\*\"} | Select ID"
+                    def copyResult = wrapExecuteCommand(generateCommandString(copyCommands.join(";")), opts)
+                    if (copyResult.error != null) {
+                        log.error("Error in Copy-Item: ${copyResult.error}")
+                        out.success = false
+                    } else {
+                        rtn.imageId = copyResult.data?.getAt(0)?.ID
+                    }
+                }
+
                 if (!out.success) {
                     throw new Exception("Error in importing physical resource")
                 } else {
                     // Delete it from the temp directory
                     deleteImage(opts, imageName)
                 }
-                rtn.imageId = out.data[0].ID
             }
         } else {
             rtn.success = true
