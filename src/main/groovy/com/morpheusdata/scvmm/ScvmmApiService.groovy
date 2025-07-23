@@ -86,9 +86,8 @@ class ScvmmApiService {
                 def importRes = wrapExecuteCommand(generateCommandString(commands.join(";")), opts)
                 rtn.imageId = importRes.data?.getAt(0)?.ID
 
-                if (importRes.error != null && importRes.data == null) {
-                    log.info("Import-SCLibraryPhysicalResource failed for error: ${importRes?.error}")
-                    log.info("....Trying with Copy-Item")
+                if (importRes.error != null) {
+                    log.info("Import-SCLibraryPhysicalResource failed for error: ${importRes?.error}. Trying with Copy-Item")
                     def copyCommands = []
                     copyCommands << "\$ignore = Copy-Item \"$sourcePath\" \"$tgtFolder\""
                     copyCommands << "\$ignore = Get-SCLibraryShare -VMMServer localhost | Read-SCLibraryShare"
@@ -96,8 +95,10 @@ class ScvmmApiService {
                     def copyResult = wrapExecuteCommand(generateCommandString(copyCommands.join(";")), opts)
                     if (copyResult.error != null) {
                         log.error("Error in Copy-Item: ${copyResult.error}")
+                        out.success = false
+                    } else {
+                        rtn.imageId = copyResult.data?.getAt(0)?.ID
                     }
-                    rtn.imageId = copyResult.data?.getAt(0)?.ID
                 }
 
                 if (!out.success) {
