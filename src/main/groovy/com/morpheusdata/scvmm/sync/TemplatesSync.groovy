@@ -383,7 +383,7 @@ class TemplatesSync {
                     imageConfig.minRam = it.Memory.toLong() * ComputeUtility.ONE_MEGABYTE
                 if (it.Location)
                     imageConfig.remotePath = it.Location
-                def osTypeCode = apiService.getMapScvmmOsType(it.OperatingSystem)
+                def osTypeCode = apiService.getMapScvmmOsType(it.OperatingSystem, true, "Other Linux (64 bit)")
                 log.debug "cacheTemplates osTypeCode: ${osTypeCode}"
                 def osType = context.services.osType.find(new DataQuery().withFilter('code', osTypeCode ?: 'other'))
                 log.debug "osType: ${osType}"

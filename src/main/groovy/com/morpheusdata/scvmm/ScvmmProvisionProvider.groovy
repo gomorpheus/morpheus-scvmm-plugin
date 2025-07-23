@@ -1756,13 +1756,13 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 virtualImage = context.services.virtualImage.get(virtualImageId)
                 imageId = virtualImage.externalId
             } else {
-                virtualImage = new VirtualImage(code: 'scvmm.image.morpheus.ubuntu.16.04.3-v1.ubuntu.16.04.3.amd64')
+				virtualImage = new VirtualImage(code: 'scvmm.image.morpheus.ubuntu.22.04.20230918.amd64')
                 //better this later
             }
 
             if (!imageId) { //If its userUploaded and still needs uploaded
                 def cloudFiles = context.async.virtualImage.getVirtualImageFiles(virtualImage).blockingGet()
-                def imageFile = cloudFiles?.find { cloudFile -> cloudFile.name.toLowerCase().endsWith(".vhd") || cloudFile.name.toLowerCase().endsWith(".vhdx") || cloudFile.name.toLowerCase().endsWith(".vmdk") }
+				def imageFile = cloudFiles?.find { cloudFile -> cloudFile.name.toLowerCase().endsWith(".vhd") || cloudFile.name.toLowerCase().endsWith(".vhdx") || cloudFile.name.toLowerCase().endsWith(".vmdk") || cloudFile.name.toLowerCase().endsWith(".vhd.tar.gz") }
 
                 def containerImage = [
                         name          : virtualImage.name,
