@@ -89,10 +89,11 @@ class ScvmmApiService {
                 if (importRes.error != null && importRes.data == null) {
                     log.info("Import-SCLibraryPhysicalResource failed for error: ${importRes?.error}")
                     log.info("....Trying with Copy-Item")
-                    commands << "\$ignore = Copy-Item \"$sourcePath\" \"$tgtFolder\""
-                    commands << "\$ignore = Get-SCLibraryShare -VMMServer localhost | Read-SCLibraryShare"
-                    commands << "Get-SCVirtualHardDisk | where {\$_.SharePath -like \"${tgtFolder}\\*\"} | Select ID"
-                    def copyResult = wrapExecuteCommand(generateCommandString(commands.join(";")), opts)
+                    def copyCommands = []
+                    copyCommands << "\$ignore = Copy-Item \"$sourcePath\" \"$tgtFolder\""
+                    copyCommands << "\$ignore = Get-SCLibraryShare -VMMServer localhost | Read-SCLibraryShare"
+                    copyCommands << "Get-SCVirtualHardDisk | where {\$_.SharePath -like \"${tgtFolder}\\*\"} | Select ID"
+                    def copyResult = wrapExecuteCommand(generateCommandString(copyCommands.join(";")), opts)
                     if (copyResult.error != null) {
                         log.error("Error in Copy-Item: ${copyResult.error}")
                     }
