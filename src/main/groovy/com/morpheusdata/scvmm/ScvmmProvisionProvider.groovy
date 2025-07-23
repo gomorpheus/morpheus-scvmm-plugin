@@ -1762,7 +1762,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 
             if (!imageId) { //If its userUploaded and still needs uploaded
                 def cloudFiles = context.async.virtualImage.getVirtualImageFiles(virtualImage).blockingGet()
-				def imageFile = cloudFiles?.find { cloudFile -> cloudFile.name.toLowerCase().endsWith(".vhd") || cloudFile.name.toLowerCase().endsWith(".vhdx") || cloudFile.name.toLowerCase().endsWith(".vmdk") || cloudFile.name.toLowerCase().endsWith(".vhd.tar.gz") }
+		def imageFile = cloudFiles?.find { cloudFile -> cloudFile.name.toLowerCase().endsWith(".vhd") || cloudFile.name.toLowerCase().endsWith(".vhdx") || cloudFile.name.toLowerCase().endsWith(".vmdk") || cloudFile.name.toLowerCase().endsWith(".vhd.tar.gz") }
 
                 def containerImage = [
                         name          : virtualImage.name,
