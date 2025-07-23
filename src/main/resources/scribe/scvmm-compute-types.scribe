@@ -65,7 +65,7 @@ resource "workload-type" "docker-scvmm-ubuntu-22_04" {
   imageCode        = "morpheus ubuntu 22.04"
   entryPoint       = ""
   mountLogs        = "/var/log"
-  statTypeCode     = "vm"
+  statTypeCode     = "server"
   logTypeCode      = "ubuntu"
   showServerLogs   = "true"
   category         = "ubuntu"
@@ -74,7 +74,9 @@ resource "workload-type" "docker-scvmm-ubuntu-22_04" {
   serverType       = "vm"
   providerType     = "scvmm"
   checkTypeCode    = "vmCheck"
-  virtualImage     = virtual-image.scvmm-image-morpheus-ubuntu-22_04
+  virtualImage     = [
+                       { code = "hyperv.image.morpheus.ubuntu.22.04.20250218.amd64" }
+                       ]
   containerPorts   = ["ubuntu.22"]
   provisionType    = "scvmm"
 }
@@ -96,7 +98,7 @@ resource "compute-type-set" "docker-scvmm-ubuntu-22_04-set" {
 
 resource "compute-type-layout" "docker-scvmm-ubuntu-22_04-single" {
   code              = "docker-scvmm-ubuntu-22.04-single"
-  name              = "SCVMM Docker Host Ubuntu 22.04"
+  name              = "SCVMM Docker Host"
   sortOrder         = 5
   computeVersion    = "22.04"
   description       = "This will provision a single docker host vm in scvmm"

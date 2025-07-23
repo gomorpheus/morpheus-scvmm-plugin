@@ -48,6 +48,8 @@ resource "compute-type-layout" "docker-scvmm-ubuntu-16_04-single" {
   serverCount        = 1
   memoryRequirement  = (1024 * 1024 * 1024)
   hasAutoScale      = true
+  enabled           = false
+  creatable         = false
   groupType          = "docker-cluster"
   computeServers     = [compute-type-set.docker-scvmm-ubuntu-16_04-set]
   provisionType      = "scvmm"
