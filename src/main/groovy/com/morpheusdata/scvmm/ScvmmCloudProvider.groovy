@@ -353,14 +353,6 @@ class ScvmmCloudProvider implements CloudProvider {
 		)
 
 		//scvmm
-		/*
-		computeServerType(meta:[key:'code'], code:'scvmmController', name:'SCVMM Manager', description:'', platform:'windows', nodeType:'morpheus-scvmm-node',
-		enabled:true, selectable:false, externalDelete:false, managed:false, controlPower:false, controlSuspend:false, creatable:false, computeService:'scvmmComputeService',
-		deleteQueue:'computeScvmmDeleteServerQueue',initializeQueue:'computeScvmmInitializeServerQueue', displayOrder:0, hasAutomation:false, isEmbedded: true,
-		hasAgent:true, containerHypervisor:false, bareMetalHost:false, vmHypervisor:true, agentType:'controller', morpheusHypervisor:false,
-		provisionType:[domainClass:'provisionType', meta:[key:'code'], code:'scvmm-hypervisor'])
-		 */
-		//deleteQueue, initializeQueue, isEmbedded, hasAgent, morpheusHypervisor
 		serverTypes << new ComputeServerType(code:'scvmmController', name:'SCVMM Manager', description:'', platform:PlatformType.windows,
 				nodeType:'morpheus-scvmm-node', enabled:true, selectable:false, externalDelete:false, managed:false, controlPower:false,
 				controlSuspend:false, creatable:false, computeService:'scvmmComputeService', displayOrder:0, hasAutomation:false, containerHypervisor:false,
@@ -368,56 +360,23 @@ class ScvmmCloudProvider implements CloudProvider {
 		)
 
 		//vms
-		/*
-		computeServerType(meta:[key:'code'], code:'scvmmHypervisor', name:'SCVMM Hypervisor', description:'', platform:'windows', nodeType:'morpheus-scvmm-node',
-		enabled:true, selectable:false, externalDelete:false, managed:false, controlPower:false, controlSuspend:false, creatable:false, computeService:'scvmmComputeService',
-		deleteQueue:'computeScvmmDeleteServerQueue',initializeQueue:'computeScvmmInitializeServerQueue', displayOrder:0, hasAutomation:false,
-		hasAgent:true, containerHypervisor:false, bareMetalHost:false, vmHypervisor:true, agentType:'node', morpheusHypervisor:false, isEmbedded: true,
-		provisionType:[domainClass:'provisionType', meta:[key:'code'], code:'scvmm-hypervisor'])
-		 */
-		//deleteQueue, initializeQueue, isEmbedded, hasAgent, morpheusHypervisor
 		serverTypes << new ComputeServerType(code:'scvmmHypervisor', name:'SCVMM Hypervisor', description:'', platform:PlatformType.windows,
 				nodeType:'morpheus-scvmm-node', enabled:true, selectable:false, externalDelete:false, managed:false, controlPower:false,
 				controlSuspend:false, creatable:false, computeService:'scvmmComputeService', displayOrder:0, hasAutomation:false, containerHypervisor:false,
 				bareMetalHost:false, vmHypervisor:true, agentType: ComputeServerType.AgentType.node, provisionTypeCode:'scvmm-hypervisor'
 		)
-		/*
-	computeServerType(meta:[key:'code'], code:'scvmmWindows', name:'SCVMM Windows Node', description:'', platform:'windows', nodeType:'morpheus-windows-node',
-		enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true, controlSuspend:false, creatable:false, computeService:'scvmmComputeService',
-		deleteQueue:'computeScvmmDeleteServerQueue', initializeQueue:'computeScvmmInitializeServerQueue', displayOrder:7, hasAutomation:true, reconfigureSupported:true,
-		hasAgent:true, containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:'node', guestVm:true, isEmbedded: true,
-		provisionType:[domainClass:'provisionType', meta:[key:'code'], code:'scvmm'])
-		 */
-		//deleteQueue, initializeQueue, isEmbedded, hasAgent, morpheusHypervisor
 		serverTypes << new ComputeServerType(code:'scvmmWindows', name:'SCVMM Windows Node', description:'', platform:PlatformType.windows,
 				nodeType:'morpheus-windows-node', enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true,
 				controlSuspend:false, creatable:false, computeService:'scvmmComputeService', displayOrder:7, hasAutomation:true, reconfigureSupported:true,
 				containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.node, guestVm:true,
 				provisionTypeCode:'scvmm'
 		)
-		/*
-		computeServerType(meta:[key:'code'], code:'scvmmVm', name:'SCVMM Instance', description:'', platform:'linux', nodeType:'morpheus-vm-node',
-		enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true, controlSuspend:false, creatable:false, computeService:'scvmmComputeService',
-		deleteQueue:'computeScvmmDeleteServerQueue',initializeQueue:'computeScvmmInitializeServerQueue', displayOrder: 0, hasAutomation:true, reconfigureSupported:true,
-		hasAgent:true, containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:'vm', guestVm:true, isEmbedded: true,
-		provisionType:[domainClass:'provisionType', meta:[key:'code'], code:'scvmm'])
-		 */
-		//deleteQueue, initializeQueue, isEmbedded, hasAgent, morpheusHypervisor
 		serverTypes << new ComputeServerType(code:'scvmmVm', name:'SCVMM Instance', description:'', platform:PlatformType.linux,
 				nodeType:'morpheus-vm-node', enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true, controlSuspend:false,
 				creatable:false, computeService:'scvmmComputeService', displayOrder: 0, hasAutomation:true, reconfigureSupported:true,
 				containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.guest, guestVm:true,
 				provisionTypeCode:'scvmm'
 		)
-
-		/*
-		computeServerType(meta:[key:'code'], code:'scvmmWindowsVm', name:'SCVMM Windows Instance', description:'', platform:'windows', nodeType:'morpheus-windows-vm-node',
-		enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true, controlSuspend:false, creatable:false, computeService:'scvmmComputeService',
-		deleteQueue:'computeScvmmDeleteServerQueue',initializeQueue:'computeScvmmInitializeServerQueue', displayOrder: 0, hasAutomation:true, reconfigureSupported:true,
-		hasAgent:true, containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:'vm', guestVm:true, isEmbedded: true,
-		provisionType:[domainClass:'provisionType', meta:[key:'code'], code:'scvmm'])
-		 */
-		//deleteQueue, initializeQueue, isEmbedded, hasAgent, morpheusHypervisor
 		//windows container host - not used
 		serverTypes << new ComputeServerType(code:'scvmmWindowsVm', name:'SCVMM Windows Instance', description:'', platform:PlatformType.windows,
 				nodeType:'morpheus-windows-vm-node', enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true,
@@ -425,15 +384,6 @@ class ScvmmCloudProvider implements CloudProvider {
 				containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.guest, guestVm:true,
 				provisionTypeCode:'scvmm'
 		)
-
-		/*
-		computeServerType(meta:[key:'code'], code:'scvmmUnmanaged', name:'SCVMM Instance', description:'scvmm vm', platform:'linux', nodeType:'unmanaged',
-		enabled:true, selectable:false, externalDelete:true, managed:false, controlPower:true, controlSuspend:false, creatable:false, computeService:'scvmmComputeService',
-		deleteQueue:'computeScvmmDeleteServerQueue', initializeQueue:'computeScvmmInitializeServerQueue', displayOrder:99, hasAutomation:false, isEmbedded: true,
-		hasAgent:true, containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:'vm', manageable: true, managedServerType:'scvmmVm', guestVm:true,
-		provisionType:[domainClass:'provisionType', meta:[key:'code'], code:'scvmm'])
-		 */
-		//deleteQueue, initializeQueue, isEmbedded, hasAgent,     manageable
 		serverTypes << new ComputeServerType(code:'scvmmUnmanaged', name:'SCVMM Instance', description:'scvmm vm', platform:PlatformType.linux,
 				nodeType:'unmanaged', enabled:true, selectable:false, externalDelete:true, managed:false, controlPower:true, controlSuspend:false,
 				creatable:false, computeService:'scvmmComputeService', displayOrder:99, hasAutomation:false, containerHypervisor:false,
@@ -442,20 +392,6 @@ class ScvmmCloudProvider implements CloudProvider {
 		)
 
 		//docker
-		/*
-		computeServerType(meta:[key:'code'], code:'scvmmLinux', name:'SCVMM Docker Host', description:'', platform:'linux', nodeType:'morpheus-node',
-		enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true, controlSuspend:false, creatable:false, computeService:'scvmmComputeService',
-		displayOrder: 6, hasAutomation:true, reconfigureSupported:true, isEmbedded: true,
-		hasAgent:true, containerHypervisor:true, bareMetalHost:false, vmHypervisor:false, agentType:'node', containerEngine:'docker',
-		provisionType:[domainClass:'provisionType', meta:[key:'code'], code:'scvmm'],
-		computeType:[domainClass:'computeType', meta:[key:'code'], code:'docker-host'],
-		viewSet:'docker', containerMode:'docker',
-		optionTypes:[
-			[meta:[key:'code'], code:'computeServerType.scvmm.capabilityProfile']
-		]
-	)
-		 */
-		//isEmbedded, hasAgent, viewSet, containerMode
 		serverTypes << new ComputeServerType(code:'scvmmLinux', name:'SCVMM Docker Host', description:'', platform:PlatformType.linux,
 				nodeType:'morpheus-node', enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true, controlSuspend:false,
 				creatable:false, computeService:'scvmmComputeService', displayOrder: 6, hasAutomation:true, reconfigureSupported:true,
@@ -464,22 +400,6 @@ class ScvmmCloudProvider implements CloudProvider {
 		)
 
 		//kubernetes
-		/*
-		computeServerType(meta:[key:'code'], code:'scvmmKubeMaster', name:'SCVMM Kubernetes Master', description:'', platform:'linux', nodeType:'kube-master', hasMaintenanceMode: true,
-		reconfigureSupported: true, enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true, controlSuspend:true, creatable:true,
-		supportsConsoleKeymap: true, computeService:'scvmmComputeService', displayOrder:10,
-		hasAutomation:true, hasAgent:true, containerHypervisor:true, bareMetalHost:false, vmHypervisor:false, agentType:'vm', containerEngine:'docker',
-		viewSet:'kubernetes', containerMode:'kubernetes', isEmbedded: true,
-		provisionType:[domainClass:'provisionType', meta:[key:'code'], code:'scvmm'],
-		computeType:[domainClass:'computeType', meta:[key:'code'], code:'kube-master'],
-		optionTypes:[
-
-			[meta:[key:'code'], code:'computeServerType.scvmm.capabilityProfile']
-		]
-	)
-		 */
-		// hasAgent, viewSet, containerMode, isEmbedded
-		// hasMaintenanceMode -> added now
 		serverTypes << new ComputeServerType(code:'scvmmKubeMaster', name:'SCVMM Kubernetes Master', description:'', platform:PlatformType.linux,
 				nodeType:'kube-master', hasMaintenanceMode: true, reconfigureSupported: true, enabled:true, selectable:false, externalDelete:true, managed:true,
 				controlPower:true, controlSuspend:true, creatable:true, supportsConsoleKeymap: true, computeService:'scvmmComputeService',
@@ -487,21 +407,6 @@ class ScvmmCloudProvider implements CloudProvider {
 				agentType:ComputeServerType.AgentType.host, containerEngine:'docker', provisionTypeCode:'scvmm', computeTypeCode:'kube-master',
 				optionTypes:[hostOptionType]
 		)
-		/*
-		computeServerType(meta:[key:'code'], code:'scvmmKubeWorker', name:'SCVMM Kubernetes Worker', description:'', platform:'linux', nodeType:'kube-worker', hasMaintenanceMode: true,
-		reconfigureSupported: true, enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true, controlSuspend:true, creatable:true,
-		supportsConsoleKeymap: true, computeService:'scvmmComputeService', displayOrder:10,
-		hasAutomation:true, hasAgent:true, containerHypervisor:true, bareMetalHost:false, vmHypervisor:false, agentType:'vm', containerEngine:'docker',
-		viewSet:'kubernetes', containerMode:'kubernetes', isEmbedded: true,
-		provisionType:[domainClass:'provisionType', meta:[key:'code'], code:'scvmm'],
-		computeType:[domainClass:'computeType', meta:[key:'code'], code:'kube-worker'],
-		optionTypes:[
-			[meta:[key:'code'], code:'computeServerType.scvmm.capabilityProfile']
-		]
-	)
-		 */
-		//hasAgent, viewSet, containerMode, isEmbedded
-		// asMaintenanceMode -> added now
 		serverTypes << new ComputeServerType(code:'scvmmKubeWorker', name:'SCVMM Kubernetes Worker', description:'', platform:PlatformType.linux,
 				nodeType:'kube-worker', hasMaintenanceMode: true, reconfigureSupported: true, enabled:true, selectable:false, externalDelete:true, managed:true,
 				controlPower:true, controlSuspend:true, creatable:true, supportsConsoleKeymap: true, computeService:'scvmmComputeService',
