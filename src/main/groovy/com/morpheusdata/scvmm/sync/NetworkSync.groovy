@@ -108,7 +108,7 @@ class NetworkSync {
                 result.persistedItems.each { networkAdd ->
 
                     def cloudItem = addList.find {it.Name == networkAdd.name} // Find corresponding cloud item
-                    def subnet = cloudItem.Subnets?.get(0)?.Subnet
+                    def subnet = cloudItem.Subnets?.getAt(0)?.Subnet
                     def networkCidr = NetworkUtility.getNetworkCidrConfig(subnet)
 
                     if (cloudItem) {
