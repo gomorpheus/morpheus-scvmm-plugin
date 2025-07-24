@@ -1770,7 +1770,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 virtualImage = context.services.virtualImage.get(virtualImageId)
                 imageId = virtualImage.externalId
             } else {
-		virtualImage = new VirtualImage(code: 'hyperv.image.morpheus.ubuntu.22.04.20250218.amd64')
+		virtualImage = new VirtualImage(code: 'scvmm.image.morpheus.ubuntu.22.04.20250218.amd64')
                 //better this later
             }
 
