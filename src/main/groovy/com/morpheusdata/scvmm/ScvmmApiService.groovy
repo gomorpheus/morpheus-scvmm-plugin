@@ -6,11 +6,11 @@ import com.morpheusdata.core.util.ComputeUtility
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.KeyPair
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.json.JsonOutput
 import groovy.util.logging.Slf4j
 import com.bertramlabs.plugins.karman.CloudFile
 
-@Slf4j
 class ScvmmApiService {
     MorpheusContext morpheusContext
 
@@ -43,7 +43,7 @@ class ScvmmApiService {
     }
 
     def insertContainerImage(opts) {
-        log.debug "insertContainerImage: ${opts}"
+        LogWrapper.instance.debug "insertContainerImage: ${opts}"
         def rtn = [success: false, imageExists: false]
         def image = opts.image
         def imageName = image.name
@@ -62,11 +62,11 @@ class ScvmmApiService {
         if (vhdBlocks?.size() == 0) {
             // Upload it (if needed)
             def match = findImage(opts, imageName)
-            log.info("findImage: ${match}")
+            LogWrapper.instance.info("findImage: ${match}")
             if (match.imageExists == false) {
                 //transfer it to host
                 def transferResults = transferImage(opts, image.cloudFiles, imageName)
-                log.debug "transferImage: ${transferResults}"
+                LogWrapper.instance.debug "transferImage: ${transferResults}"
                 if (transferResults.success == true) {
                     rtn.success = true
                 } else {
@@ -87,14 +87,14 @@ class ScvmmApiService {
                 rtn.imageId = importRes.data?.getAt(0)?.ID
 
                 if (importRes.error != null) {
-                    log.info("Import-SCLibraryPhysicalResource failed for error: ${importRes?.error}. Trying with Copy-Item")
+                    LogWrapper.instance.info("Import-SCLibraryPhysicalResource failed for error: ${importRes?.error}. Trying with Copy-Item")
                     def copyCommands = []
                     copyCommands << "\$ignore = Copy-Item \"$sourcePath\" \"$tgtFolder\""
                     copyCommands << "\$ignore = Get-SCLibraryShare -VMMServer localhost | Read-SCLibraryShare"
                     copyCommands << "Get-SCVirtualHardDisk | where {\$_.SharePath -like \"${tgtFolder}\\*\"} | Select ID"
                     def copyResult = wrapExecuteCommand(generateCommandString(copyCommands.join(";")), opts)
                     if (copyResult.error != null) {
-                        log.error("Error in Copy-Item: ${copyResult.error}")
+                        LogWrapper.instance.error("Error in Copy-Item: ${copyResult.error}")
                         out.success = false
                     } else {
                         rtn.imageId = copyResult.data?.getAt(0)?.ID
@@ -117,7 +117,7 @@ class ScvmmApiService {
     }
 
     def createServer(opts) {
-        log.debug("createServer: ${opts}")
+        LogWrapper.instance.debug("createServer: ${opts}")
 
         def rtn = [success: false]
         try {
@@ -151,10 +151,10 @@ class ScvmmApiService {
             }
 
             launchCommand = createCommands.launchCommand
-            log.info("launchCommand: ${launchCommand}")
+            LogWrapper.instance.info("launchCommand: ${launchCommand}")
             // throw new Exception('blah')
             createData = wrapExecuteCommand(generateCommandString(launchCommand), opts)
-            log.debug "run server: ${createData}"
+            LogWrapper.instance.debug "run server: ${createData}"
 
             /*if (removeTemplateCommands) {
                 def command = removeTemplateCommands.join(';')
@@ -172,7 +172,7 @@ class ScvmmApiService {
             }
 
             server = morpheusContext.services.computeServer.get(opts.serverId)//ComputeServer.get(opts.serverId)
-            log.info "Create results: ${createData}"
+            LogWrapper.instance.info "Create results: ${createData}"
 
             def newServerExternalId = createData.data && createData.data.size() == 1 && createData.data[0].ObjectType?.toString() == '1' ? createData.data[0].ID : null
             if (!newServerExternalId) {
@@ -185,11 +185,11 @@ class ScvmmApiService {
 
             // Find the newly assigned VM information
             def serverCreated = checkServerCreated(opts, opts.externalId)
-            log.debug "Servercreated: ${serverCreated}"
+            LogWrapper.instance.debug "Servercreated: ${serverCreated}"
 
             // Server Created - Remove Temporary templates and profiles
             if(removeTemplateCommands) {
-                log.info("createServer - removing Temporary Templates and Hardware Profiles")
+                LogWrapper.instance.info("createServer - removing Temporary Templates and Hardware Profiles")
                 def command = removeTemplateCommands.join(';')
                 command += "@()"
                 wrapExecuteCommand(generateCommandString(command), opts)
@@ -202,8 +202,8 @@ class ScvmmApiService {
                 //expect Map [success:true/false, disks: []]
                 def vmDisk = listVirtualDiskDrives(opts,opts.externalId)
                 if (vmDisk.success) {
-                    log.info("createServer - received current Disk configuration for VM ${opts.externalId}")
-                    log.info("createServer - additional volumes - opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}")
+                    LogWrapper.instance.info("createServer - received current Disk configuration for VM ${opts.externalId}")
+                    LogWrapper.instance.info("createServer - additional volumes - opts.additionalTemplateDisks: ${opts.additionalTemplateDisks}")
                     // TODO We could use diskSpec to provide more meaningful choices for additional disks like the type and format
                     opts.additionalTemplateDisks?.each { diskConfig ->
                         def diskSpec = [
@@ -217,9 +217,9 @@ class ScvmmApiService {
                         // Create the additional disks the user requests on the template
                         // Now the Powershell automatically discovers next available bus/lun
                         def result = createAndAttachDisk(opts, diskSpec)
-                        log.debug("createServer - add disk result ${result}")
+                        LogWrapper.instance.debug("createServer - add disk result ${result}")
                     }
-                    log.debug "createServer - finished with adding additionalDisks: ${opts.additionalTemplateDisks}"
+                    LogWrapper.instance.debug "createServer - finished with adding additionalDisks: ${opts.additionalTemplateDisks}"
                 }
 
                 // Special stuff for cloned VMs
@@ -245,9 +245,9 @@ class ScvmmApiService {
                         disks.diskMetaData[disk.ID] = [HostVolumeId: disk.HostVolumeId, FileShareId: disk.FileShareId, dataDisk: true, VhdID: disk.VhdID, Location: disk.VhdLocation, PartitionUniqueId: disk.PartitionUniqueId]
                     }
 
-                    log.debug("createServer - instance volume metadata (disks) : ${disks}")
+                    LogWrapper.instance.debug("createServer - instance volume metadata (disks) : ${disks}")
                     //resize disk
-                    log.debug ".. about to resize disk ${opts.osDiskSize}"
+                    LogWrapper.instance.debug ".. about to resize disk ${opts.osDiskSize}"
                     diskRoot = opts.diskRoot
                     imageFolderName = opts.serverFolder
                     diskFolder = "${diskRoot}\\${imageFolderName}"
@@ -256,7 +256,7 @@ class ScvmmApiService {
                     if (opts.osDiskSize) {
                         def osDiskVhdID = disks.diskMetaData[disks.osDisk?.externalId]?.VhdID
                         resizeResponse = resizeDisk(opts, osDiskVhdID, opts.osDiskSize)
-                        log.debug("createServer - resizeDisk Response ${resizeResponse}")
+                        LogWrapper.instance.debug("createServer - resizeDisk Response ${resizeResponse}")
                     }
 
                     // Resize the data disks if template
@@ -266,7 +266,7 @@ class ScvmmApiService {
                             if (storageVolume) {
                                 def diskVhdID = disks.diskMetaData[externalId]?.VhdID
                                 resizeResponse = resizeDisk(opts, diskVhdID, storageVolume.maxStorage)
-                                log.debug("createServer - resizeDisk Response ${resizeResponse}")
+                                LogWrapper.instance.debug("createServer - resizeDisk Response ${resizeResponse}")
                             }
                         }
                     }
@@ -279,10 +279,10 @@ class ScvmmApiService {
                 }
 
                 //start it
-                log.info("Starting Server  ${opts.name}")
+                LogWrapper.instance.info("Starting Server  ${opts.name}")
                 startServer(opts, opts.externalId)
                 //get details
-                log.info("SCVMM Check for Server Ready ${opts.name}")
+                LogWrapper.instance.info("SCVMM Check for Server Ready ${opts.name}")
                 def serverDetail = checkServerReady(opts, opts.externalId)
                 if (serverDetail.success == true) {
                     rtn.server = [name: opts.name, id: opts.externalId, VMId: serverDetail.server?.VMId, ipAddress: serverDetail.server?.ipAddress, disks: disks]
@@ -307,13 +307,13 @@ class ScvmmApiService {
                 wrapExecuteCommand(generateCommandString(command), opts)
             }
         } catch (e) {
-            log.error("createServer error: ${e}", e)
+            LogWrapper.instance.error("createServer error: ${e}", e)
         }
         return rtn
     }
 
     def getServerDetails(opts, externalId) {
-        log.debug "getServerDetails: ${externalId}"
+        LogWrapper.instance.debug "getServerDetails: ${externalId}"
         def rtn = [success: false, server: null, networkAdapters: [], error: null]
         try {
             def out = wrapExecuteCommand(generateCommandString("""\$vm = Get-SCVirtualMachine -VMMServer localhost -ID \"${externalId}\";
@@ -358,7 +358,7 @@ if(\$vm) {
                 }
             }
         } catch (e) {
-            log.error("getServerDetails error: ${e}", e)
+            LogWrapper.instance.error("getServerDetails error: ${e}", e)
         }
         return rtn
     }
@@ -370,18 +370,18 @@ if(\$vm) {
 \$ignore = Read-SCVirtualMachine -VM \$vm """), opts)
             rtn.success = out.success
         } catch (e) {
-            log.error("refreshVM error: ${e}", e)
+            LogWrapper.instance.error("refreshVM error: ${e}", e)
         }
         return rtn
     }
 
     def discardSavedState(opts, externalId) {
-        log.debug "discardSavedState: ${opts}, ${externalId}"
+        LogWrapper.instance.debug "discardSavedState: ${opts}, ${externalId}"
         def rtn = [success: false, server: null, networkAdapters: []]
         try {
             executeCommand("\$vm = Get-SCVirtualMachine -VMMServer localhost -ID \"${externalId}\"; Use-SCDiscardSavedStateVM -VM \$vm;", opts)
         } catch (e) {
-            log.error("discardSavedState error: ${e}", e)
+            LogWrapper.instance.error("discardSavedState error: ${e}", e)
         }
         return rtn
     }
@@ -417,19 +417,19 @@ if(\$vm) {
         def rtn = [success: false]
         def command = 'hostname'
         def out = executeCommand(command, opts)
-        log.debug("out: ${out.data}")
+        LogWrapper.instance.debug("out: ${out.data}")
         rtn.hostname = cleanData(out.data)
         command = '(Get-ComputerInfo).OsName'
         out = executeCommand(command, opts)
-        log.debug("out: ${out.data}")
+        LogWrapper.instance.debug("out: ${out.data}")
         rtn.osName = cleanData(out.data)
         command = 'wmic computersystem get TotalPhysicalMemory'
         out = executeCommand(command, opts)
-        log.debug("out: ${out.data}")
+        LogWrapper.instance.debug("out: ${out.data}")
         rtn.memory = cleanData(out.data, 'TotalPhysicalMemory')
         command = 'wmic diskdrive get size'
         out = executeCommand(command, opts)
-        log.debug("out: ${out.data}")
+        LogWrapper.instance.debug("out: ${out.data}")
         rtn.disks = cleanData(out.data, 'Size')
         rtn.success = true
         return rtn
@@ -449,7 +449,7 @@ if(\$cloud) {
 }
 \$report """)
         def out = wrapExecuteCommand(command, opts)
-        log.debug("out: ${out.data}")
+        LogWrapper.instance.debug("out: ${out.data}")
         if (out.success) {
             def cloudBlocks = out.data
             if (cloudBlocks) {
@@ -464,7 +464,7 @@ if(\$cloud) {
         def rtn = [success: false, capabilityProfiles: null]
         def command = generateCommandString("Get-SCCapabilityProfile -VMMServer localhost | Select ID,Name")
         def out = wrapExecuteCommand(command, opts)
-        log.debug("out: ${out.data}")
+        LogWrapper.instance.debug("out: ${out.data}")
         if (out.success) {
             def cloudBlocks = out.data
             if (cloudBlocks) {
@@ -593,7 +593,7 @@ if(\$cloud) {
 
             def command = generateCommandString(commandStr)
             def out = wrapExecuteCommand(command, opts)
-            log.debug("out: ${out.data}")
+            LogWrapper.instance.debug("out: ${out.data}")
             if (out.success) {
                 hasMore = (out.data != '' && out.data != null)
                 if (out.data) {
@@ -683,7 +683,7 @@ foreach (\$VHDconf in \$Disks) {
 \$report """
         def command = generateCommandString(commandStr)
         def out = wrapExecuteCommand(command, opts)
-        log.debug("out: ${out.data}")
+        LogWrapper.instance.debug("out: ${out.data}")
         if (out.success) {
             rtn.templates = out.data
             rtn.success = true
@@ -775,7 +775,7 @@ foreach (\$cloud in \$clouds) {
 \$report"""
             def command = generateCommandString(commandStr)
             def out = wrapExecuteCommand(command, opts)
-            log.debug("out: ${out.data}")
+            LogWrapper.instance.debug("out: ${out.data}")
             if (out.success) {
                 def clouds = out.data
                 def cloud = clouds?.find { it.ID == opts.zone?.regionCode }
@@ -911,7 +911,7 @@ foreach (\$cloud in \$clouds) {
 
             def command = generateCommandString(commandStr)
             def out = wrapExecuteCommand(command, opts)
-            log.debug "listDatastores results: ${out}"
+            LogWrapper.instance.debug "listDatastores results: ${out}"
             if (out.success) {
                 hasMore = (out.data != '' && out.data != null)
                 if (out.data) {
@@ -919,7 +919,7 @@ foreach (\$cloud in \$clouds) {
                 }
                 rtn.success = true
             } else {
-                log.debug "Return not successful: ${out}"
+                LogWrapper.instance.debug "Return not successful: ${out}"
                 hasMore = false
             }
         }
@@ -976,7 +976,7 @@ foreach (\$FileShare in \$FileShares){
 \$report """
             def command = generateCommandString(commandStr)
             def out = wrapExecuteCommand(command, opts)
-            log.debug "listDatastores results: ${out}"
+            LogWrapper.instance.debug "listDatastores results: ${out}"
             if (out.success) {
                 hasMore = (out.data != '' && out.data != null)
                 if (out.data) {
@@ -984,7 +984,7 @@ foreach (\$FileShare in \$FileShares){
                 }
                 rtn.success = true
             } else {
-                log.debug "Return not successful: ${out}"
+                LogWrapper.instance.debug "Return not successful: ${out}"
                 hasMore = false
             }
         }
@@ -1003,7 +1003,7 @@ foreach (\$FileShare in \$FileShares){
         try {
             def command = generateCommandString("Get-SCLogicalNetwork -VMMServer localhost | Select ID,Name")
             def out = wrapExecuteCommand(command, opts)
-            log.debug("listNetworks: ${out}")
+            LogWrapper.instance.debug("listNetworks: ${out}")
             if (out.success && out.exitCode == '0' && out.data?.size() > 0) {
                 def logicalNetworks = out.data
                 command = generateCommandString("""\$report = @()
@@ -1018,10 +1018,10 @@ foreach (\$network in \$networks) {
 }
 \$report """)
                 out = wrapExecuteCommand(command, opts)
-                log.debug("get of networks: ${out}")
+                LogWrapper.instance.debug("get of networks: ${out}")
                 if (out.success && out.exitCode == '0') {
                     if (out.data) {
-                        log.debug("list logical networks: ${out}")
+                        LogWrapper.instance.debug("list logical networks: ${out}")
                         def networks = out.data
                         logicalNetworks?.each { logicalNetwork ->
                             rtn.networks += networks.findAll { it.LogicalNetwork == logicalNetwork.Name }
@@ -1029,23 +1029,23 @@ foreach (\$network in \$networks) {
                     }
                 } else {
                     if (out.exitCode != '0') {
-                        log.info "Fetch of networks resulted in non-zero exit value: ${out}"
+                        LogWrapper.instance.info "Fetch of networks resulted in non-zero exit value: ${out}"
                     }
                 }
             } else {
-                log.info "Error in fetching network info: ${out}"
+                LogWrapper.instance.info "Error in fetching network info: ${out}"
                 rtn.success = false
             }
         } catch (ex) {
             rtn.success = false
             rtn.msg = "Error fetching all networks list from SCVMM Host"
-            log.error("An error occurred attempting to list all networks on SCVMM Host: ${ex.message}", ex)
+            LogWrapper.instance.error("An error occurred attempting to list all networks on SCVMM Host: ${ex.message}", ex)
         }
         return rtn
     }
 
     def removeOrphanedResourceLibraryItems(opts) {
-        log.debug "removeOrphanedResourceLibraryItems: ${opts}"
+        LogWrapper.instance.debug "removeOrphanedResourceLibraryItems: ${opts}"
 
         def command = """
 \$ISOs = Get-SCISO -VMMServer localhost | where { (\$_.State -match "Missing") -and (\$_.Directory.ToString() -like "*morpheus_server_*") }
@@ -1055,7 +1055,7 @@ foreach (\$network in \$networks) {
 \$ignore = \$Scripts | Remove-SCScript -RunAsynchronously"""
         def out = wrapExecuteCommand(generateCommandString(command), opts)
         if (!out.success) {
-            log.warn "Error in removeOrphanedResourceLibraryItems: ${out}"
+            LogWrapper.instance.warn "Error in removeOrphanedResourceLibraryItems: ${out}"
         }
     }
 
@@ -1077,7 +1077,7 @@ Get-SCLogicalNetwork -VMMServer localhost -Cloud \$cloud | Select ID,Name"""
                 }
 
                 def out = wrapExecuteCommand(command, opts)
-                log.debug("listNetworks: ${out}")
+                LogWrapper.instance.debug("listNetworks: ${out}")
                 if (out.success && out.exitCode == '0' && out.data?.size() > 0) {
                     def logicalNetworks = out.data
                     command = generateCommandString("""\$report = @()
@@ -1106,11 +1106,11 @@ foreach (\$network in \$networks) {
 }
 \$report""")
                     out = wrapExecuteCommand(command, opts)
-                    log.debug("get of networks: ${out}")
+                    LogWrapper.instance.debug("get of networks: ${out}")
                     if (out.success && out.exitCode == '0') {
                         hasMore = (out.data != '' && out.data != null)
                         if (out.data) {
-                            log.debug("list logical networks: ${out}")
+                            LogWrapper.instance.debug("list logical networks: ${out}")
                             def networks = out.data
 
                             logicalNetworks?.each { logicalNetwork ->
@@ -1119,12 +1119,12 @@ foreach (\$network in \$networks) {
                         }
                     } else {
                         if (out.exitCode != '0') {
-                            log.info "Fetch of networks resulted in non-zero exit value: ${out}"
+                            LogWrapper.instance.info "Fetch of networks resulted in non-zero exit value: ${out}"
                         }
                         hasMore = false
                     }
                 } else {
-                    log.info "Error in fetching network info: ${out}"
+                    LogWrapper.instance.info "Error in fetching network info: ${out}"
                     hasMore = false
                     rtn.success = false
                 }
@@ -1137,7 +1137,7 @@ foreach (\$network in \$networks) {
         } catch (ex) {
             rtn.success = false
             rtn.msg = "Error syncing networks list from SCVMM Host"
-            log.error("An error occurred attempting to list networks on SCVMM Host: ${ex.message}", ex)
+            LogWrapper.instance.error("An error occurred attempting to list networks on SCVMM Host: ${ex.message}", ex)
         }
         return rtn
     }
@@ -1158,7 +1158,7 @@ Get-SCLogicalNetwork -VMMServer localhost -Cloud \$cloud | Select ID,Name"""
                     command = generateCommandString("Get-SCLogicalNetwork -VMMServer localhost | Select ID,Name")
                 }
                 def out = wrapExecuteCommand(command, opts)
-                log.debug("listNetworks: ${out}")
+                LogWrapper.instance.debug("listNetworks: ${out}")
                 if (out.success && out.exitCode == '0' && out.data?.size() > 0) {
                     def logicalNetworks = out.data
                     command = generateCommandString("""\$report = @()
@@ -1185,11 +1185,11 @@ foreach (\$logicalNetwork in \$logicalNetworks) {
 }
 \$report""")
                     out = wrapExecuteCommand(command, opts)
-                    log.debug("get of networks: ${out}")
+                    LogWrapper.instance.debug("get of networks: ${out}")
                     if (out.success && out.exitCode == '0') {
                         hasMore = (out.data != '' && out.data != null)
                         if (out.data) {
-                            log.debug("list logical networks: ${out}")
+                            LogWrapper.instance.debug("list logical networks: ${out}")
                             def networks = out.data
 
                             logicalNetworks?.each { logicalNetwork ->
@@ -1198,12 +1198,12 @@ foreach (\$logicalNetwork in \$logicalNetworks) {
                         }
                     } else {
                         if (out.exitCode != '0') {
-                            log.info "Fetch of networks resulted in non-zero exit value: ${out}"
+                            LogWrapper.instance.info "Fetch of networks resulted in non-zero exit value: ${out}"
                         }
                         hasMore = false
                     }
                 } else {
-                    log.info "Error in fetching network info: ${out}"
+                    LogWrapper.instance.info "Error in fetching network info: ${out}"
                     hasMore = false
                     rtn.success = false
                 }
@@ -1216,7 +1216,7 @@ foreach (\$logicalNetwork in \$logicalNetworks) {
         } catch (ex) {
             rtn.success = false
             rtn.msg = "Error syncing isolation networks list from SCVMM Host"
-            log.error("An error occurred attempting to list isolation networks on SCVMM Host: ${ex.message}", ex)
+            LogWrapper.instance.error("An error occurred attempting to list isolation networks on SCVMM Host: ${ex.message}", ex)
         }
         return rtn
     }
@@ -1249,7 +1249,7 @@ foreach (\$staticPool in \$staticPools) {
 \$report """)
 
             def out = wrapExecuteCommand(command, opts)
-            log.debug("listNetworkIPPools: ${out}")
+            LogWrapper.instance.debug("listNetworkIPPools: ${out}")
             if (out.success && out.exitCode == '0') {
                 rtn.ipPools += out.data ?: []
             } else {
@@ -1271,7 +1271,7 @@ foreach (\$network in \$networks) {
 }
 \$report """)
                 out = wrapExecuteCommand(command, opts)
-                log.debug("fetch network mapping: ${out}")
+                LogWrapper.instance.debug("fetch network mapping: ${out}")
                 if (out.success && out.exitCode == '0') {
                     rtn.networkMapping += out.data ?: []
                 } else {
@@ -1281,7 +1281,7 @@ foreach (\$network in \$networks) {
         } catch (ex) {
             rtn.success = false
             rtn.msg = "Error syncing ip pools list from SCVMM Host"
-            log.error("An error occurred attempting to list ip pools on SCVMM Host: ${ex.message}", ex)
+            LogWrapper.instance.error("An error occurred attempting to list ip pools on SCVMM Host: ${ex.message}", ex)
         }
         return rtn
     }
@@ -1291,7 +1291,7 @@ foreach (\$network in \$networks) {
         try {
             def command = generateCommandString("""\$ippool = Get-SCStaticIPAddressPool -VMMServer localhost -ID \"$poolId\"; Grant-SCIPAddress -GrantToObjectType \"VirtualMachine\" -StaticIPAddressPool \$ippool | Select-Object ID,Address""")
             def out = wrapExecuteCommand(command, opts)
-            log.debug("reserveIPAddress: ${out}")
+            LogWrapper.instance.debug("reserveIPAddress: ${out}")
             if (out.success && out.exitCode == '0') {
                 def ipAddressBlock = out.data
                 if (ipAddressBlock) {
@@ -1303,7 +1303,7 @@ foreach (\$network in \$networks) {
         } catch (ex) {
             rtn.success = false
             rtn.msg = "Error reserving an IP address from SCVMM"
-            log.error("Error reserving an IP address from SCVMM: ${ex.message}", ex)
+            LogWrapper.instance.error("Error reserving an IP address from SCVMM: ${ex.message}", ex)
         }
         return rtn
     }
@@ -1313,7 +1313,7 @@ foreach (\$network in \$networks) {
         try {
             def command = generateCommandString("\$ippool = Get-SCStaticIPAddressPool -VMMServer localhost -ID \"$poolId\"; \$ipaddress = Get-SCIPAddress -ID \"$ipId\"; \$ignore = Revoke-SCIPAddress \$ipaddress")
             def out = wrapExecuteCommand(command, opts)
-            log.info("releaseIPAddress: ${out}")
+            LogWrapper.instance.info("releaseIPAddress: ${out}")
             if (out.success && out.exitCode == '0') {
                 // Do nothing
             } else {
@@ -1327,14 +1327,14 @@ foreach (\$network in \$networks) {
         } catch (ex) {
             rtn.success = false
             rtn.msg = "Error revoking an IP address from SCVMM"
-            log.error("Error revoking an IP address from SCVMM: ${ex.message}", ex)
+            LogWrapper.instance.error("Error revoking an IP address from SCVMM: ${ex.message}", ex)
         }
 
         return rtn
     }
 
     def listVirtualDiskDrives(opts, externalId, name = null) {
-        log.info("listVirtualDiskDrives - Getting Virtual Disk info for VMId :${externalId}")
+        LogWrapper.instance.info("listVirtualDiskDrives - Getting Virtual Disk info for VMId :${externalId}")
         def rtn = [success: false, disks: []]
 
         String templateCmd = '''
@@ -1386,7 +1386,7 @@ foreach (\$network in \$networks) {
     }
 
     def resizeDisk(opts, String diskId, Long diskSizeBytes) {
-        log.info("resizeDisk - ${diskId} ${diskSizeBytes}")
+        LogWrapper.instance.info("resizeDisk - ${diskId} ${diskSizeBytes}")
         String templateCmd = """\$vmId = "<%vmid%>"
 		\$diskId = "<%diskid%>"
 		\$newSize = <%sizegb%>
@@ -1428,7 +1428,7 @@ foreach (\$network in \$networks) {
                 .replace("<%diskid%>",diskId ?: "")
                 .replace("<%sizegb%>","${(int)(diskSizeBytes.toLong()).div(ComputeUtility.ONE_GIGABYTE)}")
 
-        log.debug "resizeDisk: ${resizeCmd}"
+        LogWrapper.instance.debug "resizeDisk: ${resizeCmd}"
         def resizeResults = wrapExecuteCommand(generateCommandString(resizeCmd), opts)
         //resizeResults.data is json payload array - want only the first item
         if (resizeResults.data) {
@@ -1438,17 +1438,17 @@ foreach (\$network in \$networks) {
                 def waitResults = waitForJobToComplete(opts, resizeStatus.jobId)
                 return waitResults
             } else {
-                log.error("resizeDisk - Error resizing disk. Message : ${resizeStatus.errOut}")
+                LogWrapper.instance.error("resizeDisk - Error resizing disk. Message : ${resizeStatus.errOut}")
                 return resizeStatus
             }
         } else {
-            log.warn("resizeDisk - rpc disk not return a usable response - ${resizeResults}")
+            LogWrapper.instance.warn("resizeDisk - rpc disk not return a usable response - ${resizeResults}")
             return [success:false,errOut: "resizeDisk - did not receive expected response from rpc"]
         }
     }
 
     static createAndAttachDisk(Map opts, Map diskSpec, Boolean returnDiskDrives=true) {
-        log.info("createAndAttachDisk - Adding new Virtual SCSI Disk VHDType:${diskSpec}")
+        LogWrapper.instance.info("createAndAttachDisk - Adding new Virtual SCSI Disk VHDType:${diskSpec}")
         String templateCmd = '''
 		#Morpheus will replace items in <%   %>
 		$vmId = "<%vmid%>"
@@ -1550,12 +1550,12 @@ foreach (\$network in \$networks) {
         commands << "\$ignore = Remove-SCVirtualDiskDrive -VirtualDiskDrive \$VirtualDiskDrive -JobGroup ${diskJobGuid}"
         commands << "\$ignore = Set-SCVirtualMachine -VM \$VM -JobGroup ${diskJobGuid}"
         def cmd = commands.join(';')
-        log.debug "removeDisk: ${cmd}"
+        LogWrapper.instance.debug "removeDisk: ${cmd}"
         return wrapExecuteCommand(generateCommandString(cmd), opts)
     }
 
     def checkServerCreated(opts, vmId) {
-        log.debug "checkServerCreated: ${vmId}"
+        LogWrapper.instance.debug "checkServerCreated: ${vmId}"
         def rtn = [success: false]
         try {
             def pending = true
@@ -1566,7 +1566,7 @@ foreach (\$network in \$networks) {
                 if (serverDetail.success == true) {
                     // There isn't a state on the VM to tell us it is created.. but, if the disk size matches
                     // the expected count.. we are good
-                    log.debug "serverStatus: ${serverDetail.server?.Status}, opts.dataDisks: ${opts.dataDisks?.size()}, additionalTemplateDisks: ${opts.additionalTemplateDisks?.size()}"
+                    LogWrapper.instance.debug "serverStatus: ${serverDetail.server?.Status}, opts.dataDisks: ${opts.dataDisks?.size()}, additionalTemplateDisks: ${opts.additionalTemplateDisks?.size()}"
 
                     if (serverDetail.server?.Status != 'UnderCreation' &&
                             serverDetail.server?.VirtualDiskDrives?.size() == 1 + ((opts.dataDisks?.size() ?: 0) - (opts.additionalTemplateDisks?.size() ?: 0))) {
@@ -1593,7 +1593,7 @@ foreach (\$network in \$networks) {
                     pending = false
             }
         } catch (e) {
-            log.error("An Exception Has Occurred", e)
+            LogWrapper.instance.error("An Exception Has Occurred", e)
         }
         return rtn
     }
@@ -1601,12 +1601,12 @@ foreach (\$network in \$networks) {
     def waitForJobToComplete(opts, jobId) {
         def rtn = [success: false]
         try {
-            log.debug "waitForJobToComplete: ${opts} ${jobId}"
+            LogWrapper.instance.debug "waitForJobToComplete: ${opts} ${jobId}"
             def pending = true
             def attempts = 0
             while (pending) {
                 sleep(1000l * 5l)
-                log.debug "waitForJobToComplete: ${jobId}"
+                LogWrapper.instance.debug "waitForJobToComplete: ${jobId}"
                 def getJobResults = getJob(opts, jobId)
                 if (getJobResults.success == true && getJobResults.jobDetail) {
 
@@ -1623,13 +1623,13 @@ foreach (\$network in \$networks) {
                     pending = false
             }
         } catch (e) {
-            log.error("An Exception Has Occurred", e)
+            LogWrapper.instance.error("An Exception Has Occurred", e)
         }
         return rtn
     }
 
     def getJob(opts, jobId) {
-        log.debug "getJob: ${jobId}"
+        LogWrapper.instance.debug "getJob: ${jobId}"
         def rtn = [success: false, jobDetail: null]
 
         try {
@@ -1649,7 +1649,7 @@ Status=\$job.Status.toString()
             rtn.jobDetail = out.data.getAt(0)
             rtn.success = true
         } catch (e) {
-            log.error "error in calling job detail: ${e}", e
+            LogWrapper.instance.error "error in calling job detail: ${e}", e
         }
 
         return rtn
@@ -1658,7 +1658,7 @@ Status=\$job.Status.toString()
     def checkServerReady(opts, vmId) {
         def rtn = [success: false]
         try {
-            log.debug "checkServerReady: ${opts} ${vmId}"
+            LogWrapper.instance.debug "checkServerReady: ${opts} ${vmId}"
             def pending = true
             def attempts = 0
             def notFoundAttempts = 0
@@ -1666,7 +1666,7 @@ Status=\$job.Status.toString()
             def waitForIp = opts.waitForIp
             while (pending) {
                 sleep(1000l * 5l)
-                log.debug "checkServerReady: ${vmId}"
+                LogWrapper.instance.debug "checkServerReady: ${vmId}"
                 ComputeServer server = morpheusContext.services.computeServer.get(serverId)
                 opts.server = server
                 // Refresh the VM in SCVMM (seems to be needed for it to get the IP for windows)
@@ -1674,7 +1674,7 @@ Status=\$job.Status.toString()
                 def serverDetail = getServerDetails(opts, vmId)
                 if (serverDetail.success == true && serverDetail.server) {
                     def ipAddress = serverDetail.server?.internalIp ?: server?.externalIp
-                    log.debug "ipAddress found: ${ipAddress}"
+                    LogWrapper.instance.debug "ipAddress found: ${ipAddress}"
                     if (ipAddress) {
                         server.internalIp = ipAddress
                     }
@@ -1695,7 +1695,7 @@ Status=\$job.Status.toString()
                             rtn.server.ipAddress = ipAddress ?: server?.internalIp
                             pending = false
                         } else {
-                            log.debug("check server loading server: ip: ${server.internalIp}")
+                            LogWrapper.instance.debug("check server loading server: ip: ${server.internalIp}")
                             if (server.internalIp) {
                                 rtn.success = true
                                 rtn.server = serverDetail.server
@@ -1715,7 +1715,7 @@ Status=\$job.Status.toString()
                     pending = false
             }
         } catch (e) {
-            log.error("An Exception Has Occurred", e)
+            LogWrapper.instance.error("An Exception Has Occurred", e)
         }
         return rtn
     }
@@ -1735,7 +1735,7 @@ Status=\$job.Status.toString()
                 }
             }
         } catch (e) {
-            log.error("startServer error: ${e}", e)
+            LogWrapper.instance.error("startServer error: ${e}", e)
         }
         return rtn
     }
@@ -1750,7 +1750,7 @@ if(\$VM.Status -ne 'PowerOff') {
             def out = wrapExecuteCommand(generateCommandString(command), opts)
             rtn.success = out.success
         } catch (e) {
-            log.error("stopServer error: ${e}", e)
+            LogWrapper.instance.error("stopServer error: ${e}", e)
         }
         return rtn
     }
@@ -1777,13 +1777,13 @@ if(\$VM) {
                 rtn.success = true
             }
         } catch (e) {
-            log.error("deleteServer error: ${e}", e)
+            LogWrapper.instance.error("deleteServer error: ${e}", e)
         }
         return rtn
     }
 
     def importPhysicalResource(opts, sourcePath, imageFolderName, resourceName) {
-        log.debug "importPhysicalResource: ${opts}, ${sourcePath}, ${imageFolderName}, ${resourceName}"
+        LogWrapper.instance.debug "importPhysicalResource: ${opts}, ${sourcePath}, ${imageFolderName}, ${resourceName}"
         def rtn = [success: false]
         def rootSharePath = opts.rootSharePath ?: getRootSharePath(opts)
 
@@ -1851,7 +1851,7 @@ foreach(\$share in \$shares) {
     }
 
     def setCdrom(opts, cdPath = null) {
-        log.debug("setCdrom: ${cdPath}")
+        LogWrapper.instance.debug("setCdrom: ${cdPath}")
         def commands = []
         commands << "\$vm = Get-SCVirtualMachine -VMMServer localhost -ID \"$opts.externalId\""
         commands << "\$dvd = Get-SCVirtualDVDDrive -VM \$vm"
@@ -1866,11 +1866,11 @@ foreach(\$share in \$shares) {
     }
 
     def importScript(content, diskFolder, imageFolderName, opts) {
-        log.debug "importScript: ${diskFolder}, ${imageFolderName}, ${opts}"
+        LogWrapper.instance.debug "importScript: ${diskFolder}, ${imageFolderName}, ${opts}"
         def scriptPath
         InputStream inputStream = new ByteArrayInputStream(opts.cloudConfigBytes)
         def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "${opts.fileName}", "${diskFolder}\\${opts.fileName}", inputStream, opts.cloudConfigBytes?.size(), null, true)
-        log.debug ("importScript: fileResults.success: ${fileResults.success}")
+        LogWrapper.instance.debug ("importScript: fileResults.success: ${fileResults.success}")
         if (!fileResults.success) {
             throw new Exception("Script Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
         }
@@ -1880,7 +1880,7 @@ foreach(\$share in \$shares) {
     }
 
     def createDVD(opts) {
-        log.debug "createDVD: ${opts.externalId}"
+        LogWrapper.instance.debug "createDVD: ${opts.externalId}"
 
         // If gen2... ALWAYS -Bus 0
         // If gen1... ALWAYS -Bus 1
@@ -1915,12 +1915,12 @@ For (\$i=0; \$i -le 10; \$i++) {
 
         def out = wrapExecuteCommand(generateCommandString(command), opts)
         if (!out.success) {
-            log.warn "Error in creating a DVD: ${out}"
+            LogWrapper.instance.warn "Error in creating a DVD: ${out}"
         }
     }
 
     def importAndMountIso(cloudConfigBytes, diskFolder, imageFolderName, opts) {
-        log.debug "importAndMountIso: ${diskFolder}, ${imageFolderName}, ${opts}"
+        LogWrapper.instance.debug "importAndMountIso: ${diskFolder}, ${imageFolderName}, ${opts}"
         def cloudInitIsoPath
         def isoAction = [inline: true, action: 'rawfile', content: cloudConfigBytes.encodeAsBase64(), targetPath: "${diskFolder}\\config.iso".toString(), opts: [:]]
 
@@ -1928,7 +1928,7 @@ For (\$i=0; \$i -le 10; \$i++) {
         def command = "\$ignore = mkdir \"${diskFolder}\""
         def dirResults = wrapExecuteCommand(generateCommandString(command), opts)
         def fileResults = morpheusContext.services.fileCopy.copyToServer(opts.hypervisor, "config.iso", "${diskFolder}\\config.iso", inputStream, cloudConfigBytes?.size())
-        log.debug ("importAndMountIso: fileResults?.success: ${fileResults?.success}")
+        LogWrapper.instance.debug ("importAndMountIso: fileResults?.success: ${fileResults?.success}")
         if (!fileResults.success) {
             throw new Exception("ISO Upload to SCVMM Host Failed. Perhaps an agent communication issue...${opts.hypervisor.name}")
         }
@@ -1943,7 +1943,7 @@ For (\$i=0; \$i -le 10; \$i++) {
     }
 
     def validateServerConfig(Map opts = [:]) {
-        log.debug("validateServerConfig: ${opts}")
+        LogWrapper.instance.debug("validateServerConfig: ${opts}")
         def rtn = [success: false, errors: []]
         try {
             if (!opts.scvmmCapabilityProfile) {
@@ -1956,10 +1956,10 @@ For (\$i=0; \$i -le 10; \$i++) {
                 // great
             } else if (opts?.networkInterfaces) {
                 // JSON (or Map from parseNetworks)
-                log.debug("validateServerConfig networkInterfaces: ${opts?.networkInterfaces}")
+                LogWrapper.instance.debug("validateServerConfig networkInterfaces: ${opts?.networkInterfaces}")
                 opts?.networkInterfaces?.eachWithIndex { nic, index ->
                     def networkId = nic.network?.id ?: nic.network.group
-                    log.debug("network.id: ${networkId}")
+                    LogWrapper.instance.debug("network.id: ${networkId}")
                     if (!networkId) {
                         rtn.errors << [field: 'networkInterface', msg: 'Network is required']
                     }
@@ -1969,9 +1969,9 @@ For (\$i=0; \$i -le 10; \$i++) {
                 }
             } else if (opts?.networkInterface) {
                 // UI params
-                log.debug("validateServerConfig networkInterface: ${opts.networkInterface}")
+                LogWrapper.instance.debug("validateServerConfig networkInterface: ${opts.networkInterface}")
                 toList(opts?.networkInterface?.network?.id)?.eachWithIndex { networkId, index ->
-                    log.debug("network.id: ${networkId}")
+                    LogWrapper.instance.debug("network.id: ${networkId}")
                     if (networkId?.length() < 1) {
                         rtn.errors << [field: 'networkInterface', msg: 'Network is required']
                     }
@@ -1986,15 +1986,15 @@ For (\$i=0; \$i -le 10; \$i++) {
                 rtn.errors += [field: 'nodeCount', msg: 'You must indicate number of hosts']
             }
             rtn.success = (rtn.errors.size() == 0)
-            log.debug "validateServer results: ${rtn}"
+            LogWrapper.instance.debug "validateServer results: ${rtn}"
         } catch (e) {
-            log.error "error in validateServerConfig: ${e}", e
+            LogWrapper.instance.error "error in validateServerConfig: ${e}", e
         }
         return rtn
     }
 
     def updateServer(opts, vmId, updates = [:]) {
-        log.debug("updateServer: vmId: ${vmId}, updates: ${updates}")
+        LogWrapper.instance.debug("updateServer: vmId: ${vmId}, updates: ${updates}")
         def rtn = [success: false]
         try {
             def minDynamicMemory = updates.minDynamicMemory ? (int) updates.minDynamicMemory.div(ComputeUtility.ONE_MEGABYTE) : null
@@ -2021,16 +2021,16 @@ For (\$i=0; \$i -le 10; \$i++) {
                     // Add logic to handle dynamic memory... if the startup memory is lower than dynamic max memory, it won't start.  So, set them equal
                 }
 
-                log.debug "updateServer: ${command}"
+                LogWrapper.instance.debug "updateServer: ${command}"
                 def out = wrapExecuteCommand(generateCommandString(command), opts)
-                log.debug "updateServer results: ${out}"
+                LogWrapper.instance.debug "updateServer results: ${out}"
                 rtn.success = out.success && out.exitCode == '0'
             } else {
-                log.debug("No updates for server: ${vmId}")
+                LogWrapper.instance.debug("No updates for server: ${vmId}")
                 rtn.success = true
             }
         } catch (e) {
-            log.error "updateServer error: ${e}", e
+            LogWrapper.instance.error "updateServer error: ${e}", e
         }
         return rtn
     }
@@ -2174,9 +2174,9 @@ For (\$i=0; \$i -le 10; \$i++) {
         def imageFolder = formatImageFolder(imageName)
         def imageFolderPath = "${zoneRoot}\\images\\${imageFolder}"
         def command = "(Get-ChildItem -File \"${imageFolderPath}\").FullName"
-        log.debug("findImage command: ${command}")
+        LogWrapper.instance.debug("findImage command: ${command}")
         def out = executeCommand(command, opts)
-        log.debug("findImage: ${out.data}")
+        LogWrapper.instance.debug("findImage: ${out.data}")
         rtn.success = out.success
         if (out.data?.length() > 0) {
             rtn.imageExists = true
@@ -2191,9 +2191,9 @@ For (\$i=0; \$i -le 10; \$i++) {
         def imageFolder = formatImageFolder(imageName)
         def imageFolderPath = "${zoneRoot}\\images\\${imageFolder}"
         def command = "Remove-Item -LiteralPath \"${imageFolderPath}\" -Recurse -Force"
-        log.debug("deleteImage command: ${command}")
+        LogWrapper.instance.debug("deleteImage command: ${command}")
         def out = wrapExecuteCommand(generateCommandString(command), opts)
-        log.debug("deleteImage: ${out.data}")
+        LogWrapper.instance.debug("deleteImage: ${out.data}")
         rtn.success = out.success
         return rtn
     }
@@ -2202,7 +2202,7 @@ For (\$i=0; \$i -le 10; \$i++) {
         def rtn = [success: false, results: []]
         CloudFile metadataFile = (CloudFile) cloudFiles?.find { cloudFile -> cloudFile.name == 'metadata.json' }
         List<CloudFile> vhdFiles = cloudFiles?.findAll { cloudFile -> cloudFile.name.indexOf(".morpkg") == -1 && (cloudFile.name.indexOf('.vhd') > -1 || cloudFile.name.indexOf('.vhdx')) && cloudFile.name.endsWith("/") == false }
-        log.debug("vhdFiles: ${vhdFiles}")
+        LogWrapper.instance.debug("vhdFiles: ${vhdFiles}")
         def zoneRoot = opts.zoneRoot ?: defaultRoot
         def imageFolderName = formatImageFolder(imageName)
         List<Map> fileList = []
@@ -2210,7 +2210,7 @@ For (\$i=0; \$i -le 10; \$i++) {
         opts.targetImageFolder = tgtFolder
         def cachePath = opts.cachePath
         def command = "\$ignore = mkdir \"${tgtFolder}\""
-        log.debug("command: ${command}")
+        LogWrapper.instance.debug("command: ${command}")
         def dirResults = wrapExecuteCommand(generateCommandString(command), opts)
 
         if (metadataFile) {
@@ -2238,9 +2238,9 @@ For (\$i=0; \$i -le 10; \$i++) {
             def out = wrapExecuteCommand(generateCommandString(command), opts)
             rtn.success = out.success && out.exitCode == '0'
             rtn.snapshotId = snapshotId
-            log.debug("snapshot server: ${out}")
+            LogWrapper.instance.debug("snapshot server: ${out}")
         } catch (e) {
-            log.error("snapshotServer error: ${e}")
+            LogWrapper.instance.error("snapshotServer error: ${e}")
         }
 
         return rtn
@@ -2256,9 +2256,9 @@ For (\$i=0; \$i -le 10; \$i++) {
             def out = wrapExecuteCommand(generateCommandString(commands.join(';')), opts)
             rtn.success = out.success && out.exitCode == '0'
             rtn.snapshotId = snapshotId
-            log.debug("delete snapshot: ${out}")
+            LogWrapper.instance.debug("delete snapshot: ${out}")
         } catch (e) {
-            log.error("deleteSnapshot error: ${e}")
+            LogWrapper.instance.error("deleteSnapshot error: ${e}")
         }
 
         return rtn
@@ -2273,9 +2273,9 @@ For (\$i=0; \$i -le 10; \$i++) {
             commands << "Restore-SCVMCheckpoint -VMCheckpoint \$Checkpoint"
             def out = wrapExecuteCommand(generateCommandString(commands.join(';')), opts)
             rtn.success = out.success && out.exitCode == '0'
-            log.debug("restore server: ${out}")
+            LogWrapper.instance.debug("restore server: ${out}")
         } catch (e) {
-            log.error("restoreServer error: ${e}")
+            LogWrapper.instance.error("restoreServer error: ${e}")
         }
 
         return rtn
@@ -2293,9 +2293,9 @@ For (\$i=0; \$i -le 10; \$i++) {
 
             def out = wrapExecuteCommand(generateCommandString(commands.join(';')), opts)
             rtn.success = out.success && out.exitCode == '0'
-            log.debug("changeVolumeTypeForClonedBootDisk: ${out}")
+            LogWrapper.instance.debug("changeVolumeTypeForClonedBootDisk: ${out}")
         } catch (e) {
-            log.error("changeVolumeTypeForClonedBootDisk error: ${e}")
+            LogWrapper.instance.error("changeVolumeTypeForClonedBootDisk error: ${e}")
         }
 
         return rtn
@@ -2303,7 +2303,7 @@ For (\$i=0; \$i -le 10; \$i++) {
 
     // TODO needs more error handling
     def buildCreateServerCommands(opts) {
-        log.debug "buildCreateServerCommands: ${opts}"
+        LogWrapper.instance.debug "buildCreateServerCommands: ${opts}"
         def rtn = [launchCommand: null, hardwareProfileName: '', templateName: '']
         def commands = []
 
@@ -2541,7 +2541,7 @@ For (\$i=0; \$i -le 10; \$i++) {
                     newVMString = appendOSCustomization(newVMString, opts)
                     commands << newVMString
                 } else {
-                    log.error("buildCreateServerCommands : No Host provided")
+                    LogWrapper.instance.error("buildCreateServerCommands : No Host provided")
                 }
             }
         } else {
@@ -2687,7 +2687,7 @@ For (\$i=0; \$i -le 10; \$i++) {
     def getScvmmControllerOpts(cloud, hypervisor) {
         def serverConfig = hypervisor.getConfigMap()
         def zoneConfig = cloud.getConfigMap()
-        log.debug("scvmm hypervisor config:${serverConfig}")
+        LogWrapper.instance.debug("scvmm hypervisor config:${serverConfig}")
         def configuredDiskPath = zoneConfig.diskPath?.length() > 0 ? zoneConfig.diskPath : serverConfig.diskPath?.length() > 0 ? serverConfig.diskPath : null
         def diskRoot = configuredDiskPath ? configuredDiskPath : defaultRoot + '\\Disks'
         def configuredWorkingPath = zoneConfig.workingPath?.length() > 0 ? zoneConfig.workingPath : serverConfig.workingPath?.length() > 0 ? serverConfig.workingPath : null
@@ -2709,7 +2709,7 @@ For (\$i=0; \$i -le 10; \$i++) {
                 payload = "[${out.data}]"
             }
             try {
-                log.debug "Received: ${JsonOutput.prettyPrint(payload)}"
+                LogWrapper.instance.debug "Received: ${JsonOutput.prettyPrint(payload)}"
             } catch (e) {
 //				File file = new File("/Users/bob/Desktop/bad.json")
 //				file.write payload

@@ -4,9 +4,9 @@ import com.morpheusdata.scvmm.ScvmmApiService
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.model.Cloud
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 
-@Slf4j
 class CloudCapabilityProfilesSync {
 
     private MorpheusContext morpheusContext
@@ -20,7 +20,7 @@ class CloudCapabilityProfilesSync {
     }
 
     def execute() {
-        log.debug "CloudCapabilityProfilesSync"
+        LogWrapper.instance.debug "CloudCapabilityProfilesSync"
         try {
             def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('cloud.id', cloud.id))
             def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, server)
@@ -39,7 +39,7 @@ class CloudCapabilityProfilesSync {
                 }
             }
         } catch (e) {
-            log.error("CloudCapabilityProfilesSync error: ${e}", e)
+            LogWrapper.instance.error("CloudCapabilityProfilesSync error: ${e}", e)
         }
     }
 }

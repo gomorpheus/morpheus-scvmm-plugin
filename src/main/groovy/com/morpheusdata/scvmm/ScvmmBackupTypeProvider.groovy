@@ -15,7 +15,6 @@ import groovy.util.logging.Slf4j
  * external provider services. The backup provider supplies providers for provision types and/or container types via
  * the {@link BackupTypeProvider BackupTypeProviders} implemented within the provider.
  */
-@Slf4j
 class ScvmmBackupTypeProvider extends AbstractBackupTypeProvider {
 
 	BackupExecutionProvider executionProvider;

@@ -5,7 +5,6 @@ import com.morpheusdata.core.backup.BackupJobProvider
 import com.morpheusdata.core.backup.MorpheusBackupProvider
 import groovy.util.logging.Slf4j
 
-@Slf4j
 class ScvmmBackupProvider extends MorpheusBackupProvider {
 
 	BackupJobProvider backupJobProvider;

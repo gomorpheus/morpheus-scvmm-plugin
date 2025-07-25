@@ -12,6 +12,7 @@ import com.morpheusdata.model.*
 import com.morpheusdata.model.projection.StorageVolumeIdentityProjection
 import com.morpheusdata.model.projection.VirtualImageIdentityProjection
 import com.morpheusdata.model.projection.VirtualImageLocationIdentityProjection
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 import io.reactivex.rxjava3.core.Observable
 
@@ -19,7 +20,6 @@ import io.reactivex.rxjava3.core.Observable
  * @author rahul.ray
  */
 
-@Slf4j
 class TemplatesSync {
     private Cloud cloud
     private ComputeServer node
@@ -37,7 +37,7 @@ class TemplatesSync {
     }
 
     def execute() {
-        log.debug "TemplatesSync"
+        LogWrapper.instance.debug "TemplatesSync"
         def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloud, node)
         def listResults = apiService.listTemplates(scvmmOpts)
         if (listResults.success && listResults.templates) {
@@ -48,7 +48,7 @@ class TemplatesSync {
             def dupedLocations = groupedLocations.findAll { key, value -> value.size() > 1 }
             def dupeCleanup = []
             if (dupedLocations?.size() > 0)
-                log.warn("removing duplicate image locations: {}", dupedLocations.collect { it.key })
+                LogWrapper.instance.warn("removing duplicate image locations: {}", dupedLocations.collect { it.key })
             dupedLocations?.each { key, value ->
                 value.eachWithIndex { row, index ->
                     if (index > 0)
@@ -69,13 +69,13 @@ class TemplatesSync {
             }.withLoadObjectDetailsFromFinder { List<SyncTask.UpdateItemDto<VirtualImageLocationIdentityProjection, Map>> updateItems ->
                 context.async.virtualImage.location.listById(updateItems.collect { it.existingItem.id } as List<Long>)
             }.onAdd { itemsToAdd ->
-                log.debug("TemplatesSync, onAdd: ${itemsToAdd}")
+                LogWrapper.instance.debug("TemplatesSync, onAdd: ${itemsToAdd}")
                 addMissingVirtualImageLocations(itemsToAdd)
             }.onUpdate { List<SyncTask.UpdateItem<VirtualImageLocation, Map>> updateItems ->
-                log.debug("TemplatesSync, onUpdate: ${updateItems}")
+                LogWrapper.instance.debug("TemplatesSync, onUpdate: ${updateItems}")
                 updateMatchedVirtualImageLocations(updateItems)
             }.onDelete { List<VirtualImageLocationIdentityProjection> removeItems ->
-                log.debug("TemplatesSync, onDelete: ${removeItems}")
+                LogWrapper.instance.debug("TemplatesSync, onDelete: ${removeItems}")
                 removeMissingVirtualImages(removeItems)
             }.start()
         }
@@ -83,15 +83,15 @@ class TemplatesSync {
 
     protected removeMissingVirtualImages(List<VirtualImageLocationIdentityProjection> removeList) {
         try {
-            log.debug("removeMissingVirtualImageLocations: ${cloud} ${removeList.size()}")
+            LogWrapper.instance.debug("removeMissingVirtualImageLocations: ${cloud} ${removeList.size()}")
             context.async.virtualImage.location.remove(removeList).blockingGet()
         } catch (e) {
-            log.error("error deleting synced virtual image: ${e}", e)
+            LogWrapper.instance.error("error deleting synced virtual image: ${e}", e)
         }
     }
 
     private updateMatchedVirtualImageLocations(List<SyncTask.UpdateItem<VirtualImageLocation, Map>> updateItems) {
-        log.debug "updateMatchedVirtualImages: ${updateItems.size()}"
+        LogWrapper.instance.debug "updateMatchedVirtualImages: ${updateItems.size()}"
         try {
 
             def locationIds = updateItems.findAll { it.existingItem.id }?.collect { it.existingItem.id }
@@ -178,7 +178,7 @@ class TemplatesSync {
                                 isPublic    : false
                         ]
                         def addLocation = new VirtualImageLocation(locationConfig)
-                        log.debug("save VirtualImageLocation: ${addLocation}")
+                        LogWrapper.instance.debug("save VirtualImageLocation: ${addLocation}")
                         locationsToCreate << addLocation
                         //tmp fix
                         if (!image.owner && !image.systemImage)
@@ -200,12 +200,12 @@ class TemplatesSync {
                 context.async.virtualImage.save(imagesToUpdate, cloud).blockingGet()
             }
         } catch (e) {
-            log.error("Error in updateMatchedVirtualImageLocations: ${e}", e)
+            LogWrapper.instance.error("Error in updateMatchedVirtualImageLocations: ${e}", e)
         }
     }
 
     def addMissingVirtualImageLocations(Collection<Map> addList) {
-        log.debug "addMissingVirtualImageLocations: ${addList?.size()}"
+        LogWrapper.instance.debug "addMissingVirtualImageLocations: ${addList?.size()}"
         try {
             def names = addList.collect { it.Name }?.unique()
             def uniqueIds = [] as Set
@@ -238,12 +238,12 @@ class TemplatesSync {
                 return context.async.virtualImage.listById(updateItems?.collect { it.existingItem.id } as List<Long>)
             }.start()
         } catch (e) {
-            log.error("Error in addMissingVirtualImageLocations: ${e}", e)
+            LogWrapper.instance.error("Error in addMissingVirtualImageLocations: ${e}", e)
         }
     }
 
     private updateMatchedVirtualImages(List<SyncTask.UpdateItem<VirtualImage, Map>> updateItems) {
-        log.debug "updateMatchedVirtualImages: ${updateItems.size()}"
+        LogWrapper.instance.debug "updateMatchedVirtualImages: ${updateItems.size()}"
         try {
             def locationIds = []
             updateItems?.each {
@@ -334,7 +334,7 @@ class TemplatesSync {
                                 isPublic    : false
                         ]
                         def addLocation = new VirtualImageLocation(locationConfig)
-                        log.debug("save VirtualImageLocation: ${addLocation}")
+                        LogWrapper.instance.debug("save VirtualImageLocation: ${addLocation}")
                         locationsToCreate << addLocation
                         //tmp fix
                         if (!image.owner && !image.systemImage)
@@ -356,12 +356,12 @@ class TemplatesSync {
                 context.async.virtualImage.save(imagesToUpdate, cloud).blockingGet()
             }
         } catch (e) {
-            log.error("Error in updateMatchedVirtualImages: ${e}", e)
+            LogWrapper.instance.error("Error in updateMatchedVirtualImages: ${e}", e)
         }
     }
 
     private addMissingVirtualImages(Collection<Map> addList) {
-        log.debug "addMissingVirtualImages ${addList?.size()}"
+        LogWrapper.instance.debug "addMissingVirtualImages ${addList?.size()}"
         try {
             addList?.each { it ->
                 def imageConfig = [
@@ -384,9 +384,9 @@ class TemplatesSync {
                 if (it.Location)
                     imageConfig.remotePath = it.Location
                 def osTypeCode = apiService.getMapScvmmOsType(it.OperatingSystem, true, "Other Linux (64 bit)")
-                log.debug "cacheTemplates osTypeCode: ${osTypeCode}"
+                LogWrapper.instance.debug "cacheTemplates osTypeCode: ${osTypeCode}"
                 def osType = context.services.osType.find(new DataQuery().withFilter('code', osTypeCode ?: 'other'))
-                log.debug "osType: ${osType}"
+                LogWrapper.instance.debug "osType: ${osType}"
                 imageConfig.osType = osType
                 imageConfig.platform = osType?.platform
                 if (imageConfig.platform == 'windows') {
@@ -421,12 +421,12 @@ class TemplatesSync {
                 }
             }
         } catch (e) {
-            log.error("Error in addMissingVirtualImages: ${e}", e)
+            LogWrapper.instance.error("Error in addMissingVirtualImages: ${e}", e)
         }
     }
 
     def syncVolumes(addLocation, externalVolumes) {
-        log.debug "syncVolumes: ${addLocation}, ${groovy.json.JsonOutput.prettyPrint(externalVolumes?.encodeAsJSON()?.toString())}"
+        LogWrapper.instance.debug "syncVolumes: ${addLocation}, ${groovy.json.JsonOutput.prettyPrint(externalVolumes?.encodeAsJSON()?.toString())}"
         def changes = false //returns if there are changes to be saved
         try {
             def maxStorage = 0
@@ -451,7 +451,7 @@ class TemplatesSync {
                 removeMissingStorageVolumes(removeItems, addLocation, changes)
             }.start()
         } catch (e) {
-            log.error("syncVolumes error: ${e}", e)
+            LogWrapper.instance.error("syncVolumes error: ${e}", e)
         }
         return changes
     }
@@ -461,7 +461,7 @@ class TemplatesSync {
         def provisionProvider = cloudProvider.getProvisionProvider('morpheus-scvmm-plugin.provision')
         List<StorageVolume> volumes = []
         itemsToAdd?.each { diskData ->
-            log.debug("adding new volume: ${diskData}")
+            LogWrapper.instance.debug("adding new volume: ${diskData}")
             def datastore = diskData.datastore ?: loadDatastoreForVolume(diskData.HostVolumeId, diskData.FileShareId, diskData.PartitionUniqueId) ?: null
             def volumeConfig = [
                     // Dont replace the Morpheus volume name with the one from SCVMM
@@ -484,14 +484,14 @@ class TemplatesSync {
             maxStorage += storageVolume.maxStorage ?: 0l
             diskNumber++
             volumes << storageVolume
-            log.debug("added volume: ${storageVolume?.dump()}")
+            LogWrapper.instance.debug("added volume: ${storageVolume?.dump()}")
         }
         context.async.storageVolume.create(volumes, addLocation).blockingGet()
     }
 
     def updateMatchedStorageVolumes(updateItems, addLocation, maxStorage, changes) {
         updateItems?.each { updateMap ->
-            log.debug("updating volume: ${updateMap.masterItem}")
+            LogWrapper.instance.debug("updating volume: ${updateMap.masterItem}")
             StorageVolume volume = updateMap.existingItem
             def masterItem = updateMap.masterItem
 
@@ -517,7 +517,7 @@ class TemplatesSync {
             if (masterItem?.VHDType && masterItem?.VHDFormat) {
                 def storageVolumeType = getStorageVolumeType("scvmm-${masterItem?.VHDType}-${masterItem?.VHDFormat}".toLowerCase())
                 if (volume.type?.id != storageVolumeType.id) {
-                    log.debug("Updating StorageVolumeType to ${storageVolumeType}")
+                    LogWrapper.instance.debug("Updating StorageVolumeType to ${storageVolumeType}")
                     volume.type = storageVolumeType
                     save = true
                 }
@@ -533,7 +533,7 @@ class TemplatesSync {
     // todo Move to ScvmmComputeService?
     // Get the SCVMM StorageVolumeType - set a meaningful default if vhdType is null
     def getStorageVolumeType(String storageVolumeTypeCode) {
-        log.debug("getStorageVolumeTypeId - Looking up volumeTypeCode ${storageVolumeTypeCode}")
+        LogWrapper.instance.debug("getStorageVolumeTypeId - Looking up volumeTypeCode ${storageVolumeTypeCode}")
         def code = storageVolumeTypeCode ?: 'standard'
         return context.async.storageVolume.storageVolumeType.find(
                 new DataQuery().withFilter('code', code)).blockingGet()
@@ -541,7 +541,7 @@ class TemplatesSync {
 
     def removeMissingStorageVolumes(removeItems, addLocation, changes) {
         removeItems?.each { currentVolume ->
-            log.debug "removing volume: ${currentVolume}"
+            LogWrapper.instance.debug "removing volume: ${currentVolume}"
             changes = true
             currentVolume.controller = null
             currentVolume.datastore = null
@@ -586,7 +586,7 @@ class TemplatesSync {
     }
 
     def loadDatastoreForVolume(hostVolumeId = null, fileShareId = null, partitionUniqueId = null) {
-        log.debug "loadDatastoreForVolume: ${hostVolumeId}, ${fileShareId}"
+        LogWrapper.instance.debug "loadDatastoreForVolume: ${hostVolumeId}, ${fileShareId}"
         if (hostVolumeId) {
             StorageVolume storageVolume = context.services.storageVolume.find(new DataQuery().withFilter('internalId', hostVolumeId)
                     .withFilter('datastore.refType', 'ComputeZone').withFilter('datastore.refId', cloud.id))

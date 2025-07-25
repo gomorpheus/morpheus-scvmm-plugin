@@ -14,10 +14,10 @@ import com.morpheusdata.model.NetworkPoolType
 import com.morpheusdata.model.NetworkSubnet
 import com.morpheusdata.model.ResourcePermission
 import com.morpheusdata.model.projection.NetworkPoolIdentityProjection
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 import org.apache.commons.net.util.SubnetUtils
 
-@Slf4j
 class IpPoolsSync {
 
     private MorpheusContext morpheusContext
@@ -31,7 +31,7 @@ class IpPoolsSync {
     }
 
     def execute() {
-        log.debug "IpPoolsSync"
+        LogWrapper.instance.debug "IpPoolsSync"
         try {
             def networks = morpheusContext.services.cloud.network.list(new DataQuery()
                     .withFilters(
@@ -73,12 +73,12 @@ class IpPoolsSync {
                 }.start()
             }
         } catch (e) {
-            log.error("ipPoolsSync error: ${e}", e)
+            LogWrapper.instance.error("ipPoolsSync error: ${e}", e)
         }
     }
 
     private addMissingIpPools(Collection<Map> addList, List<Network> networks, NetworkPoolType poolType, networkMapping) {
-        log.debug("addMissingIpPools: ${addList.size()}")
+        LogWrapper.instance.debug("addMissingIpPools: ${addList.size()}")
 
         List<NetworkPool> networkPoolAdds = []
         List<NetworkPoolRange> poolRangeAdds = []
@@ -152,12 +152,12 @@ class IpPoolsSync {
                 updateNetworkForPool(networks, pool, mapping?.NetworkID, mapping?.SubnetID, networkMapping)
             }
         } catch (e) {
-            log.error("Error in addMissingIpPools: ${e}", e)
+            LogWrapper.instance.error("Error in addMissingIpPools: ${e}", e)
         }
     }
 
     def updateNetworkForPool(List<Network> networks, NetworkPool pool, networkId, subnetId, networkMapping) {
-        log.debug "updateNetworkForPool: ${networks} ${pool} ${networkId} ${subnetId} ${networkMapping}"
+        LogWrapper.instance.debug "updateNetworkForPool: ${networks} ${pool} ${networkId} ${subnetId} ${networkMapping}"
         try {
             // Find the matching network for the pool
             def networkExternalId = networkMapping?.find { it.ID == networkId }?.ID
@@ -231,12 +231,12 @@ class IpPoolsSync {
                 }
             }
         } catch (e) {
-            log.error("Error in updateNetworkForPool: ${e}", e)
+            LogWrapper.instance.error("Error in updateNetworkForPool: ${e}", e)
         }
     }
 
     private updateMatchedIpPools(List<SyncTask.UpdateItem<NetworkPool, Map>> updateList, networks, networkMapping) {
-        log.debug("updateMatchedIpPools : ${updateList.size()}")
+        LogWrapper.instance.debug("updateMatchedIpPools : ${updateList.size()}")
 
         try {
             updateList?.each { updateMap ->
@@ -327,7 +327,7 @@ class IpPoolsSync {
                 }
             }
         } catch (e) {
-            log.error("Error in updateMatchedIpPools: ${e}", e)
+            LogWrapper.instance.error("Error in updateMatchedIpPools: ${e}", e)
         }
     }
 }

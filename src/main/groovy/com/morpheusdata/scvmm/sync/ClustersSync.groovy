@@ -9,10 +9,10 @@ import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.CloudPool
 import com.morpheusdata.model.ResourcePermission
 import com.morpheusdata.model.projection.CloudPoolIdentity
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 import io.reactivex.rxjava3.core.Observable
 
-@Slf4j
 class ClustersSync {
     private MorpheusContext morpheusContext
     private Cloud cloud
@@ -25,13 +25,13 @@ class ClustersSync {
     }
 
     def execute() {
-        log.debug "ClustersSync"
+        LogWrapper.instance.debug "ClustersSync"
         try {
             def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('cloud.id', cloud.id))
 
             def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, server)
             def listResults = apiService.listClusters(scvmmOpts)
-            log.debug("clusters: {}", listResults)
+            LogWrapper.instance.debug("clusters: {}", listResults)
 
             if (listResults.success == true && listResults.clusters) {
                 def objList = listResults.clusters
@@ -62,21 +62,21 @@ class ClustersSync {
                     chooseOwnerPoolDefaults(cloud.owner)
                 }
             } else {
-                log.info("Not getting the listClusters")
+                LogWrapper.instance.info("Not getting the listClusters")
             }
         } catch (e) {
-            log.error("ClustersSync error: ${e}", e)
+            LogWrapper.instance.error("ClustersSync error: ${e}", e)
         }
     }
 
     private addMissingResourcePools(Collection<Map> addList){
-        log.debug("addMissingResourcePools: ${addList.size()}")
+        LogWrapper.instance.debug("addMissingResourcePools: ${addList.size()}")
 
         List<CloudPool> clusterAdds = []
         List<ResourcePermission> resourcePerms = []
         try{
             addList?.each { Map item ->
-                log.debug("add cluster: {}", item)
+                LogWrapper.instance.debug("add cluster: {}", item)
                 def poolConfig = [
                         owner       : cloud.owner,
                         name        : item.name,
@@ -116,12 +116,12 @@ class ClustersSync {
                 morpheusContext.async.resourcePermission.bulkCreate(resourcePerms).blockingGet()
             }
         } catch (e) {
-            log.error "Error in addMissingResourcePools: ${e}", e
+            LogWrapper.instance.error "Error in addMissingResourcePools: ${e}", e
         }
     }
 
     private updateMatchedResourcePools(List<SyncTask.UpdateItem<CloudPool, Map>> updateList){
-        log.debug("updateMatchedResourcePools: ${updateList.size()}")
+        LogWrapper.instance.debug("updateMatchedResourcePools: ${updateList.size()}")
 
         List<CloudPool> itemsToUpdate = []
         try {
@@ -158,17 +158,17 @@ class ClustersSync {
                 morpheusContext.async.cloud.pool.bulkSave(itemsToUpdate).blockingGet()
             }
         } catch(e) {
-            log.error "Error in updateMatchedResourcePools ${e}", e
+            LogWrapper.instance.error "Error in updateMatchedResourcePools ${e}", e
         }
     }
 
     private removeMissingResourcePools(List<CloudPoolIdentity> removeList) {
-        log.debug "removeMissingResourcePools: ${removeList?.size()}"
+        LogWrapper.instance.debug "removeMissingResourcePools: ${removeList?.size()}"
 
         def deleteList = []
         try {
             removeList?.each {  removeItem ->
-                log.debug("removing: ${}", removeItem)
+                LogWrapper.instance.debug("removing: ${}", removeItem)
                 //clear out associations
                 def serversToUpdate = morpheusContext.services.computeServer.list(new DataQuery()
                         .withFilter("resourcePool.id", removeItem.id))
@@ -201,7 +201,7 @@ class ClustersSync {
                 morpheusContext.async.cloud.pool.bulkRemove(deleteList).blockingGet()
             }
         } catch (e) {
-            log.error("Error in removeMissingResourcePools: ${e}", e)
+            LogWrapper.instance.error("Error in removeMissingResourcePools: ${e}", e)
         }
     }
 

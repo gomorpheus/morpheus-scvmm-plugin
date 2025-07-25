@@ -9,9 +9,9 @@ import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.core.util.MorpheusUtils
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ComputeServer
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 
-@Slf4j
 class ScvmmOptionSourceProvider implements OptionSourceProvider {
 
 	ScvmmPlugin plugin
@@ -94,7 +94,7 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 				def credentials = morpheusContext.services.accountCredential.loadCredentialConfig(params.credential, config)
 				cloud.accountCredentialLoaded = true
 				cloud.accountCredentialData = credentials?.data
-				log.debug("cloud.accountCredentialData: ${cloud.accountCredentialData}")
+				LogWrapper.instance.debug("cloud.accountCredentialData: ${cloud.accountCredentialData}")
 			} else {
 				// local credential, set the local cred config
 				config.password = password
@@ -119,7 +119,7 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 		if(apiConfig.sshUsername && apiConfig.sshPassword) {
 			results = apiService.listClouds(apiConfig)
 		}
-		log.debug("listClouds: ${results}")
+		LogWrapper.instance.debug("listClouds: ${results}")
 		def optionList = []
 		if(results.clouds?.size() > 0) {
 			optionList << [name: "Select a Cloud", value: ""]
@@ -131,14 +131,14 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	}
 
 	def scvmmHostGroup(params) {
-		log.debug("scvmmHostGroup: ${params}")
+		LogWrapper.instance.debug("scvmmHostGroup: ${params}")
 		def cloud = setupCloudConfig(params)
 		def apiConfig = getApiConfig(cloud)
 		def results = []
 		if(apiConfig.sshUsername && apiConfig.sshPassword) {
 			results = apiService.listHostGroups(apiConfig)
 		}
-		log.debug("listHostGroups: ${results}")
+		LogWrapper.instance.debug("listHostGroups: ${results}")
 		def optionList = []
 		if(results.hostGroups?.size() > 0) {
 			optionList << [name: "Select", value: ""]
@@ -150,14 +150,14 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	}
 
 	def scvmmCluster(params) {
-		log.debug("scvmmCluster: ${params}")
+		LogWrapper.instance.debug("scvmmCluster: ${params}")
 		def cloud = setupCloudConfig(params)
 		def apiConfig = getApiConfig(cloud)
 		def results = []
 		if(apiConfig.sshUsername && apiConfig.sshPassword) {
 			results = apiService.listClusters(apiConfig)
 		}
-		log.debug("listClusters: ${results}")
+		LogWrapper.instance.debug("listClusters: ${results}")
 		def optionList = []
 		if(results.clusters?.size() > 0) {
 			optionList << [name: "All", value: ""]
@@ -169,20 +169,20 @@ class ScvmmOptionSourceProvider implements OptionSourceProvider {
 	}
 
 	def scvmmLibraryShares(params) {
-		log.debug("scvmmLibraryShares: ${params}")
+		LogWrapper.instance.debug("scvmmLibraryShares: ${params}")
 		def cloud = setupCloudConfig(params)
 		def apiConfig = getApiConfig(cloud)
 		def results = []
 		if(apiConfig.sshUsername && apiConfig.sshPassword) {
 			results = apiService.listLibraryShares(apiConfig)
 		}
-		log.debug("listLibraryShares: ${results}")
+		LogWrapper.instance.debug("listLibraryShares: ${results}")
 		return results.libraryShares.size() > 0 ? results.libraryShares?.collect { [name: it.Path, value: it.Path] } : [[name:"No Library Shares found", value:""]]
 	}
 
 	def scvmmSharedControllers(params) {
 		params = params instanceof Object[] ? params.getAt(0) : params
-		log.debug("scvmmSharedControllers: ${params}")
+		LogWrapper.instance.debug("scvmmSharedControllers: ${params}")
 
 		def orFilters = []
 		if(params.zoneId) {

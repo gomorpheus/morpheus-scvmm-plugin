@@ -6,6 +6,7 @@ import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.core.util.SyncTask
 import com.morpheusdata.model.*
 import com.morpheusdata.model.projection.DatastoreIdentityProjection
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 import io.reactivex.rxjava3.core.Observable
 
@@ -13,7 +14,6 @@ import io.reactivex.rxjava3.core.Observable
  * @author rahul.ray
  */
 
-@Slf4j
 class DatastoresSync {
 
     ComputeServer node
@@ -29,7 +29,7 @@ class DatastoresSync {
     }
 
     def execute() {
-        log.debug "DatastoresSync"
+        LogWrapper.instance.debug "DatastoresSync"
         try {
             List<CloudPool> clusters = context.services.cloud.pool.list(new DataQuery()
                     .withFilter('refType', 'ComputeZone').withFilter('refId', cloud.id)
@@ -37,7 +37,7 @@ class DatastoresSync {
             StorageVolumeType volumeType = context.services.storageVolume.storageVolumeType.find(new DataQuery().withFilter('code', 'scvmm-datastore'))
             def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloud, node)
             def listResults = apiService.listDatastores(scvmmOpts)
-            log.debug("DatastoresSync: listResults: ${listResults}")
+            LogWrapper.instance.debug("DatastoresSync: listResults: ${listResults}")
             if (listResults.success == true && listResults.datastores) {
                 def objList = []
                 def partitionUniqueIds = []
@@ -47,7 +47,7 @@ class DatastoresSync {
                     }
                     partitionUniqueIds << data.partitionUniqueID
                 }
-                log.debug("DatastoresSync: objList: ${objList}")
+                LogWrapper.instance.debug("DatastoresSync: objList: ${objList}")
                 List<ComputeServer> existingHosts = context.services.computeServer.list(new DataQuery().withFilter('zone.id', cloud.id)
                         .withFilter('computeServerType.code', 'scvmmHypervisor'))
 
@@ -69,22 +69,22 @@ class DatastoresSync {
                 }.start()
             }
         } catch (ex) {
-            log.error("DatastoresSync error: {}", ex.getMessage())
+            LogWrapper.instance.error("DatastoresSync error: {}", ex.getMessage())
         }
     }
 
     private removeMissingDatastores(List<DatastoreIdentityProjection> removeList) {
-        log.debug("removeMissingDatastores: ${cloud} ${removeList.size()}")
+        LogWrapper.instance.debug("removeMissingDatastores: ${cloud} ${removeList.size()}")
         try {
             context.services.cloud.datastore.bulkRemove(removeList)
         } catch (ex) {
-            log.error("DatastoresSync: removeMissingDatastores error: {}", ex.getMessage())
+            LogWrapper.instance.error("DatastoresSync: removeMissingDatastores error: {}", ex.getMessage())
         }
     }
 
     private void updateMatchedDatastores(List<SyncTask.UpdateItem<Datastore, Map>> updateList, clusters, existingHosts, volumeType) {
         try {
-            log.debug("updateMatchedDatastores: ${updateList?.size()}")
+            LogWrapper.instance.debug("updateMatchedDatastores: ${updateList?.size()}")
             def host
             updateList.each { item ->
                 def masterItem = item.masterItem
@@ -129,12 +129,12 @@ class DatastoresSync {
                 }
             }
         } catch (e) {
-            log.error("Error in updateMatchedDatastores method: ${e}", e)
+            LogWrapper.instance.error("Error in updateMatchedDatastores method: ${e}", e)
         }
     }
 
     private addMissingDatastores(Collection<Map> addList, clusters, existingHosts, volumeType) {
-        log.debug("addMissingDatastores: addList?.size(): ${addList?.size()}")
+        LogWrapper.instance.debug("addMissingDatastores: addList?.size(): ${addList?.size()}")
         try {
             addList?.each { Map item ->
                 def isSharedVolume = item.isClusteredSharedVolume
@@ -163,16 +163,16 @@ class DatastoresSync {
                                 active     : cloud.defaultDatastoreSyncActive,
                                 storageSize: item.size ? item.size?.toLong() : item.capacity ? item.capacity?.toLong() : 0
                         ]
-                log.debug("datastoreConfig: ${datastoreConfig}")
+                LogWrapper.instance.debug("datastoreConfig: ${datastoreConfig}")
                 Datastore datastore = new Datastore(datastoreConfig)
                 def savedDataStore = context.async.cloud.datastore.create(datastore).blockingGet()
-                log.debug("savedDataStore?.id: ${savedDataStore?.id}")
+                LogWrapper.instance.debug("savedDataStore?.id: ${savedDataStore?.id}")
                 if (savedDataStore && host) {
                     syncVolume(item, host, savedDataStore, volumeType, externalId)
                 }
             }
         } catch (e) {
-            log.error "Error in adding Datastores sync ${e}", e
+            LogWrapper.instance.error "Error in adding Datastores sync ${e}", e
         }
     }
 
@@ -228,11 +228,11 @@ class DatastoresSync {
                 )
                 newVolume.datastore = savedDataStore
                 context.async.storageVolume.create([newVolume], host).blockingGet()
-                log.debug("syncVolume: newVolume created")
+                LogWrapper.instance.debug("syncVolume: newVolume created")
             }
 
         } catch (ex) {
-            log.error "Error in volumeSync Datastores ${ex}", ex
+            LogWrapper.instance.error "Error in volumeSync Datastores ${ex}", ex
         }
     }
 
