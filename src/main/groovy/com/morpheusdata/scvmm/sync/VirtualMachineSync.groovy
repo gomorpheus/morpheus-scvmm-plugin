@@ -11,6 +11,7 @@ import com.morpheusdata.core.util.SyncUtils
 import com.morpheusdata.model.*
 import com.morpheusdata.model.projection.ComputeServerIdentityProjection
 import com.morpheusdata.model.projection.StorageVolumeIdentityProjection
+import com.morpheusdata.scvmm.logging.LogInterface
 import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 import io.reactivex.rxjava3.core.Observable
@@ -26,6 +27,7 @@ class VirtualMachineSync {
     private MorpheusContext context
     private ScvmmApiService apiService
     private CloudProvider cloudProvider
+    private LogInterface log = LogWrapper.instance
 
     VirtualMachineSync(ComputeServer node, Cloud cloud, MorpheusContext context, CloudProvider cloudProvider) {
         this.node = node
@@ -36,7 +38,7 @@ class VirtualMachineSync {
     }
 
     def execute(createNew) {
-        LogWrapper.instance.debug "VirtualMachineSync"
+        log.debug "VirtualMachineSync"
 
         try {
             def now = new Date()
@@ -44,7 +46,7 @@ class VirtualMachineSync {
             def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloud, node)
 
             def listResults = apiService.listVirtualMachines(scvmmOpts)
-            LogWrapper.instance.debug("VM List acquired in ${new Date().time - now.time}ms")
+            log.debug("VM List acquired in ${new Date().time - now.time}ms")
 
             if (listResults.success == true) {
                 def hosts = context.services.computeServer.list(new DataQuery()
@@ -90,14 +92,14 @@ class VirtualMachineSync {
                 }.observe().blockingSubscribe()
             }
         } catch (ex) {
-            LogWrapper.instance.error("cacheVirtualMachines error: ${ex}", ex)
+            log.error("cacheVirtualMachines error: ${ex}", ex)
         }
     }
 
     def addMissingVirtualMachines(List addList, Collection<ServicePlan> availablePlans, ServicePlan fallbackPlan, Collection<ResourcePermission> availablePlanPermissions, List hosts, Boolean consoleEnabled, ComputeServerType defaultServerType) {
         try {
             for (cloudItem in addList) {
-                LogWrapper.instance.debug "Adding new virtual machine: ${cloudItem.Name}"
+                log.debug "Adding new virtual machine: ${cloudItem.Name}"
                 def vmConfig = buildVmConfig(cloudItem, defaultServerType)
                 ComputeServer add = new ComputeServer(vmConfig)
                 add.maxStorage = (cloudItem.TotalSize?.toDouble() ?: 0)
@@ -135,19 +137,19 @@ class VirtualMachineSync {
                 add.capacityInfo = new ComputeCapacityInfo(maxCores: add.maxCores, maxMemory: add.maxMemory, maxStorage: add.maxStorage)
                 ComputeServer savedServer = context.async.computeServer.create(add).blockingGet()
                 if (!savedServer) {
-                    LogWrapper.instance.error "error adding new virtual machine: ${add}"
+                    log.error "error adding new virtual machine: ${add}"
                 } else {
                     syncVolumes(savedServer, cloudItem.Disks)
                 }
             }
         } catch (ex) {
-            LogWrapper.instance.error("Error in adding VM: ${ex.message}", ex)
+            log.error("Error in adding VM: ${ex.message}", ex)
         }
     }
 
     protected updateMatchedVirtualMachines(List<SyncTask.UpdateItem<ComputeServer, Map>> updateList, availablePlans, fallbackPlan,
                                            List<ComputeServer> hosts, consoleEnabled, ComputeServerType defaultServerType) {
-        LogWrapper.instance.debug("VirtualMachineSync >> updateMatchedVirtualMachines() called")
+        log.debug("VirtualMachineSync >> updateMatchedVirtualMachines() called")
         try {
             def matchedServers = context.services.computeServer.list(new DataQuery().withFilter('id', 'in', updateList.collect { up -> up.existingItem.id })
                     .withJoins(['account', 'zone', 'computeServerType', 'plan', 'chassis', 'serverOs', 'sourceImage', 'folder', 'createdBy', 'userGroup',
@@ -159,7 +161,7 @@ class VirtualMachineSync {
                 ComputeServer currentServer = matchedServers[updateMap.existingItem.id]
                 def masterItem = updateMap.masterItem
                 try {
-                    LogWrapper.instance.debug("Checking state of matched SCVMM Server ${masterItem.ID} - ${currentServer}")
+                    log.debug("Checking state of matched SCVMM Server ${masterItem.ID} - ${currentServer}")
                     if (currentServer.status != 'provisioning') {
                         try {
                             Boolean save = false
@@ -260,28 +262,28 @@ class VirtualMachineSync {
                                     syncVolumes(currentServer, masterItem.Disks)
                                 }
                             }
-                            LogWrapper.instance.debug ("updateMatchedVirtualMachines: save: ${save}")
+                            log.debug ("updateMatchedVirtualMachines: save: ${save}")
                             if (save) {
                                 saves << currentServer
                             }
                         } catch (ex) {
-                            LogWrapper.instance.error("Error Updating Virtual Machine ${currentServer?.name} - ${currentServer.externalId} - ${ex}", ex)
+                            log.error("Error Updating Virtual Machine ${currentServer?.name} - ${currentServer.externalId} - ${ex}", ex)
                         }
                     }
                 } catch (Exception e) {
-                    LogWrapper.instance.error "Error in updating stats: ${e.message}", e
+                    log.error "Error in updating stats: ${e.message}", e
                 }
             }
             if (saves) {
                 context.async.computeServer.bulkSave(saves).blockingGet()
             }
         } catch (Exception e) {
-            LogWrapper.instance.error "Error in updating virtual machines: ${e.message}", e
+            log.error "Error in updating virtual machines: ${e.message}", e
         }
     }
 
     def removeMissingVirtualMachines(List<ComputeServerIdentityProjection> removeList) {
-        LogWrapper.instance.debug("removeMissingVirtualMachines: ${cloud} ${removeList.size()}")
+        log.debug("removeMissingVirtualMachines: ${cloud} ${removeList.size()}")
         def removeItems = context.services.computeServer.listIdentityProjections(
                 new DataQuery().withFilter("id", "in", removeList.collect { it.id })
                         .withFilter("computeServerType.code", 'scvmmUnmanaged')
@@ -314,7 +316,7 @@ class VirtualMachineSync {
     }
 
     def syncVolumes(server, externalVolumes) {
-        LogWrapper.instance.debug "syncVolumes: ${server}, ${groovy.json.JsonOutput.prettyPrint(externalVolumes?.encodeAsJSON()?.toString())}"
+        log.debug "syncVolumes: ${server}, ${groovy.json.JsonOutput.prettyPrint(externalVolumes?.encodeAsJSON()?.toString())}"
         def changes = false
         try {
             def maxStorage = 0
@@ -340,13 +342,13 @@ class VirtualMachineSync {
             }.start()
 
             if (server instanceof ComputeServer && server.maxStorage != maxStorage) {
-                LogWrapper.instance.debug "max storage changed for ${server} from ${server.maxStorage} to ${maxStorage}"
+                log.debug "max storage changed for ${server} from ${server.maxStorage} to ${maxStorage}"
                 server.maxStorage = maxStorage
                 context.async.computeServer.save(server).blockingGet()
                 changes = true
             }
         } catch (e) {
-            LogWrapper.instance.error("syncVolumes error: ${e}", e)
+            log.error("syncVolumes error: ${e}", e)
         }
         return changes
     }
@@ -354,7 +356,7 @@ class VirtualMachineSync {
     def addMissingStorageVolumes(itemsToAdd, server, int diskNumber, maxStorage, changes) {
         def provisionProvider = cloudProvider.getProvisionProvider('morpheus-scvmm-plugin.provision')
         itemsToAdd?.each { diskData ->
-            LogWrapper.instance.debug("adding new volume: ${diskData}")
+            log.debug("adding new volume: ${diskData}")
             def datastore = diskData.datastore ?: loadDatastoreForVolume(diskData.HostVolumeId, diskData.FileShareId, diskData.PartitionUniqueId) ?: null
             def volumeConfig = [
                     name      : diskData.Name,
@@ -371,14 +373,14 @@ class VirtualMachineSync {
             context.async.storageVolume.create([storageVolume], server).blockingGet()
             maxStorage += storageVolume.maxStorage ?: 0l
             diskNumber++
-            LogWrapper.instance.debug("added volume: ${storageVolume?.dump()}")
+            log.debug("added volume: ${storageVolume?.dump()}")
         }
     }
 
     def updateMatchedStorageVolumes(updateItems, server, maxStorage, changes) {
         def savedVolumes = []
         updateItems?.each { updateMap ->
-            LogWrapper.instance.debug("updating volume: ${updateMap.masterItem}")
+            log.debug("updating volume: ${updateMap.masterItem}")
             StorageVolume volume = updateMap.existingItem
             def masterItem = updateMap.masterItem
 
@@ -411,7 +413,7 @@ class VirtualMachineSync {
 
     def removeMissingStorageVolumes(removeItems, server, changes) {
         removeItems?.each { currentVolume ->
-            LogWrapper.instance.debug "removing volume: ${currentVolume}"
+            log.debug "removing volume: ${currentVolume}"
             changes = true
             currentVolume.controller = null
             currentVolume.datastore = null
@@ -456,7 +458,7 @@ class VirtualMachineSync {
     }
 
     def loadDatastoreForVolume(hostVolumeId = null, fileShareId = null, partitionUniqueId = null) {
-        LogWrapper.instance.debug "loadDatastoreForVolume: ${hostVolumeId}, ${fileShareId}"
+        log.debug "loadDatastoreForVolume: ${hostVolumeId}, ${fileShareId}"
         if (hostVolumeId) {
             StorageVolume storageVolume = context.services.storageVolume.find(new DataQuery().withFilter('internalId', hostVolumeId)
                     .withFilter('datastore.refType', 'ComputeZone').withFilter('datastore.refId', cloud.id))

@@ -10,6 +10,7 @@ import com.morpheusdata.model.ComputeCapacityInfo
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.OsType
 import com.morpheusdata.model.projection.ComputeServerIdentityProjection
+import com.morpheusdata.scvmm.logging.LogInterface
 import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 
@@ -23,6 +24,7 @@ class HostSync {
     private ComputeServer node
     private MorpheusContext context
     private ScvmmApiService apiService
+    private LogInterface log = LogWrapper.instance
 
     HostSync(Cloud cloud, ComputeServer node, MorpheusContext context) {
         this.cloud = cloud
@@ -33,11 +35,11 @@ class HostSync {
     }
 
     def execute() {
-        LogWrapper.instance.debug "HostSync"
+        log.debug "HostSync"
         try {
             def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloud, node)
             def listResults = apiService.listHosts(scvmmOpts)
-            LogWrapper.instance.debug("HostSync: listResults: ${listResults}")
+            log.debug("HostSync: listResults: ${listResults}")
             if (listResults.success == true && listResults.hosts) {
                 // Determine the scope for the zone (both hostgroup and cluster)
                 def hostGroupScope = cloud.getConfigProperty('hostGroup')
@@ -47,7 +49,7 @@ class HostSync {
                 // clusters for the cloud
                 def clusters = context.services.cloud.pool.list(new DataQuery()
                         .withFilter('refType', 'ComputeZone').withFilter('refId', cloud.id))
-                LogWrapper.instance.debug("HostSync: clusters?.size(): ${clusters?.size()}")
+                log.debug("HostSync: clusters?.size(): ${clusters?.size()}")
                 // Filter master list down to those that match the host group and cluster
                 def objList = []
                 listResults.hosts?.each { item ->
@@ -58,7 +60,7 @@ class HostSync {
                         objList << item
                     }
                 }
-                LogWrapper.instance.debug("HostSync: objList?.size(): ${objList?.size()}")
+                log.debug("HostSync: objList?.size(): ${objList?.size()}")
                 if (objList?.size() > 0) {
                     def existingItems = context.async.computeServer.listIdentityProjections(
                             new DataQuery().withFilter("zone.id", cloud.id).withFilter("computeServerType.code", 'scvmmHypervisor')
@@ -69,26 +71,26 @@ class HostSync {
                     }.withLoadObjectDetailsFromFinder { List<SyncTask.UpdateItemDto<ComputeServerIdentityProjection, Map>> updateItems ->
                         context.async.computeServer.listById(updateItems.collect { it.existingItem.id } as List<Long>)
                     }.onAdd { itemsToAdd ->
-                        LogWrapper.instance.debug("HostSync, onAdd: ${itemsToAdd}")
+                        log.debug("HostSync, onAdd: ${itemsToAdd}")
                         addMissingHosts(itemsToAdd, clusters)
                     }.onUpdate { List<SyncTask.UpdateItem<ComputeServer, Map>> updateItems ->
-                        LogWrapper.instance.debug("HostSync, onUpdate: ${updateItems}")
+                        log.debug("HostSync, onUpdate: ${updateItems}")
                         updateMatchedHosts(updateItems, clusters)
                     }.onDelete { List<ComputeServerIdentityProjection> removeItems ->
-                        LogWrapper.instance.debug("HostSync, onDelete: ${removeItems}")
+                        log.debug("HostSync, onDelete: ${removeItems}")
                         removeMissingHosts(removeItems)
                     }.start()
                 }
             } else {
-                LogWrapper.instance.error "Error in getting hosts : ${listResults}"
+                log.error "Error in getting hosts : ${listResults}"
             }
         } catch (e) {
-            LogWrapper.instance.error("HostSync error: ${e}", e)
+            log.error("HostSync error: ${e}", e)
         }
     }
 
     private updateMatchedHosts(List<SyncTask.UpdateItem<ComputeServer, Map>> updateList, clusters) {
-        LogWrapper.instance.debug "HostSync: updateMatchedHosts: ${cloud.id} ${updateList.size()}"
+        log.debug "HostSync: updateMatchedHosts: ${cloud.id} ${updateList.size()}"
         try {
             for (updateItem in updateList) {
                 def existingItem = updateItem.existingItem
@@ -98,19 +100,19 @@ class HostSync {
                 if (existingItem.resourcePool != cluster) {
                     existingItem.resourcePool = cluster
                     def savedServer = context.async.computeServer.save(existingItem).blockingGet()
-                    LogWrapper.instance.debug("savedServer?.id: ${savedServer?.id}")
+                    log.debug("savedServer?.id: ${savedServer?.id}")
                     if (savedServer) {
                         updateHostStats(savedServer, masterItem)
                     }
                 }
             }
         } catch (e) {
-            LogWrapper.instance.error("HostSync: updateMatchedHosts error: ${e}", e)
+            log.error("HostSync: updateMatchedHosts error: ${e}", e)
         }
     }
 
     private addMissingHosts(Collection<Map> addList, clusters) {
-        LogWrapper.instance.debug "HostSync: addMissingHosts: ${cloud} ${addList.size()}"
+        log.debug "HostSync: addMissingHosts: ${cloud} ${addList.size()}"
         try {
             def serverType = context.async.cloud.findComputeServerTypeByCode("scvmmHypervisor").blockingGet()
             for (cloudItem in addList) {
@@ -137,7 +139,7 @@ class HostSync {
                                 osType           : 'windows',
                                 hostname         : cloudItem.name
                         ]
-                LogWrapper.instance.debug("serverConfig: ${serverConfig}")
+                log.debug("serverConfig: ${serverConfig}")
                 def newServer = new ComputeServer(serverConfig)
                 newServer.maxMemory = cloudItem.totalMemory?.toLong() ?: 0
                 newServer.maxStorage = cloudItem.totalStorage?.toLong() ?: 0
@@ -146,18 +148,18 @@ class HostSync {
                 newServer.capacityInfo = new ComputeCapacityInfo(maxMemory: newServer.maxMemory, maxStorage: newServer.maxStorage, maxCores: newServer.maxCores)
                 newServer.setConfigProperty('rawData', cloudItem.encodeAsJSON().toString())
                 def savedServer = context.async.computeServer.create(newServer).blockingGet()
-                LogWrapper.instance.debug("savedServer?.id: ${savedServer?.id}")
+                log.debug("savedServer?.id: ${savedServer?.id}")
                 if (savedServer) {
                     updateHostStats(savedServer, cloudItem)
                 }
             }
         } catch (e) {
-            LogWrapper.instance.error("HostSync: addMissingHosts error: ${e}", e)
+            log.error("HostSync: addMissingHosts error: ${e}", e)
         }
     }
 
     def removeMissingHosts(List<ComputeServerIdentityProjection> removeList) {
-        LogWrapper.instance.debug "HostSync: removeMissingHosts: ${removeList.size()}"
+        log.debug "HostSync: removeMissingHosts: ${removeList.size()}"
         try {
             def parentServers = context.services.computeServer.list(
                     new DataQuery().withFilter("parentServer.id", "in", removeList.collect { it.id })
@@ -172,7 +174,7 @@ class HostSync {
             }
             context.async.computeServer.bulkRemove(removeList).blockingGet()
         } catch (ex) {
-            LogWrapper.instance.error("HostSync: removeMissingHosts error: ${ex}", ex)
+            log.error("HostSync: removeMissingHosts error: ${ex}", ex)
         }
     }
 
@@ -186,7 +188,7 @@ class HostSync {
     }
 
     def updateHostStats(ComputeServer server, hostMap) {
-        LogWrapper.instance.debug("HostSync: updateHostStats: hostMap: ${hostMap}")
+        log.debug("HostSync: updateHostStats: hostMap: ${hostMap}")
         try {
             //storage
             def maxStorage = hostMap.totalStorage?.toLong() ?: 0
@@ -250,7 +252,7 @@ class HostSync {
                 context.async.computeServer.save(server).blockingGet()
             }
         } catch (e) {
-            LogWrapper.instance.warn("HostSync: error updating host stats: ${e}", e)
+            log.warn("HostSync: error updating host stats: ${e}", e)
         }
     }
 }

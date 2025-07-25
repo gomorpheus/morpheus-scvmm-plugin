@@ -10,6 +10,7 @@ import com.morpheusdata.model.Datastore
 import com.morpheusdata.model.StorageVolume
 import com.morpheusdata.model.projection.DatastoreIdentity
 import com.morpheusdata.model.projection.StorageVolumeIdentityProjection
+import com.morpheusdata.scvmm.logging.LogInterface
 import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 import io.reactivex.rxjava3.core.Observable
@@ -24,6 +25,7 @@ class RegisteredStorageFileSharesSync {
     private ComputeServer node
     private MorpheusContext context
     private ScvmmApiService apiService
+    private LogInterface log = LogWrapper.instance
 
     RegisteredStorageFileSharesSync(Cloud cloud, ComputeServer node, MorpheusContext context) {
         this.cloud = cloud
@@ -33,7 +35,7 @@ class RegisteredStorageFileSharesSync {
     }
 
     def execute() {
-        LogWrapper.instance.debug "RegisteredStorageFileSharesSync"
+        log.debug "RegisteredStorageFileSharesSync"
         try {
             def clusters = context.services.cloud.pool.list(new DataQuery()
                     .withFilter('refType', 'ComputeZone')
@@ -42,7 +44,7 @@ class RegisteredStorageFileSharesSync {
                     .withFilter('internalId', '!=', null))
             def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloud, node)
             def listResults = apiService.listRegisteredFileShares(scvmmOpts)
-            LogWrapper.instance.debug("listResults: ${listResults}")
+            log.debug("listResults: ${listResults}")
             if (listResults.success == true && listResults.datastores) {
                 def objList = listResults?.datastores
                 def serverType = context.async.cloud.findComputeServerTypeByCode('scvmmHypervisor').blockingGet()
@@ -57,7 +59,7 @@ class RegisteredStorageFileSharesSync {
                 syncTask.addMatchFunction { DatastoreIdentity morpheusItem, Map cloudItem ->
                     morpheusItem?.externalId == cloudItem?.ID
                 }.onDelete { removeItems ->
-                    LogWrapper.instance.debug("removing datastore: ${removeItems?.size()}")
+                    log.debug("removing datastore: ${removeItems?.size()}")
                     context.async.cloud.datastore.remove(removeItems).blockingGet()
                 }.onUpdate {  updateItems ->
                     updateMatchedFileShares(updateItems, objList)
@@ -67,15 +69,15 @@ class RegisteredStorageFileSharesSync {
                     return context.async.cloud.datastore.listById(updateItems.collect { it.existingItem.id } as List<Long>)
                 }.start()
             } else {
-                LogWrapper.instance.info("Not getting the RegisteredStorageFileShares data")
+                log.info("Not getting the RegisteredStorageFileShares data")
             }
         } catch (e) {
-            LogWrapper.instance.error("RegisteredStorageFileSharesSync error: ${e}", e.getMessage())
+            log.error("RegisteredStorageFileSharesSync error: ${e}", e.getMessage())
         }
     }
 
     private addMissingFileShares(Collection<Map> addList, objList) {
-        LogWrapper.instance.debug("RegisteredStorageFileSharesSync: addMissingFileShares: called")
+        log.debug("RegisteredStorageFileSharesSync: addMissingFileShares: called")
         def dataStoreAdds = []
         try {
             def hostToShareMap = [:]
@@ -108,7 +110,7 @@ class RegisteredStorageFileSharesSync {
                         online     : online,
                         type       : 'generic'
                 ]
-                LogWrapper.instance.info "Created registered file share for id: ${cloudItem.ID}"
+                log.info "Created registered file share for id: ${cloudItem.ID}"
                 Datastore datastore = new Datastore(datastoreConfig)
                 dataStoreAdds << datastore
                 // buildMap
@@ -129,12 +131,12 @@ class RegisteredStorageFileSharesSync {
             }
             syncVolumeForEachHosts(hostToShareMap, objList)
         } catch (e) {
-            LogWrapper.instance.error "Error in adding RegisteredStorageFileSharesSync ${e}", e
+            log.error "Error in adding RegisteredStorageFileSharesSync ${e}", e
         }
     }
 
     private updateMatchedFileShares(List<SyncTask.UpdateItem<Datastore, Map>> updateList, objList) {
-        LogWrapper.instance.debug("RegisteredStorageFileSharesSync >> updateMatchedFileShares >> Entered")
+        log.debug("RegisteredStorageFileSharesSync >> updateMatchedFileShares >> Entered")
         def itemsToUpdate = []
         try {
             def hostToShareMap = [:]
@@ -186,7 +188,7 @@ class RegisteredStorageFileSharesSync {
             }
             syncVolumeForEachHosts(hostToShareMap, objList)
         } catch (e) {
-            LogWrapper.instance.error "Error in update updateMatchedFileShares ${e}", e
+            log.error "Error in update updateMatchedFileShares ${e}", e
         }
     }
 
@@ -216,7 +218,7 @@ class RegisteredStorageFileSharesSync {
                 ComputeServer host = context.services.computeServer.get(hostId)
                 def existingStorageVolumes = host.volumes?.findAll { it.type == volumeType }
                 def masterVolumeIds = hostToShareMap[host.externalId]
-                LogWrapper.instance.debug "${hostId}:${host.externalId} has ${existingStorageVolumes?.size()} volumes already"
+                log.debug "${hostId}:${host.externalId} has ${existingStorageVolumes?.size()} volumes already"
                 def domainRecords = Observable.fromIterable(existingStorageVolumes)
 
                 SyncTask<StorageVolumeIdentityProjection, Map, StorageVolume> syncTask = new SyncTask<>(domainRecords, masterVolumeIds as Collection<Map>)
@@ -224,9 +226,9 @@ class RegisteredStorageFileSharesSync {
                 syncTask.addMatchFunction { StorageVolumeIdentityProjection storageVolume, Map cloudItem ->
                     storageVolume?.externalId == cloudItem?.ID
                 }.onDelete { removeItems ->
-                    LogWrapper.instance.debug("${hostId}: removing storageVolume: ${removeItems.size()}")
+                    log.debug("${hostId}: removing storageVolume: ${removeItems.size()}")
                     removeItems?.each { currentVolume ->
-                        LogWrapper.instance.debug "removing volume: ${currentVolume}"
+                        log.debug "removing volume: ${currentVolume}"
                         currentVolume.controller = null
                         currentVolume.datastore = null
 
@@ -238,7 +240,7 @@ class RegisteredStorageFileSharesSync {
                     updateItems?.each { updateMap ->
                         StorageVolume storageVolume = updateMap.existingItem
                         def dsExternalId = updateMap.masterItem
-                        LogWrapper.instance.debug "${hostId}: Updating existing volumes ${dsExternalId}"
+                        log.debug "${hostId}: Updating existing volumes ${dsExternalId}"
 
                         Datastore match = morphDatastores.find { it.externalId == dsExternalId}
 
@@ -274,7 +276,7 @@ class RegisteredStorageFileSharesSync {
                     itemsToAdd?.each { dsExternalId ->
                         Datastore match = morphDatastores.find { it.externalId == dsExternalId}
                         if(match) {
-                            LogWrapper.instance.debug "${hostId}: Adding new volume ${dsExternalId}"
+                            log.debug "${hostId}: Adding new volume ${dsExternalId}"
                             def newVolume = new StorageVolume(
                                     type:volumeType,
                                     maxStorage:match.storageSize,
@@ -289,7 +291,7 @@ class RegisteredStorageFileSharesSync {
                             context.async.storageVolume.create([newVolume], host).blockingGet()
                             context.async.computeServer.save(host).blockingGet()
                         } else {
-                            LogWrapper.instance.error "Matching datastore with id ${dsExternalId} not found!"
+                            log.error "Matching datastore with id ${dsExternalId} not found!"
                         }
                     }
                 }.withLoadObjectDetailsFromFinder { List<SyncTask.UpdateItemDto<StorageVolumeIdentityProjection, Map>> updateItems ->
@@ -297,7 +299,7 @@ class RegisteredStorageFileSharesSync {
                 }.start()
             }
         } catch (e) {
-            LogWrapper.instance.error "error in cacheRegisteredStorageFileShares: ${e}", e
+            log.error "error in cacheRegisteredStorageFileShares: ${e}", e
         }
     }
 }

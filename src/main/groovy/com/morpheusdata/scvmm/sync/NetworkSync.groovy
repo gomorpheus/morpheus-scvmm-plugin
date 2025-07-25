@@ -16,6 +16,7 @@ import com.morpheusdata.model.NetworkSubnetType
 import com.morpheusdata.model.NetworkType
 import com.morpheusdata.model.projection.NetworkIdentityProjection
 import com.morpheusdata.model.projection.NetworkSubnetIdentityProjection
+import com.morpheusdata.scvmm.logging.LogInterface
 import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 
@@ -24,6 +25,7 @@ class NetworkSync {
     private MorpheusContext morpheusContext
     private Cloud cloud
     private ScvmmApiService apiService
+    private LogInterface log = LogWrapper.instance
 
     NetworkSync(MorpheusContext morpheusContext, Cloud cloud) {
         this.cloud = cloud
@@ -32,7 +34,7 @@ class NetworkSync {
     }
 
     def execute() {
-        LogWrapper.instance.debug "NetworkSync"
+        log.debug "NetworkSync"
         try {
             def networkType = new NetworkType(code: 'scvmmNetwork')
             NetworkSubnetType subnetType = new NetworkSubnetType(code: 'scvmm')
@@ -43,9 +45,9 @@ class NetworkSync {
 
             if (listResults.success == true && listResults.networks) {
                 def objList = listResults?.networks
-                LogWrapper.instance.debug("objList: {}", objList)
+                log.debug("objList: {}", objList)
                 if(!objList) {
-                    LogWrapper.instance.info "No networks returned!"
+                    log.info "No networks returned!"
                 }
                 def existingItems = morpheusContext.async.cloud.network.listIdentityProjections(new DataQuery()
                         .withFilters(
@@ -68,15 +70,15 @@ class NetworkSync {
                     return morpheusContext.async.cloud.network.listById(updateItems.collect { it.existingItem.id } as List<Long>)
                 }.start()
             } else {
-                LogWrapper.instance.error("Error not getting the listNetworks")
+                log.error("Error not getting the listNetworks")
             }
         } catch (e) {
-            LogWrapper.instance.error("cacheNetworks error: ${e}", e)
+            log.error("cacheNetworks error: ${e}", e)
         }
     }
 
     private addMissingNetworks(Collection<Map> addList, NetworkType networkType, NetworkSubnetType subnetType, ComputeServer server) {
-        LogWrapper.instance.debug("NetworkSync >> addMissingNetworks >> called")
+        log.debug("NetworkSync >> addMissingNetworks >> called")
 
         def networkAdds = []
         try {
@@ -135,12 +137,12 @@ class NetworkSync {
                 }
             }
         } catch (e) {
-            LogWrapper.instance.error("Error in addMissingNetworks: ${e}", e)
+            log.error("Error in addMissingNetworks: ${e}", e)
         }
     }
 
     private updateMatchedNetworks(List<SyncTask.UpdateItem<Network, Map>> updateList, NetworkSubnetType subnetType) {
-        LogWrapper.instance.debug("NetworkSync >> updateMatchedNetworks >> Entered")
+        log.debug("NetworkSync >> updateMatchedNetworks >> Entered")
 
         try {
             updateList?.each { updateMap ->
@@ -169,17 +171,17 @@ class NetworkSync {
                 }.start()
             }
         } catch(e) {
-            LogWrapper.instance.error("Error in updateMatchedNetworks: ${e}", e)
+            log.error("Error in updateMatchedNetworks: ${e}", e)
         }
     }
 
     private addMissingNetworkSubnet(Collection<Map> addList, NetworkSubnetType subnetType, Network network) {
-        LogWrapper.instance.debug("addMissingNetworkSubnet: ${addList}")
+        log.debug("addMissingNetworkSubnet: ${addList}")
 
         def subnetAdds = []
         try {
             addList?.each { scvmmSubnet ->
-                LogWrapper.instance.debug("adding new SCVMM subnet: ${scvmmSubnet}")
+                log.debug("adding new SCVMM subnet: ${scvmmSubnet}")
 
                 def networkCidr = NetworkUtility.getNetworkCidrConfig(scvmmSubnet.Subnet)
                 def subnetInfo = [
@@ -206,19 +208,19 @@ class NetworkSync {
             //create networkSubnets
             morpheusContext.async.networkSubnet.create(subnetAdds, network).blockingGet()
         } catch (e) {
-            LogWrapper.instance.error("Error in addMissingNetworkSubnet: ${e}", e)
+            log.error("Error in addMissingNetworkSubnet: ${e}", e)
         }
     }
 
     private updateMatchedNetworkSubnet(List<SyncTask.UpdateItem<NetworkSubnet, Map>> updateList){
-        LogWrapper.instance.debug("updateMatchedNetworkSubnet: ${updateList}")
+        log.debug("updateMatchedNetworkSubnet: ${updateList}")
 
         List<NetworkSubnet> itemsToUpdate = []
         try{
             updateList?.each { subnetUpdateMap ->
                 def matchedSubnet = subnetUpdateMap.masterItem
                 NetworkSubnet subnet = subnetUpdateMap.existingItem
-                LogWrapper.instance.debug("updating subnet: ${matchedSubnet}")
+                log.debug("updating subnet: ${matchedSubnet}")
 
                 def networkCidr = NetworkUtility.getNetworkCidrConfig(matchedSubnet.Subnet)
 
@@ -277,7 +279,7 @@ class NetworkSync {
                 morpheusContext.async.networkSubnet.save(itemsToUpdate).blockingGet()
             }
         } catch(e) {
-            LogWrapper.instance.error "Error in updateMatchedNetworkSubnet ${e}", e
+            log.error "Error in updateMatchedNetworkSubnet ${e}", e
         }
 
     }

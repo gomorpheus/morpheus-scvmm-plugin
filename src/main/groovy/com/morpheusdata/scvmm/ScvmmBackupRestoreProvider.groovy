@@ -9,6 +9,7 @@ import com.morpheusdata.model.BackupRestore;
 import com.morpheusdata.model.BackupResult;
 import com.morpheusdata.model.Backup;
 import com.morpheusdata.model.Instance
+import com.morpheusdata.scvmm.logging.LogInterface
 import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 
@@ -17,6 +18,7 @@ class ScvmmBackupRestoreProvider implements BackupRestoreProvider {
 	Plugin plugin
 	MorpheusContext morpheusContext
 	ScvmmApiService apiService
+	private LogInterface log = LogWrapper.instance
 
 	ScvmmBackupRestoreProvider(Plugin plugin, MorpheusContext morpheusContext) {
 		this.plugin = plugin
@@ -115,7 +117,7 @@ class ScvmmBackupRestoreProvider implements BackupRestoreProvider {
 	 */
 	@Override
 	ServiceResponse restoreBackup(BackupRestore backupRestore, BackupResult backupResult, Backup backup, Map opts) {
-		LogWrapper.instance.info("restoreBackup {}", backupResult)
+		log.info("restoreBackup {}", backupResult)
 		ServiceResponse rtn = ServiceResponse.prepare(new BackupRestoreResponse(backupRestore))
 		try {
 			ScvmmProvisionProvider provisionProvider = new ScvmmProvisionProvider(plugin, morpheusContext)
@@ -130,7 +132,7 @@ class ScvmmBackupRestoreProvider implements BackupRestoreProvider {
 				def restoreOpts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, node)
 				//execute restore
 				def restoreResults = apiService.restoreServer(restoreOpts, vmId, snapshotId)
-				LogWrapper.instance.debug("restoreResults: ${restoreResults}")
+				log.debug("restoreResults: ${restoreResults}")
 				sleep(30000)
 				// argh.. why!?  need to restart the server in order for the agent to call back home for some reason
 				provisionProvider.stopWorkload(workload)
@@ -139,10 +141,10 @@ class ScvmmBackupRestoreProvider implements BackupRestoreProvider {
 				rtn.data.backupRestore.status = BackupResult.Status.SUCCEEDED
 				rtn.data.updates = true
 				rtn.success = true
-				LogWrapper.instance.info("restore results: {}", restoreResults)
+				log.info("restore results: {}", restoreResults)
 			}
 		} catch (e) {
-			LogWrapper.instance.error("restoreBackup: ${e}", e)
+			log.error("restoreBackup: ${e}", e)
 			rtn.success = false
 			rtn.msg = e.getMessage()
 		}

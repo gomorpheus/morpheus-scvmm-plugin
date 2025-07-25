@@ -1,6 +1,7 @@
 package com.morpheusdata.scvmm
 
 import com.morpheusdata.scvmm.helper.morpheus.types.StorageVolumeTypeHelper
+import com.morpheusdata.scvmm.logging.LogInterface
 import com.morpheusdata.scvmm.logging.LogWrapper
 import com.morpheusdata.scvmm.sync.CloudCapabilityProfilesSync
 import com.morpheusdata.scvmm.sync.ClustersSync
@@ -32,8 +33,9 @@ class ScvmmCloudProvider implements CloudProvider {
 	protected MorpheusContext context
 	protected ScvmmPlugin plugin
 	ScvmmApiService apiService
+	private LogInterface log = LogWrapper.instance
 
-	public ScvmmCloudProvider(ScvmmPlugin plugin, MorpheusContext context) {
+	ScvmmCloudProvider(ScvmmPlugin plugin, MorpheusContext context) {
 		super()
 		this.@plugin = plugin
 		this.@context = context
@@ -430,7 +432,7 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	ServiceResponse validate(Cloud cloudInfo, ValidateCloudRequest validateCloudRequest) {
-		LogWrapper.instance.debug("validate cloud: {}", cloudInfo)
+		log.debug("validate cloud: {}", cloudInfo)
 		def rtn = [success: false, zone: cloudInfo, errors: [:]]
 		try {
 			if (rtn.zone) {
@@ -464,7 +466,7 @@ class ScvmmCloudProvider implements CloudProvider {
 							diskRoot   : zoneConfig.diskPath
 					]
 					def vmSitches = apiService.listClouds(scvmmOpts)
-					LogWrapper.instance.debug("vmSitches: ${vmSitches}")
+					log.debug("vmSitches: ${vmSitches}")
 					if (vmSitches.success == true)
 						rtn.success = true
 					if (rtn.success == false)
@@ -474,7 +476,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				rtn.message = 'No zone found'
 			}
 		} catch (e) {
-			LogWrapper.instance.error("An Exception Has Occurred", e)
+			log.error("An Exception Has Occurred", e)
 		}
 		return ServiceResponse.create(rtn)
 	}
@@ -487,13 +489,13 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	ServiceResponse initializeCloud(Cloud cloudInfo) {
-		LogWrapper.instance.debug ('initializing cloud: {}', cloudInfo.code)
+		log.debug ('initializing cloud: {}', cloudInfo.code)
 		ServiceResponse rtn = ServiceResponse.prepare()
 		try {
 			if(cloudInfo) {
 				if(cloudInfo.enabled == true) {
 					def initResults = initializeHypervisor(cloudInfo)
-					LogWrapper.instance.debug("initResults: {}", initResults)
+					log.debug("initResults: {}", initResults)
 					if(initResults.success == true) {
 						refresh(cloudInfo)
 					}
@@ -503,14 +505,14 @@ class ScvmmCloudProvider implements CloudProvider {
 				rtn.msg = 'No zone found'
 			}
 		} catch(e) {
-			LogWrapper.instance.error("initialize cloud error: {}",e)
+			log.error("initialize cloud error: {}",e)
 		}
 		return rtn
 	}
 
 	def initializeHypervisor(cloud) {
 		def rtn = [success: false]
-		LogWrapper.instance.debug("cloud: ${cloud}")
+		log.debug("cloud: ${cloud}")
 		def sharedController = cloud.getConfigProperty('sharedController')
 		if(sharedController) {
 			// No controller needed.. we are sharing another cloud's controller
@@ -572,7 +574,7 @@ class ScvmmCloudProvider implements CloudProvider {
 			newServer.maxStorage = maxStorage
 
 			// initializeHypervisor from context
-			LogWrapper.instance.debug("newServer: ${newServer}")
+			log.debug("newServer: ${newServer}")
 			context.services.computeServer.save(newServer)
 			if(newServer) {
 				context.async.hypervisorService.initialize(newServer)
@@ -592,7 +594,7 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	ServiceResponse refresh(Cloud cloudInfo) {
-		LogWrapper.instance.debug("refresh: {}", cloudInfo)
+		log.debug("refresh: {}", cloudInfo)
 		ServiceResponse response = ServiceResponse.prepare()
 		try {
 			def syncDate = new Date()
@@ -601,7 +603,7 @@ class ScvmmCloudProvider implements CloudProvider {
 			if (scvmmController) {
 				def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloudInfo, scvmmController)
 				def hostOnline = ConnectionUtils.testHostConnectivity(scvmmOpts.sshHost, 5985, false, true, null)
-				LogWrapper.instance.debug("hostOnline: {}", hostOnline)
+				log.debug("hostOnline: {}", hostOnline)
 				if (hostOnline) {
 					def checkResults = checkCommunication(cloudInfo, scvmmController)
 					if (checkResults.success == true) {
@@ -611,47 +613,47 @@ class ScvmmCloudProvider implements CloudProvider {
 
 						def now = new Date().time
 						new NetworkSync(context, cloudInfo).execute()
-						LogWrapper.instance.debug("${cloudInfo.name}: NetworkSync in ${new Date().time - now}ms")
+						log.debug("${cloudInfo.name}: NetworkSync in ${new Date().time - now}ms")
 
 						now = new Date().time
 						new ClustersSync(context, cloudInfo).execute()
-						LogWrapper.instance.debug("${cloudInfo.name}: ClustersSync in ${new Date().time - now}ms")
+						log.debug("${cloudInfo.name}: ClustersSync in ${new Date().time - now}ms")
 
 						now = new Date().time
 						new IsolationNetworkSync(context, cloudInfo, apiService).execute()
-						LogWrapper.instance.debug("${cloudInfo.name}: IsolationNetworkSync in ${new Date().time - now}ms")
+						log.debug("${cloudInfo.name}: IsolationNetworkSync in ${new Date().time - now}ms")
 
 						now = new Date().time
 						new HostSync(cloudInfo, scvmmController, context).execute()
-						LogWrapper.instance.debug("${cloudInfo.name}: HostSync in ${new Date().time - now}ms")
+						log.debug("${cloudInfo.name}: HostSync in ${new Date().time - now}ms")
 
 						now = new Date().time
 						new DatastoresSync(scvmmController, cloudInfo, context).execute()
-						LogWrapper.instance.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
+						log.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
 
 						now = new Date().time
 						new RegisteredStorageFileSharesSync(cloudInfo, scvmmController, context).execute()
-						LogWrapper.instance.debug("${cloudInfo.name}: RegisteredStorageFileSharesSync in ${new Date().time - now}ms")
+						log.debug("${cloudInfo.name}: RegisteredStorageFileSharesSync in ${new Date().time - now}ms")
 
 						now = new Date().time
 						new CloudCapabilityProfilesSync(context, cloudInfo).execute()
-						LogWrapper.instance.debug("${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
+						log.debug("${cloudInfo.name}: CloudCapabilityProfilesSync in ${new Date().time - now}ms")
 
 						now = new Date().time
 						new TemplatesSync(cloudInfo, scvmmController, context, this).execute()
-						LogWrapper.instance.debug("${cloudInfo.name}: TemplatesSync in ${new Date().time - now}ms")
+						log.debug("${cloudInfo.name}: TemplatesSync in ${new Date().time - now}ms")
 
 						now = new Date().time
 						new IpPoolsSync(context, cloudInfo).execute()
-						LogWrapper.instance.debug("${cloudInfo.name}: IpPoolsSync in ${new Date().time - now}ms")
+						log.debug("${cloudInfo.name}: IpPoolsSync in ${new Date().time - now}ms")
 
 						def doInventory = cloudInfo.getConfigProperty('importExisting')
 						def createNew = (doInventory == 'on' || doInventory == 'true' || doInventory == true)
 						now = new Date().time
 						new VirtualMachineSync(scvmmController, cloudInfo, context, this).execute(createNew)
-						LogWrapper.instance.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
+						log.debug("${cloudInfo.name}: DatastoresSync in ${new Date().time - now}ms")
 						context.async.cloud.updateCloudStatus(cloudInfo, Cloud.Status.ok, null, syncDate)
-						LogWrapper.instance.debug "complete scvmm zone refresh"
+						log.debug "complete scvmm zone refresh"
 						response.success = true
 					} else {
 						updateHypervisorStatus(scvmmController, 'error', 'unknown', 'error connecting to controller')
@@ -665,13 +667,13 @@ class ScvmmCloudProvider implements CloudProvider {
 				context.async.cloud.updateCloudStatus(cloudInfo, Cloud.Status.error, 'controller not found', syncDate)
 			}
 		} catch (e) {
-			LogWrapper.instance.error("refresh zone error:${e}", e)
+			log.error("refresh zone error:${e}", e)
 		}
 		return response
 	}
 
 	def checkCommunication(cloud, node) {
-		LogWrapper.instance.debug("checkCommunication: {} {}", cloud, node)
+		log.debug("checkCommunication: {} {}", cloud, node)
 		def rtn = [success: false]
 		try {
 			def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloud, node)
@@ -680,7 +682,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				rtn.success = true
 			}
 		} catch (e) {
-			LogWrapper.instance.error("checkCommunication error:${e}", e)
+			log.error("checkCommunication error:${e}", e)
 		}
 		return rtn
 	}
@@ -724,13 +726,13 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	void refreshDaily(Cloud cloudInfo) {
-		LogWrapper.instance.debug("refreshDaily: {}", cloudInfo)
+		log.debug("refreshDaily: {}", cloudInfo)
 		try {
 			def scvmmController = getScvmmController(cloudInfo)
 			if (scvmmController) {
 				def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloudInfo, scvmmController)
 				def hostOnline = ConnectionUtils.testHostConnectivity(scvmmOpts.sshHost, 5985, false, true, null)
-				LogWrapper.instance.debug("hostOnline: {}", hostOnline)
+				log.debug("hostOnline: {}", hostOnline)
 				if (hostOnline) {
 					def checkResults = checkCommunication(cloudInfo, scvmmController)
 					if (checkResults.success == true) {
@@ -739,7 +741,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				}
 			}
 		} catch (e) {
-			LogWrapper.instance.error "Error on refreshDailyZone: ${e}", e
+			log.error "Error on refreshDailyZone: ${e}", e
 		}
 	}
 
@@ -848,7 +850,7 @@ class ScvmmCloudProvider implements CloudProvider {
 	 */
 	@Override
 	ServiceResponse deleteServer(ComputeServer computeServer) {
-		LogWrapper.instance.debug("deleteServer: ${computeServer}")
+		log.debug("deleteServer: ${computeServer}")
 		def rtn = [success: false]
 		try {
 			ScvmmProvisionProvider provisionProvider = new ScvmmProvisionProvider(plugin, context)
@@ -862,7 +864,7 @@ class ScvmmCloudProvider implements CloudProvider {
 				}
 			}
 		} catch (e) {
-			LogWrapper.instance.error("deleteServer error: ${e}", e)
+			log.error("deleteServer error: ${e}", e)
 			rtn.msg = e.message
 		}
 		return ServiceResponse.create(rtn)
@@ -940,7 +942,7 @@ class ScvmmCloudProvider implements CloudProvider {
 	}
 
 	def validateSharedController(Cloud cloud) {
-		LogWrapper.instance.debug "validateSharedController: ${cloud}"
+		log.debug "validateSharedController: ${cloud}"
 		def rtn = [success: true]
 
 		def sharedControllerId = cloud.getConfigProperty('sharedController')
@@ -960,7 +962,7 @@ class ScvmmCloudProvider implements CloudProvider {
 					.withFilter('computeServerType.code', 'scvmmController')
 					.withFilter('externalIp', cloud.getConfigProperty('host')))
 			if (existingController) {
-				LogWrapper.instance.debug "Found another controller: ${existingController.id} in zone: ${existingController.cloud} that should be used"
+				log.debug "Found another controller: ${existingController.id} in zone: ${existingController.cloud} that should be used"
 				rtn.success = false
 				rtn.msg = 'You must specify a shared controller'
 			}
@@ -976,19 +978,19 @@ class ScvmmCloudProvider implements CloudProvider {
 	}
 
 	def removeOrphanedResourceLibraryItems(cloud, node) {
-		LogWrapper.instance.debug("removeOrphanedResourceLibraryItems: {} {}", cloud, node)
+		log.debug("removeOrphanedResourceLibraryItems: {} {}", cloud, node)
 		def rtn = [success:false]
 		try {
 			def scvmmOpts = apiService.getScvmmZoneAndHypervisorOpts(context, cloud, node)
 			apiService.removeOrphanedResourceLibraryItems(scvmmOpts)
 		} catch(e) {
-			LogWrapper.instance.error("removeOrphanedResourceLibraryItems error:${e}", e)
+			log.error("removeOrphanedResourceLibraryItems error:${e}", e)
 		}
 		return rtn
 	}
 
 	private updateHypervisorStatus(server, status, powerState, msg) {
-		LogWrapper.instance.debug("server: {}, status: {}, powerState: {}, msg: {}", server, status, powerState, msg)
+		log.debug("server: {}, status: {}, powerState: {}, msg: {}", server, status, powerState, msg)
 		if (server.status != status || server.powerState != powerState) {
 			server.status = status
 			server.powerState = powerState

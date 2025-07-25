@@ -10,6 +10,7 @@ import com.morpheusdata.model.BackupResult
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.response.ServiceResponse
+import com.morpheusdata.scvmm.logging.LogInterface
 import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 
@@ -19,6 +20,7 @@ class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 	MorpheusContext morpheusContext
 	ScvmmProvisionProvider provisionProvider
 	ScvmmApiService apiService
+	private LogInterface log = LogWrapper.instance
 
 	ScvmmBackupExecutionProvider(ScvmmPlugin plugin, MorpheusContext morpheusContext) {
 		this.plugin = plugin
@@ -102,7 +104,7 @@ class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 	 */
 	@Override
 	ServiceResponse deleteBackupResult(BackupResult backupResult, Map opts) {
-		LogWrapper.instance.debug("Delete backup result {}", backupResult.id)
+		log.debug("Delete backup result {}", backupResult.id)
 
 		def rtn = [success: true]
 		try {
@@ -129,14 +131,14 @@ class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 				opts = apiService.getScvmmZoneAndHypervisorOpts(morpheusContext, cloud, node)
 				def result = apiService.deleteSnapshot(opts, server.externalId, snapshotId)
 				if (!result.success) {
-					LogWrapper.instance.debug "An error occurred removing the snapshot, server may already be deleted?... ${result}"
+					log.debug "An error occurred removing the snapshot, server may already be deleted?... ${result}"
 					rtn.success = false
 				} else {
 					result = [success: true]
 				}
 			}
 		} catch (e) {
-			LogWrapper.instance.error("error in deleteBackupResult: {}", e, e)
+			log.error("error in deleteBackupResult: {}", e, e)
 			rtn.success = false
 		}
 		return ServiceResponse.create(rtn)
@@ -180,10 +182,10 @@ class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 	 */
 	@Override
 	ServiceResponse<BackupExecutionResponse> executeBackup(Backup backup, BackupResult backupResult, Map executionConfig, Cloud cloud, ComputeServer server, Map opts) {
-		LogWrapper.instance.debug("executeBackup: executionConfig: {}, opts: {}", executionConfig, opts)
+		log.debug("executeBackup: executionConfig: {}, opts: {}", executionConfig, opts)
 		ServiceResponse<BackupExecutionResponse> rtn = ServiceResponse.prepare(new BackupExecutionResponse(backupResult))
 		try {
-			LogWrapper.instance.info("backupConfig container: ${rtn}")
+			log.info("backupConfig container: ${rtn}")
 			def container = morpheusContext.services.workload.get(executionConfig.containerId)
 			def snapshotName = "${server.externalId}.${System.currentTimeMillis()}".toString()
 			def outputPath = executionConfig.workingPath
@@ -197,7 +199,7 @@ class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 			scvmmOpts.snapshotId = snapshotName
 			def vmId = server.externalId
 			def snapshotResults = apiService.snapshotServer(scvmmOpts, vmId)
-			LogWrapper.instance.info("backup complete: {}", snapshotResults)
+			log.info("backup complete: {}", snapshotResults)
 			if(snapshotResults.success) {
 				rtn.data.backupResult.backupSetId = opts.backupSetId
 				rtn.data.backupResult.executorIpAddress = executionConfig.ipAddress
@@ -232,7 +234,7 @@ class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 			}
 			rtn.success = true
 		} catch(e) {
-			LogWrapper.instance.error("executeBackup: ${e}", e)
+			log.error("executeBackup: ${e}", e)
 			rtn.msg = e.getMessage()
 			def error = "Failed to execute backup"
 			rtn.data.backupResult.backupSetId = executionConfig.backupResultId ?: BackupResultUtility.generateBackupResultSetId()

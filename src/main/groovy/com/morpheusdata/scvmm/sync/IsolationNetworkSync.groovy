@@ -11,6 +11,7 @@ import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.Network
 import com.morpheusdata.model.NetworkType
 import com.morpheusdata.model.projection.NetworkIdentityProjection
+import com.morpheusdata.scvmm.logging.LogInterface
 import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 
@@ -18,6 +19,7 @@ class IsolationNetworkSync {
     private MorpheusContext morpheusContext
     private Cloud cloud
     private ScvmmApiService apiService
+    private LogInterface log = LogWrapper.instance
 
     IsolationNetworkSync(MorpheusContext morpheusContext, Cloud cloud, ScvmmApiService apiService) {
         this.cloud = cloud
@@ -26,7 +28,7 @@ class IsolationNetworkSync {
     }
 
     def execute() {
-        LogWrapper.instance.debug "IsolationNetworkSync"
+        log.debug "IsolationNetworkSync"
         try {
             def networkType = new NetworkType(code: 'scvmmVLANNetwork')
             def server = morpheusContext.services.computeServer.find(new DataQuery().withFilter('cloud.id', cloud.id))
@@ -36,9 +38,9 @@ class IsolationNetworkSync {
 
             if (listResults.success == true && listResults.networks) {
                 def objList = listResults?.networks
-                LogWrapper.instance.debug("objList: {}", objList)
+                log.debug("objList: {}", objList)
                 if (!objList) {
-                    LogWrapper.instance.info "No networks returned!"
+                    log.info "No networks returned!"
                 }
 
                 def existingItems = morpheusContext.async.cloud.network.listIdentityProjections(new DataQuery()
@@ -63,15 +65,15 @@ class IsolationNetworkSync {
                     return morpheusContext.async.cloud.network.listById(updateItems.collect { it.existingItem.id } as List<Long>)
                 }.start()
             } else {
-                LogWrapper.instance.error("Error not getting the listNetworks")
+                log.error("Error not getting the listNetworks")
             }
         } catch (e) {
-            LogWrapper.instance.error("IsolationNetworkSync error: ${e}", e)
+            log.error("IsolationNetworkSync error: ${e}", e)
         }
     }
 
     private addMissingNetworks(Collection<Map> addList, NetworkType networkType, ComputeServer server) {
-        LogWrapper.instance.debug("IsolationNetworkSync >> addMissingNetworks >> called")
+        log.debug("IsolationNetworkSync >> addMissingNetworks >> called")
         def networkAdds = []
         try {
             addList?.each { networkItem ->
@@ -99,18 +101,18 @@ class IsolationNetworkSync {
             //create networks
             morpheusContext.async.cloud.network.create(networkAdds).blockingGet()
         } catch (e) {
-            LogWrapper.instance.error "Error in adding Isolation Network sync ${e}", e
+            log.error "Error in adding Isolation Network sync ${e}", e
         }
     }
 
     private updateMatchedNetworks(List<SyncTask.UpdateItem<Network, Map>> updateList) {
-        LogWrapper.instance.debug("IsolationNetworkSync:updateMatchedNetworks: Entered")
+        log.debug("IsolationNetworkSync:updateMatchedNetworks: Entered")
         List<Network> itemsToUpdate = []
         try {
             for (update in updateList) {
                 Network network = update.existingItem
                 def masterItem = update.masterItem
-                LogWrapper.instance.debug "processing update: ${network}"
+                log.debug "processing update: ${network}"
                 if (network) {
                     def save = false
                     if(network.cidr != masterItem.Subnet){
@@ -130,7 +132,7 @@ class IsolationNetworkSync {
                 morpheusContext.async.cloud.network.save(itemsToUpdate).blockingGet()
             }
         } catch(e) {
-            LogWrapper.instance.error "Error in update Isolation Network sync ${e}", e
+            log.error "Error in update Isolation Network sync ${e}", e
         }
     }
 }
