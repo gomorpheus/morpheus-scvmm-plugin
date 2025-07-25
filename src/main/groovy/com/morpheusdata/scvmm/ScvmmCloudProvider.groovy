@@ -377,7 +377,6 @@ class ScvmmCloudProvider implements CloudProvider {
 				containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.guest, guestVm:true,
 				provisionTypeCode:'scvmm'
 		)
-
 		//windows container host - not used
 		serverTypes << new ComputeServerType(code:'scvmmWindowsVm', name:'SCVMM Windows Instance', description:'', platform:PlatformType.windows,
 				nodeType:'morpheus-windows-vm-node', enabled:true, selectable:false, externalDelete:true, managed:true, controlPower:true,
@@ -385,7 +384,6 @@ class ScvmmCloudProvider implements CloudProvider {
 				containerHypervisor:false, bareMetalHost:false, vmHypervisor:false, agentType:ComputeServerType.AgentType.guest, guestVm:true,
 				provisionTypeCode:'scvmm'
 		)
-
 		serverTypes << new ComputeServerType(code:'scvmmUnmanaged', name:'SCVMM Instance', description:'scvmm vm', platform:PlatformType.linux,
 				nodeType:'unmanaged', enabled:true, selectable:false, externalDelete:true, managed:false, controlPower:true, controlSuspend:false,
 				creatable:false, computeService:'scvmmComputeService', displayOrder:99, hasAutomation:false, containerHypervisor:false,
@@ -403,14 +401,14 @@ class ScvmmCloudProvider implements CloudProvider {
 
 		//kubernetes
 		serverTypes << new ComputeServerType(code:'scvmmKubeMaster', name:'SCVMM Kubernetes Master', description:'', platform:PlatformType.linux,
-				nodeType:'kube-master', reconfigureSupported: true, enabled:true, selectable:false, externalDelete:true, managed:true,
+				nodeType:'kube-master', hasMaintenanceMode: true, reconfigureSupported: true, enabled:true, selectable:false, externalDelete:true, managed:true,
 				controlPower:true, controlSuspend:true, creatable:true, supportsConsoleKeymap: true, computeService:'scvmmComputeService',
 				displayOrder:10, hasAutomation:true, containerHypervisor:true, bareMetalHost:false, vmHypervisor:false,
 				agentType:ComputeServerType.AgentType.host, containerEngine:'docker', provisionTypeCode:'scvmm', computeTypeCode:'kube-master',
 				optionTypes:[hostOptionType]
 		)
 		serverTypes << new ComputeServerType(code:'scvmmKubeWorker', name:'SCVMM Kubernetes Worker', description:'', platform:PlatformType.linux,
-				nodeType:'kube-worker', reconfigureSupported: true, enabled:true, selectable:false, externalDelete:true, managed:true,
+				nodeType:'kube-worker', hasMaintenanceMode: true, reconfigureSupported: true, enabled:true, selectable:false, externalDelete:true, managed:true,
 				controlPower:true, controlSuspend:true, creatable:true, supportsConsoleKeymap: true, computeService:'scvmmComputeService',
 				displayOrder:10, hasAutomation:true, containerHypervisor:true, bareMetalHost:false, vmHypervisor:false,
 				agentType:ComputeServerType.AgentType.guest, containerEngine:'docker', provisionTypeCode:'scvmm', computeTypeCode:'kube-worker',
@@ -551,8 +549,8 @@ class ScvmmCloudProvider implements CloudProvider {
 				newServer.setConfigProperty('diskPath', cloud.getConfigProperty('diskPath'))
 			}
 
-			def maxStorage = serverInfo?.disks?.toLong() ?:0
-			def maxMemory = serverInfo?.memory?.toLong() ?:0
+			def maxStorage = serverInfo?.disks? serverInfo.disks.toLong()  :0L
+			def maxMemory = serverInfo?.memory? serverInfo.memory.toLong() : 0L
 			def maxCores = 1
 			newServer.serverOs = context.async.osType.find(new DataQuery().withFilter('code', versionCode)).blockingGet()
 			newServer.platform = 'windows'

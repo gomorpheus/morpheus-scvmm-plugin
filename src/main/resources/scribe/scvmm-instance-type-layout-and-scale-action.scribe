@@ -165,8 +165,8 @@ resource "instance-type-layout" "ubuntu-scvmm-18_04" {
   instanceType             = "ubuntu"
   serverCount              = 1
   portCount                = 1
-  enabled                  = true
-  creatable                = true
+  enabled                  = false
+  creatable                = false
   workloads                = [workload-type-set.ubuntu-scvmm-18_04-set]
   actions                  = ["ubuntu-add-node"]
   provisionType            = "scvmm"

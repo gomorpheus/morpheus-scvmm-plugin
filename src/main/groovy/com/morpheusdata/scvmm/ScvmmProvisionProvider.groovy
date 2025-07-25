@@ -69,8 +69,8 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 if (serverInfo.success == true && serverInfo.hostname) {
                     server.hostname = serverInfo.hostname
                 }
-                def maxStorage = serverInfo?.disks ? serverInfo?.disks.toLong() : 0
-                def maxMemory = serverInfo?.memory ? serverInfo?.memory.toLong() : 0
+                def maxStorage = serverInfo?.disks ? serverInfo?.disks.toLong() : 0L
+                def maxMemory = serverInfo?.memory ? serverInfo?.memory.toLong() : 0L
                 def maxCores = 1
 
 				// Create proper OS code format
@@ -163,6 +163,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 custom: false,
                 fieldClass: null
         )
+
         options << new OptionType(
                 name: 'capability profile',
                 code: 'provisionType.scvmm.capabilityProfile',
@@ -171,21 +172,20 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 fieldName: 'scvmmCapabilityProfile',
                 fieldContext: 'config',
                 fieldCode: 'gomorpheus.optiontype.CapabilityProfile',
-                fieldLabel: 'Capability Profile111',
+                fieldLabel: 'Capability Profile',
                 fieldGroup: 'Options',
                 displayOrder: 11,
                 required: true,
                 enabled: true,
                 editable: true,
                 global: false,
-                placeHolder: null,
-                helpBlock: '',
                 defaultValue: null,
                 custom: false,
                 fieldClass: null,
                 optionSource: 'scvmmCapabilityProfile',
                 optionSourceType: 'scvmm'
         )
+
         options << new OptionType(
                 code: 'provisionType.scvmm.host',
                 inputType: OptionType.InputType.SELECT,
@@ -202,8 +202,6 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 optionSource: 'scvmmHost',
                 editable: false,
                 global: false,
-                placeHolder: null,
-                helpBlock: '',
                 defaultValue: null,
                 custom: false,
                 displayOrder: 102,
@@ -239,6 +237,29 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 		)
 
 		nodeOptions << new OptionType(
+				code: 'provisionType.scvmm.custom.containerType.config.logVolume',
+				inputType: OptionType.InputType.TEXT,
+				name: 'log volume',
+				category: 'provisionType.scvmm.custom',
+				optionSourceType: 'scvmm',
+				optionSource: 'scvmmVirtualImages',
+				fieldName: 'logVolume',
+				fieldCode: 'gomorpheus.optiontype.LogVolume',
+				fieldLabel: 'Log Volume',
+				fieldContext: 'containerType.config',
+				fieldGroup: 'SCVMM Options',
+				noSelection: 'Select',
+				required: false,
+				enabled: true,
+				editable: true,
+				global: false,
+				defaultValue: null,
+				custom: false,
+				displayOrder: 4,
+				fieldClass: null,
+		)
+
+		nodeOptions << new OptionType(
 			code: 'provisionType.scvmm.custom.containerType.virtualImageId',
 			inputType: OptionType.InputType.SELECT,
 			name: 'virtual image',
@@ -249,17 +270,15 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			fieldCode: 'gomorpheus.optiontype.VirtualImage',
 			fieldLabel: 'Virtual Image',
 			fieldContext: 'domain',
-			fieldGroup: null,
+			fieldGroup: 'SCVMM VM Options',
 			noSelection: 'Select',
 			required: false,
 			enabled: true,
 			editable: true,
 			global: false,
-			placeHolder: null,
-			helpBlock: '',
 			defaultValue: null,
 			custom: false,
-			displayOrder: 12,
+			displayOrder: 3,
 			fieldClass: null,
 			visibleOnCode: 'virtualImageSelect:vi',
 		)
@@ -270,15 +289,16 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			code: 'provisionType.scvmm.custom.containerType.osTypeId',
 			fieldContext: 'domain',
 			fieldName: 'osType.id',
-			fieldCode: 'gomorpheus.label.osType',
+			fieldCode: 'gomorpheus.optiontype.OsType',
 			fieldLabel: 'OsType',
-			fieldGroup: null,
+			fieldGroup: 'SCVMM Options',
 			inputType: OptionType.InputType.SELECT,
-			displayOrder:15,
+			displayOrder:2,
 			fieldClass:null,
 			required: false,
 			editable: true,
 			noSelection: 'Select',
+			global: false,
 			optionSource: 'osTypes',
 			visibleOnCode: 'virtualImageSelect:os'
 		)
@@ -344,6 +364,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			custom:false,
 			fieldClass:null
 		)
+
 		nodeOptions << new OptionType(
 			code:'provisionType.scvmm.custom.containerType.statTypeCode',
 			inputType: OptionType.InputType.HIDDEN,
@@ -353,18 +374,17 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			fieldCode: 'gomorpheus.optiontype.StatTypeCode',
 			fieldLabel:'Stat Type Code',
 			fieldContext:'containerType',
-			fieldGroup: null,
+			fieldGroup: 'SCVMM Options',
 			required:false,
 			enabled:true,
 			editable:false,
 			global:false,
-			placeHolder:null,
-			helpBlock:'',
 			defaultValue:'scvmm',
 			custom:false,
-			displayOrder:101,
+			displayOrder:6,
 			fieldClass:null
 		)
+
 		nodeOptions << new OptionType(
 			code:'provisionType.scvmm.custom.containerType.logTypeCode',
 			inputType: OptionType.InputType.HIDDEN,
@@ -374,16 +394,14 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			fieldCode: 'gomorpheus.optiontype.LogTypeCode',
 			fieldLabel:'Log Type Code',
 			fieldContext:'containerType',
-			fieldGroup:	null,
+			fieldGroup:	'SCVMM Options',
 			required:false,
 			enabled:true,
 			editable:false,
 			global:false,
-			placeHolder:null,
-			helpBlock:'',
 			defaultValue:'scvmm',
 			custom:false,
-			displayOrder:102,
+			displayOrder:7,
 			fieldClass:null
 		)
 
@@ -396,16 +414,14 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			fieldCode: 'gomorpheus.optiontype.LayoutDescription',
 			fieldLabel: 'Layout Description',
 			fieldContext: 'instanceTypeLayout',
-			fieldGroup: null,
+			fieldGroup: 'SCVMM Options',
 			required: false,
 			enabled: true,
 			editable: false,
 			global: false,
-			placeHolder: null,
-			helpBlock: '',
 			defaultValue: 'This will provision a single vm container',
 			custom: false,
-			displayOrder: 103,
+			displayOrder: 8,
 			fieldClass: null
 		)
 
@@ -418,16 +434,14 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
 			fieldCode: 'gomorpheus.optiontype.BackupType',
 			fieldLabel: 'Backup Type',
 			fieldContext: 'instanceType',
-			fieldGroup: null,
+			fieldGroup: 'SCVMM Options',
 			required: false,
 			enabled: true,
 			editable: false,
 			global: false,
-			placeHolder: null,
-			helpBlock: '',
 			defaultValue: 'scvmmSnapshot',
 			custom: false,
-			displayOrder: 100,
+			displayOrder: 5,
 			fieldClass: null
 		)
 
@@ -1756,7 +1770,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 virtualImage = context.services.virtualImage.get(virtualImageId)
                 imageId = virtualImage.externalId
             } else {
-		virtualImage = new VirtualImage(code: 'scvmm.image.morpheus.ubuntu.22.04.20230918.amd64')
+		virtualImage = new VirtualImage(code: 'scvmm.image.morpheus.ubuntu.22.04.20250218.amd64')
                 //better this later
             }
 
@@ -1791,7 +1805,7 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
                 server.externalId = scvmmOpts.name
                 server.serverOs = server.serverOs ?: virtualImage.osType
                 server.osType = (virtualImage.osType?.platform == 'windows' ? 'windows' : 'linux') ?: virtualImage.platform
-                server.parentServer = node
+				server.parentServer = node
                 scvmmOpts.secureBoot = virtualImage?.uefi ?: false
                 scvmmOpts.imageId = imageId
                 scvmmOpts.scvmmGeneration = virtualImage?.getConfigProperty('generation') ?: 'generation1'

@@ -423,11 +423,11 @@ if(\$vm) {
         out = executeCommand(command, opts)
         log.debug("out: ${out.data}")
         rtn.osName = cleanData(out.data)
-        command = 'wmic computersystem get TotalPhysicalMemory'
+        command = '(Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property capacity -Sum).sum'
         out = executeCommand(command, opts)
         log.debug("out: ${out.data}")
         rtn.memory = cleanData(out.data, 'TotalPhysicalMemory')
-        command = 'wmic diskdrive get size'
+        command = '(Get-CimInstance Win32_DiskDrive | Measure-Object -Property Size -Sum).sum'
         out = executeCommand(command, opts)
         log.debug("out: ${out.data}")
         rtn.disks = cleanData(out.data, 'Size')

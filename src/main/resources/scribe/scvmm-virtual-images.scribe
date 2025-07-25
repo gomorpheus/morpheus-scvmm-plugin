@@ -1,12 +1,12 @@
 resource "virtual-image" "scvmm-image-morpheus-ubuntu-22_04" {
-  code               = "scvmm.image.morpheus.ubuntu.22.04.20230918.amd64"
+  code               = "scvmm.image.morpheus.ubuntu.22.04.20250218.amd64"
   category           = "scvmm.image.morpheus.ubuntu"
   sshUsername        = null
   sshPassword        = null
-  name               = "Morpheus Ubuntu 22.04 20230918"
+  name               = "Morpheus Ubuntu 22.04 20250218"
   imageType          = "vhd"
-  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20230918/ubuntu-22/morpheus-ubuntu-22_04-amd64-20230918.vhd.tar.gz"
-  imagePath          = "hyperv/20230918/ubuntu-22"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20250218/ubuntu-22/morpheus-ubuntu-22_04-amd64-20250218.vhd.tar.gz"
+  imagePath          = "hyperv/20250218/ubuntu-22"
   systemImage        = true
   installAgent       = true
   computeServerImage = false
@@ -22,9 +22,11 @@ resource "virtual-image" "scvmm-image-morpheus-ubuntu-22_04" {
 }
 
 resource "os-type-image" "scvmm-image-morpheus-ubuntu-22_04" {
-  code               = "scvmm.image.morpheus.ubuntu.22.04.20230918.amd64"
+  code               = "scvmm.image.morpheus.ubuntu.22.04.20250218.amd64"
   provisionType      = "scvmm"
-  virtualImage       = virtual-image.scvmm-image-morpheus-ubuntu-22_04
+  virtualImage       = {
+                        code = "scvmm.image.morpheus.ubuntu.22.04.20250218.amd64"
+  }
   account            = null
   osType = {
      code = "ubuntu.22.04.64"
@@ -246,7 +248,7 @@ resource "virtual-image" "scvmm-image-morpheus-debian-11-20250218" {
   sshPassword        = null
   name               = "Morpheus Debian 11 20250218"
   imageType          = "vhd"
-  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20250218/debian-11/morpheus-debian-11-x86_64-20250218.vhd.tar.gz"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20250218/debian-11/morpheus-debian-11-amd64-20250218.vhd.tar.gz"
   imagePath          = "hyperv/20250218/debian-11"
   systemImage        = true
   installAgent       = true
@@ -267,7 +269,7 @@ resource "virtual-image" "scvmm-image-morpheus-debian-12-20250218" {
   sshPassword        = null
   name               = "Morpheus Debian 12 20250218"
   imageType          = "vhd"
-  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20250218/debian-12/morpheus-debian-12-x86_64-20250218.vhd.tar.gz"
+  remotePath         = "https://s3-us-west-1.amazonaws.com/morpheus-images/hyperv/20250218/debian-12/morpheus-debian-12-amd64-20250218.vhd.tar.gz"
   imagePath          = "hyperv/20250218/debian-12"
   systemImage        = true
   installAgent       = true
@@ -466,7 +468,9 @@ resource "os-type-image" "scvmm-morpheus-ubuntu-18-04" {
 resource "os-type-image" "scvmm-morpheus-ubuntu-24-04" {
   code          = "scvmm-morpheus-ubuntu-24.04"
   provisionType = "scvmm"
-  virtualImage  = virtual-image.scvmm-image-morpheus-ubuntu-24-04-20250218
+  virtualImage  = {
+    code = "scvmm.image.morpheus.ubuntu.24.04.20250218.amd64"
+  }
   account       = null
   osType = {
      code = "ubuntu.24.04.64"
