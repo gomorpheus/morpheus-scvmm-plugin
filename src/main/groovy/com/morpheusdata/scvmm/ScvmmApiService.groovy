@@ -1450,7 +1450,7 @@ foreach (\$network in \$networks) {
     }
 
     static createAndAttachDisk(Map opts, Map diskSpec, Boolean returnDiskDrives=true) {
-        log.info("createAndAttachDisk - Adding new Virtual SCSI Disk VHDType:${diskSpec}")
+        LogWrapper.instance.info("createAndAttachDisk - Adding new Virtual SCSI Disk VHDType:${diskSpec}")
         String templateCmd = '''
 		#Morpheus will replace items in <%   %>
 		$vmId = "<%vmid%>"
