@@ -6,6 +6,8 @@ import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.core.util.SyncTask
 import com.morpheusdata.model.*
 import com.morpheusdata.model.projection.DatastoreIdentityProjection
+import com.morpheusdata.scvmm.logging.LogInterface
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 import io.reactivex.rxjava3.core.Observable
 
@@ -13,13 +15,13 @@ import io.reactivex.rxjava3.core.Observable
  * @author rahul.ray
  */
 
-@Slf4j
 class DatastoresSync {
 
     ComputeServer node
     private Cloud cloud
     private MorpheusContext context
     private ScvmmApiService apiService
+    private LogInterface log = LogWrapper.instance
 
     DatastoresSync(ComputeServer node, Cloud cloud, MorpheusContext context) {
         this.node = node

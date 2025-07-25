@@ -14,15 +14,17 @@ import com.morpheusdata.model.NetworkPoolType
 import com.morpheusdata.model.NetworkSubnet
 import com.morpheusdata.model.ResourcePermission
 import com.morpheusdata.model.projection.NetworkPoolIdentityProjection
+import com.morpheusdata.scvmm.logging.LogInterface
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 import org.apache.commons.net.util.SubnetUtils
 
-@Slf4j
 class IpPoolsSync {
 
     private MorpheusContext morpheusContext
     private Cloud cloud
     private ScvmmApiService apiService
+    private LogInterface log = LogWrapper.instance
 
     IpPoolsSync(MorpheusContext morpheusContext, Cloud cloud) {
         this.cloud = cloud

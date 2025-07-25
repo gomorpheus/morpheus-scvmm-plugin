@@ -10,6 +10,8 @@ import com.morpheusdata.model.Datastore
 import com.morpheusdata.model.StorageVolume
 import com.morpheusdata.model.projection.DatastoreIdentity
 import com.morpheusdata.model.projection.StorageVolumeIdentityProjection
+import com.morpheusdata.scvmm.logging.LogInterface
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 import io.reactivex.rxjava3.core.Observable
 
@@ -17,13 +19,13 @@ import io.reactivex.rxjava3.core.Observable
  * @author rahul.ray
  */
 
-@Slf4j
 class RegisteredStorageFileSharesSync {
 
     private Cloud cloud
     private ComputeServer node
     private MorpheusContext context
     private ScvmmApiService apiService
+    private LogInterface log = LogWrapper.instance
 
     RegisteredStorageFileSharesSync(Cloud cloud, ComputeServer node, MorpheusContext context) {
         this.cloud = cloud

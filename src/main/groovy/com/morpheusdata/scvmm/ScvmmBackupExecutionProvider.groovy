@@ -10,15 +10,17 @@ import com.morpheusdata.model.BackupResult
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.response.ServiceResponse
+import com.morpheusdata.scvmm.logging.LogInterface
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 
-@Slf4j
 class ScvmmBackupExecutionProvider implements BackupExecutionProvider {
 
 	ScvmmPlugin plugin
 	MorpheusContext morpheusContext
 	ScvmmProvisionProvider provisionProvider
 	ScvmmApiService apiService
+	private LogInterface log = LogWrapper.instance
 
 	ScvmmBackupExecutionProvider(ScvmmPlugin plugin, MorpheusContext morpheusContext) {
 		this.plugin = plugin

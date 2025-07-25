@@ -12,6 +12,8 @@ import com.morpheusdata.model.*
 import com.morpheusdata.model.projection.StorageVolumeIdentityProjection
 import com.morpheusdata.model.projection.VirtualImageIdentityProjection
 import com.morpheusdata.model.projection.VirtualImageLocationIdentityProjection
+import com.morpheusdata.scvmm.logging.LogInterface
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 import io.reactivex.rxjava3.core.Observable
 
@@ -19,13 +21,13 @@ import io.reactivex.rxjava3.core.Observable
  * @author rahul.ray
  */
 
-@Slf4j
 class TemplatesSync {
     private Cloud cloud
     private ComputeServer node
     private MorpheusContext context
     private ScvmmApiService apiService
     private CloudProvider cloudProvider
+    private LogInterface log = LogWrapper.instance
 
     TemplatesSync(Cloud cloud, ComputeServer node, MorpheusContext context, CloudProvider cloudProvider) {
         this.cloud = cloud

@@ -6,13 +6,15 @@ import com.morpheusdata.core.util.ComputeUtility
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.KeyPair
+import com.morpheusdata.scvmm.logging.LogInterface
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.json.JsonOutput
 import groovy.util.logging.Slf4j
 import com.bertramlabs.plugins.karman.CloudFile
 
-@Slf4j
 class ScvmmApiService {
     MorpheusContext morpheusContext
+    private LogInterface log = LogWrapper.instance
 
     ScvmmApiService(MorpheusContext morpheusContext) {
         this.morpheusContext = morpheusContext
@@ -1448,7 +1450,7 @@ foreach (\$network in \$networks) {
     }
 
     static createAndAttachDisk(Map opts, Map diskSpec, Boolean returnDiskDrives=true) {
-        log.info("createAndAttachDisk - Adding new Virtual SCSI Disk VHDType:${diskSpec}")
+        LogWrapper.instance.info("createAndAttachDisk - Adding new Virtual SCSI Disk VHDType:${diskSpec}")
         String templateCmd = '''
 		#Morpheus will replace items in <%   %>
 		$vmId = "<%vmid%>"

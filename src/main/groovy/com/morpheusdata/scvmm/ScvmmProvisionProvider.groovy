@@ -22,9 +22,10 @@ import com.morpheusdata.response.PrepareWorkloadResponse
 import com.morpheusdata.response.ProvisionResponse
 import com.morpheusdata.response.ServiceResponse
 import com.morpheusdata.scvmm.helper.morpheus.types.StorageVolumeTypeHelper
+import com.morpheusdata.scvmm.logging.LogInterface
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 
-@Slf4j
 class ScvmmProvisionProvider extends AbstractProvisionProvider implements WorkloadProvisionProvider, HostProvisionProvider, ProvisionProvider.HypervisorProvisionFacet, HostProvisionProvider.ResizeFacet, WorkloadProvisionProvider.ResizeFacet, ProvisionProvider.BlockDeviceNameFacet {
     public static final String PROVIDER_CODE = 'scvmm.provision'
     public static final String PROVISION_TYPE_CODE = 'scvmm'
@@ -33,8 +34,9 @@ class ScvmmProvisionProvider extends AbstractProvisionProvider implements Worklo
     protected MorpheusContext context
     protected ScvmmPlugin plugin
     ScvmmApiService apiService
+	private LogInterface log = LogWrapper.instance
 
-    public ScvmmProvisionProvider(ScvmmPlugin plugin, MorpheusContext context) {
+    ScvmmProvisionProvider(ScvmmPlugin plugin, MorpheusContext context) {
         super()
         this.@context = context
         this.@plugin = plugin

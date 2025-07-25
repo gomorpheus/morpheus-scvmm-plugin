@@ -9,14 +9,16 @@ import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.core.util.MorpheusUtils
 import com.morpheusdata.model.Cloud
 import com.morpheusdata.model.ComputeServer
+import com.morpheusdata.scvmm.logging.LogInterface
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 
-@Slf4j
 class ScvmmOptionSourceProvider implements OptionSourceProvider {
 
 	ScvmmPlugin plugin
 	MorpheusContext morpheusContext
 	private ScvmmApiService apiService
+	private LogInterface log = LogWrapper.instance
 
 	ScvmmOptionSourceProvider(ScvmmPlugin plugin, MorpheusContext context) {
 		this.plugin = plugin

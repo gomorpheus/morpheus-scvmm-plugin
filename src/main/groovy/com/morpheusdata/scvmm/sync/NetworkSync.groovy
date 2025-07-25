@@ -16,14 +16,16 @@ import com.morpheusdata.model.NetworkSubnetType
 import com.morpheusdata.model.NetworkType
 import com.morpheusdata.model.projection.NetworkIdentityProjection
 import com.morpheusdata.model.projection.NetworkSubnetIdentityProjection
+import com.morpheusdata.scvmm.logging.LogInterface
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 
-@Slf4j
 class NetworkSync {
 
     private MorpheusContext morpheusContext
     private Cloud cloud
     private ScvmmApiService apiService
+    private LogInterface log = LogWrapper.instance
 
     NetworkSync(MorpheusContext morpheusContext, Cloud cloud) {
         this.cloud = cloud

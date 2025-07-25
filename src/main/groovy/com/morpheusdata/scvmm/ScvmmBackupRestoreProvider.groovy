@@ -9,14 +9,16 @@ import com.morpheusdata.model.BackupRestore;
 import com.morpheusdata.model.BackupResult;
 import com.morpheusdata.model.Backup;
 import com.morpheusdata.model.Instance
+import com.morpheusdata.scvmm.logging.LogInterface
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 
-@Slf4j
 class ScvmmBackupRestoreProvider implements BackupRestoreProvider {
 
 	Plugin plugin
 	MorpheusContext morpheusContext
 	ScvmmApiService apiService
+	private LogInterface log = LogWrapper.instance
 
 	ScvmmBackupRestoreProvider(Plugin plugin, MorpheusContext morpheusContext) {
 		this.plugin = plugin

@@ -1,6 +1,8 @@
 package com.morpheusdata.scvmm
 
 import com.morpheusdata.scvmm.helper.morpheus.types.StorageVolumeTypeHelper
+import com.morpheusdata.scvmm.logging.LogInterface
+import com.morpheusdata.scvmm.logging.LogWrapper
 import com.morpheusdata.scvmm.sync.CloudCapabilityProfilesSync
 import com.morpheusdata.scvmm.sync.ClustersSync
 import com.morpheusdata.scvmm.sync.DatastoresSync
@@ -25,15 +27,15 @@ import com.morpheusdata.scvmm.sync.TemplatesSync
 import com.morpheusdata.scvmm.sync.VirtualMachineSync
 import groovy.util.logging.Slf4j
 
-@Slf4j
 class ScvmmCloudProvider implements CloudProvider {
 	public static final String CLOUD_PROVIDER_CODE = 'scvmm'
 
 	protected MorpheusContext context
 	protected ScvmmPlugin plugin
 	ScvmmApiService apiService
+	private LogInterface log = LogWrapper.instance
 
-	public ScvmmCloudProvider(ScvmmPlugin plugin, MorpheusContext context) {
+	ScvmmCloudProvider(ScvmmPlugin plugin, MorpheusContext context) {
 		super()
 		this.@plugin = plugin
 		this.@context = context

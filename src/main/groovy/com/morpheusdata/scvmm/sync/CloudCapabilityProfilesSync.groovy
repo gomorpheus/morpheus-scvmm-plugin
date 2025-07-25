@@ -4,14 +4,16 @@ import com.morpheusdata.scvmm.ScvmmApiService
 import com.morpheusdata.core.MorpheusContext
 import com.morpheusdata.core.data.DataQuery
 import com.morpheusdata.model.Cloud
+import com.morpheusdata.scvmm.logging.LogInterface
+import com.morpheusdata.scvmm.logging.LogWrapper
 import groovy.util.logging.Slf4j
 
-@Slf4j
 class CloudCapabilityProfilesSync {
 
     private MorpheusContext morpheusContext
     private Cloud cloud
     private ScvmmApiService apiService
+    private LogInterface log = LogWrapper.instance
 
     CloudCapabilityProfilesSync(MorpheusContext morpheusContext, Cloud cloud) {
         this.cloud = cloud
